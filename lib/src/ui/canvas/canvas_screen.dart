@@ -9,6 +9,7 @@ import '../../application/gallery_controller.dart';
 import '../../domain/brush/brush_preset.dart';
 import '../../domain/gallery/sketch.dart';
 import '../theme/atelier_theme.dart';
+import '../widgets/brush_preview.dart';
 import 'color_picker.dart';
 import 'draw_surface.dart';
 import 'v_slider.dart';
@@ -184,6 +185,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
                         key: _drawKey,
                         controller: _c,
                         surface: _surface,
+                        clock: widget.dependencies.clock,
                         background: _background,
                       ),
                     ),
@@ -413,6 +415,16 @@ class _BrushSheet extends StatelessWidget {
       children: [
         for (final brush in brushPresets)
           ListTile(
+            leading: DecoratedBox(
+              decoration: BoxDecoration(
+                color: AtelierTokens.paper,
+                borderRadius: BorderRadius.circular(AtelierTokens.rSm),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: BrushPreview(brushKey: brush.key, width: 72, height: 36),
+              ),
+            ),
             title: Text(
               brush.name,
               style: const TextStyle(color: AtelierTokens.ink),

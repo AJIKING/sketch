@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 import '../../application/canvas_controller.dart';
+import '../../core/clock.dart';
 import 'canvas_painter.dart';
 import 'painted_stroke.dart';
 import 'vector_canvas_surface.dart';
@@ -18,11 +19,16 @@ class DrawSurface extends StatefulWidget {
     super.key,
     required this.controller,
     required this.surface,
+    required this.clock,
     this.background,
   });
 
   final CanvasController controller;
   final VectorCanvasSurface surface;
+
+  /// 速度(→ ink の筆幅)を実時間に縛られず測るための時間源(ADR 0003)。
+  final Clock clock;
+
   final ui.Image? background;
 
   @override
@@ -36,6 +42,8 @@ class DrawSurfaceState extends State<DrawSurface> {
   int _seed = 0;
 
   CanvasController get _c => widget.controller;
+
+  double get _nowMs => widget.clock.now().millisecondsSinceEpoch.toDouble();
 
   @override
   void dispose() {
@@ -60,7 +68,7 @@ class DrawSurfaceState extends State<DrawSurface> {
       seed: _seed++,
     );
     widget.surface.add(_c.layers.active.id, stroke);
-    stroke.points.add(e.localPosition);
+    stroke.addPoint(e.localPosition, _nowMs);
     _current = stroke;
     _tick.value++;
   }
@@ -68,7 +76,7 @@ class DrawSurfaceState extends State<DrawSurface> {
   void _onMove(PointerMoveEvent e) {
     final stroke = _current;
     if (stroke == null) return;
-    stroke.points.add(e.localPosition);
+    stroke.addPoint(e.localPosition, _nowMs);
     _tick.value++;
   }
 
