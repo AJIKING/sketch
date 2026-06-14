@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sketch/src/application/canvas_controller.dart';
+import 'package:sketch/src/application/vector_controller.dart';
+import 'package:sketch/src/domain/vector/vector_object.dart';
 import 'package:sketch/src/ui/canvas/draw_surface.dart';
 import 'package:sketch/src/ui/canvas/raster_layer_store.dart';
 
@@ -311,6 +313,78 @@ void main() {
 
     expect(before, isNotNull);
     expect(after, equals(before)); // ズームしても出力は同一
+  });
+
+  Future<void> pumpVector(
+    WidgetTester tester,
+    CanvasController c,
+    RasterLayerStore s,
+    VectorController v,
+  ) {
+    return tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 200,
+              height: 200,
+              child: DrawSurface(
+                controller: c,
+                surface: s,
+                clock: FakeClock(),
+                transforming: ValueNotifier<bool>(false),
+                vector: v,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  testWidgets('ベクターモード: ドラッグでベクターを追加し、ラスターは焼かれない', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final vector = VectorController()..setEnabled(true);
+    await pumpVector(tester, controller, surface, vector);
+
+    expect(vector.count, 0);
+    await tester.drag(find.byType(DrawSurface), const Offset(60, 20));
+    await tester.pump();
+
+    expect(vector.count, 1);
+    expect(vector.selected, isA<VectorStroke>());
+    // ラスターレイヤーには焼き込まれない。
+    expect(surface.imageOf(controller.layers.active.id), isNull);
+    expect(controller.canUndo, isFalse);
+  });
+
+  testWidgets('ベクターモード: 選択ツールでオブジェクトを掴んで移動できる', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final vector = VectorController()..setEnabled(true);
+    await pumpVector(tester, controller, surface, vector);
+
+    // 中心(100,100)から描いてストロークを作る。
+    await tester.drag(find.byType(DrawSurface), const Offset(40, 0));
+    await tester.pump();
+    final id = vector.selectedId;
+    expect(id, isNotNull);
+
+    // 選択ツールで中心(始点付近)を掴んで +30 移動。
+    controller.selectTool(Tool.select);
+    await tester.pump();
+    await tester.drag(find.byType(DrawSurface), const Offset(30, 0));
+    await tester.pump();
+
+    expect(vector.selectedId, id); // 同じオブジェクトを選択
+    final moved = vector.layer.byId(id!)! as VectorStroke;
+    expect(moved.points.first.x, closeTo(130, 1)); // 100 → 130
+    vector.undo(); // 移動全体が 1 回で戻る
+    expect(
+      (vector.layer.byId(id)! as VectorStroke).points.first.x,
+      closeTo(100, 1),
+    );
   });
 
   testWidgets('グラデブラシ: 2色目を持つストロークが焼き込まれる', (tester) async {

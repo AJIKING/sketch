@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../application/canvas_controller.dart';
 import '../../application/dependencies.dart';
 import '../../application/gallery_controller.dart';
+import '../../application/vector_controller.dart';
 import '../../domain/brush/brush_preset.dart';
 import '../../domain/canvas/filters.dart' as filters;
 import '../../domain/canvas/gradient_kind.dart';
@@ -52,6 +53,8 @@ class _CanvasScreenState extends State<CanvasScreen> {
     surface: _surface,
     paletteStore: widget.dependencies.paletteStore,
   );
+  final VectorController _vec = VectorController();
+  late final Listenable _repaint = Listenable.merge([_c, _vec]);
 
   late final String _id =
       widget.existing?.id ??
@@ -79,6 +82,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
   void dispose() {
     _transforming.dispose();
     _c.dispose();
+    _vec.dispose();
     _surface.disposeAll(); // ライブのレイヤー画像を解放(履歴画像とは別オブジェクト)
     super.dispose();
   }
@@ -394,7 +398,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
       backgroundColor: AtelierTokens.shell,
       body: SafeArea(
         child: ListenableBuilder(
-          listenable: _c,
+          listenable: _repaint,
           builder: (context, _) {
             return Stack(
               children: [
@@ -414,6 +418,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
                         surface: _surface,
                         clock: widget.dependencies.clock,
                         transforming: _transforming,
+                        vector: _vec,
                         // 2 本指ダブルタップでツール UI を表示/非表示。
                         onToggleUi: () =>
                             setState(() => _uiVisible = !_uiVisible),
@@ -443,6 +448,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
                   ),
                 ),
                 _transformBar(),
+                if (_uiVisible && _vec.enabled) _vectorBar(),
                 if (!_uiVisible) _showUiButton(),
               ],
             );
@@ -550,6 +556,60 @@ class _CanvasScreenState extends State<CanvasScreen> {
     );
   }
 
+  // ベクターモードの編集バー(ドック上・選択オブジェクトの操作と undo/redo)。
+  Widget _vectorBar() {
+    final hasSel = _vec.hasSelection;
+    return Positioned(
+      bottom: 78,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: AtelierTokens.surface3,
+            borderRadius: BorderRadius.circular(AtelierTokens.rLg),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.undo),
+                tooltip: 'ベクターを取り消す',
+                onPressed: _vec.canUndo ? _vec.undo : null,
+              ),
+              IconButton(
+                icon: const Icon(Icons.redo),
+                tooltip: 'ベクターをやり直す',
+                onPressed: _vec.canRedo ? _vec.redo : null,
+              ),
+              const SizedBox(
+                width: 1,
+                height: 24,
+                child: ColoredBox(color: AtelierTokens.inkDim),
+              ),
+              IconButton(
+                icon: const Icon(Icons.palette_outlined),
+                tooltip: '選択を現在色にする',
+                onPressed: hasSel
+                    ? () => _vec.recolorSelected(_c.colorHex)
+                    : null,
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.delete_outline,
+                  color: AtelierTokens.vermilion,
+                ),
+                tooltip: '選択を削除',
+                onPressed: hasSel ? _vec.deleteSelected : null,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // 変形モード中の確定/取消バー(画面上部中央)。
   Widget _transformBar() {
     return Positioned(
@@ -627,6 +687,20 @@ class _CanvasScreenState extends State<CanvasScreen> {
                       icon: const Icon(Icons.transform),
                       tooltip: '変形',
                       onPressed: () => _drawKey.currentState?.enterTransform(),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.timeline),
+                      tooltip: _vec.enabled ? 'ベクター: ON' : 'ベクター: OFF',
+                      isSelected: _vec.enabled,
+                      style: IconButton.styleFrom(
+                        backgroundColor: _vec.enabled
+                            ? AtelierTokens.vermilion
+                            : null,
+                        foregroundColor: _vec.enabled
+                            ? AtelierTokens.paper
+                            : AtelierTokens.ink,
+                      ),
+                      onPressed: () => _vec.setEnabled(!_vec.enabled),
                     ),
                   ],
                 ),

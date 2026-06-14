@@ -5,11 +5,13 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../../application/canvas_controller.dart';
+import '../../application/vector_controller.dart';
 import '../../core/clock.dart';
 import '../../domain/canvas/gradient_kind.dart';
 import '../../domain/canvas/pixel_ops.dart';
 import '../../domain/canvas/selection_kind.dart';
 import '../../domain/color/ink_color.dart';
+import '../../domain/vector/vector_object.dart';
 import '../theme/atelier_theme.dart';
 import 'painted_stroke.dart';
 import 'raster_layer_store.dart';
@@ -33,10 +35,14 @@ class DrawSurface extends StatefulWidget {
     required this.clock,
     required this.transforming,
     this.onToggleUi,
+    this.vector,
   });
 
   final CanvasController controller;
   final RasterLayerStore surface;
+
+  /// ベクターオーバーレイ(ADR 0005 Phase 2)。null なら無効。
+  final VectorController? vector;
 
   /// 速度(→ ink の筆幅)を実時間に縛られず測るための時間源(ADR 0003)。
   final Clock clock;
@@ -95,6 +101,12 @@ class DrawSurfaceState extends State<DrawSurface> {
   Map<int, Offset>? _g2Anchors; // 開始時の指位置(view 空間)
   bool _g2Moved = false; // ピンチ/パン等で動いたか(動いたらタップ扱いしない)
   double _lastG2TapMs = -1e9; // 直近の 2 本指タップ時刻
+  // ベクターモードの進行中操作(canvas/doc 空間)。
+  List<Offset>? _vecStrokePts; // 描画中のストローク点列
+  Offset? _vecShapeStart, _vecShapeEnd; // 描画中の図形
+  bool _vecMoving = false; // 選択オブジェクトの移動中
+  Offset? _vecLastPos; // 移動の前回位置
+
   static const int _g2TapMs = 320; // タップとみなす最大接触時間
   static const int _g2DoubleMs = 450; // 2 タップ間の最大間隔(離上→離上)
   static const double _g2Slop = 16; // タップとみなす最大移動量(view 空間)
@@ -103,14 +115,23 @@ class DrawSurfaceState extends State<DrawSurface> {
   void initState() {
     super.initState();
     widget.controller.addListener(_onControllerChanged);
+    widget.vector?.addListener(_onVectorChanged);
   }
 
   @override
   void dispose() {
     widget.controller.removeListener(_onControllerChanged);
+    widget.vector?.removeListener(_onVectorChanged);
     _longPressTimer?.cancel();
     super.dispose();
   }
+
+  /// ベクター状態の変化(選択・undo 等)で再描画する。
+  void _onVectorChanged() {
+    if (mounted) setState(() {});
+  }
+
+  bool get _vectorMode => widget.vector?.enabled ?? false;
 
   /// 外部からの状態変更(ツール変更・レイヤー操作・undo/redo 等)で、進行中の
   /// 操作を無効化する。これらの変更中はコントローラが通知するが、通常の描画
@@ -262,6 +283,7 @@ class DrawSurfaceState extends State<DrawSurface> {
         _shapeEnd = null;
         _shapeLayerId = null;
         _selDraft = null;
+        _vecCancelInProgress();
         // 2 本指タップ検出の起点を記録(動かなければタップ扱い)。
         _g2StartMs = _nowMs;
         _g2Anchors = Map<int, Offset>.from(_pointers);
@@ -276,6 +298,11 @@ class DrawSurfaceState extends State<DrawSurface> {
     }
     if (_inTransform) {
       _lastPanPos = e.localPosition; // 1 本指で移動
+      return;
+    }
+    if (_vectorMode) {
+      _vecDown(e.localPosition);
+      setState(() {});
       return;
     }
     _startLongPress(e.localPosition); // 1 本指長押しでスポイト
@@ -360,6 +387,12 @@ class DrawSurfaceState extends State<DrawSurface> {
       setState(() {});
       return;
     }
+    if (_vectorMode &&
+        (_vecStrokePts != null || _vecShapeStart != null || _vecMoving)) {
+      _vecMove(e.localPosition);
+      setState(() {});
+      return;
+    }
     if (_selDraft != null) {
       final p = _viewport.toCanvas(e.localPosition);
       if (_c.selectionKind == SelectionKind.rectangle) {
@@ -416,6 +449,12 @@ class DrawSurfaceState extends State<DrawSurface> {
       _lastPanPos = null;
       return;
     }
+    if (_vectorMode &&
+        (_vecStrokePts != null || _vecShapeStart != null || _vecMoving)) {
+      _vecUp(e.localPosition);
+      setState(() {});
+      return;
+    }
     if (_current != null) {
       _bake(_current!, _currentLayerId!);
       _current = null;
@@ -467,6 +506,7 @@ class DrawSurfaceState extends State<DrawSurface> {
     _shapeEnd = null;
     _shapeLayerId = null;
     _selDraft = null;
+    _vecCancelInProgress();
     if (gesturing && (id == _idA || id == _idB)) {
       if (_pointers.length >= 2) {
         _startGesture();
@@ -881,10 +921,120 @@ class DrawSurfaceState extends State<DrawSurface> {
       liveLayerId: null,
       viewport: const ViewportTransform(), // 等倍・無回転で全体を出力
       docSize: _docSize,
+      vectorLayer: widget.vector?.layer, // ベクター層も焼き込む
     ).paint(canvas, Size(w.toDouble(), h.toDouble()));
     final image = await recorder.endRecording().toImage(w, h);
     final data = await image.toByteData(format: ui.ImageByteFormat.png);
     return data?.buffer.asUint8List();
+  }
+
+  // ---- vector mode pointer handlers (canvas/doc 空間) ----
+  VecPoint _vp(Offset c) => VecPoint(c.dx, c.dy);
+
+  void _vecCancelInProgress() {
+    _vecStrokePts = null;
+    _vecShapeStart = null;
+    _vecShapeEnd = null;
+    _vecMoving = false;
+    _vecLastPos = null;
+  }
+
+  void _vecDown(Offset viewPos) {
+    final c = _viewport.toCanvas(viewPos);
+    final vec = widget.vector!;
+    switch (_c.tool) {
+      case Tool.select:
+        if (vec.selectAt(_vp(c))) {
+          vec.beginMove();
+          _vecMoving = true;
+          _vecLastPos = c;
+        }
+      case Tool.shape:
+        _vecShapeStart = c;
+        _vecShapeEnd = c;
+      default:
+        _vecStrokePts = [c]; // brush ほかはストローク
+    }
+  }
+
+  void _vecMove(Offset viewPos) {
+    final c = _viewport.toCanvas(viewPos);
+    if (_vecMoving) {
+      final last = _vecLastPos;
+      if (last != null) {
+        widget.vector!.moveSelectedBy(c.dx - last.dx, c.dy - last.dy);
+      }
+      _vecLastPos = c;
+      return;
+    }
+    if (_vecShapeStart != null) {
+      _vecShapeEnd = c;
+      return;
+    }
+    if (_vecStrokePts != null) _vecStrokePts!.add(c);
+  }
+
+  void _vecUp(Offset viewPos) {
+    final vec = widget.vector!;
+    if (_vecMoving) {
+      _vecMoving = false;
+      _vecLastPos = null;
+      return;
+    }
+    final shapeStart = _vecShapeStart;
+    if (shapeStart != null) {
+      final end = _snapEnd(shapeStart, _vecShapeEnd ?? shapeStart);
+      _vecShapeStart = null;
+      _vecShapeEnd = null;
+      if ((end - shapeStart).distance > 2) {
+        vec.addShape(
+          kind: _c.shapeKind,
+          start: _vp(shapeStart),
+          end: _vp(end),
+          colorHex: _c.colorHex,
+          width: _c.size,
+          filled: _c.shapeFilled,
+        );
+      }
+      return;
+    }
+    final pts = _vecStrokePts;
+    _vecStrokePts = null;
+    if (pts != null) {
+      vec.addStroke(
+        [for (final p in pts) _vp(p)],
+        colorHex: _c.colorHex,
+        width: _c.size,
+      );
+    }
+  }
+
+  /// 描画中ベクターのプレビュー(無ければ null)。
+  VectorObject? _buildLiveVector() {
+    if (!_vectorMode) return null;
+    final pts = _vecStrokePts;
+    if (pts != null && pts.isNotEmpty) {
+      return VectorStroke(
+        id: '__live__',
+        colorHex: _c.colorHex,
+        width: _c.size,
+        points: [for (final p in pts) _vp(p)],
+      );
+    }
+    final a = _vecShapeStart;
+    if (a != null) {
+      final b = _snapEnd(a, _vecShapeEnd ?? a);
+      return VectorShapeObject(
+        id: '__live__',
+        colorHex: _c.colorHex,
+        width: _c.size,
+        kind: _c.shapeKind,
+        start: _vp(a),
+        end: _vp(b),
+        filled: _c.shapeFilled,
+      );
+    }
+    return null;
   }
 
   LiveShape? _buildLiveShape() {
@@ -929,6 +1079,9 @@ class DrawSurfaceState extends State<DrawSurface> {
                 selection: _displaySelection(),
                 transformLayerId: _transformLayerId,
                 layerTransform: _layerTransform,
+                vectorLayer: widget.vector?.layer,
+                liveVector: _buildLiveVector(),
+                selectedVectorId: widget.vector?.selectedId,
               ),
               size: Size.infinite,
             ),

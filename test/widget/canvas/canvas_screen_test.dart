@@ -97,6 +97,29 @@ void main() {
     expect(find.byTooltip('ツールを表示(2本指ダブルタップでも切替)'), findsNothing);
   });
 
+  testWidgets('ベクターをONにすると編集バーが出て、描画→取り消しできる', (tester) async {
+    await tester.pumpWidget(_app());
+    await tester.pump();
+
+    expect(find.byTooltip('ベクター: OFF'), findsOneWidget);
+    await tester.tap(find.byTooltip('ベクター: OFF'));
+    await tester.pump();
+    expect(find.byTooltip('ベクター: ON'), findsOneWidget);
+
+    // 編集バーの undo は最初は無効。
+    final undo = find.ancestor(
+      of: find.byTooltip('ベクターを取り消す'),
+      matching: find.byType(IconButton),
+    );
+    expect(undo, findsOneWidget);
+    expect(tester.widget<IconButton>(undo).onPressed, isNull);
+
+    // ベクターを描く → 取り消し可能になる。
+    await tester.drag(find.byType(DrawSurface), const Offset(60, 20));
+    await tester.pump();
+    expect(tester.widget<IconButton>(undo).onPressed, isNotNull);
+  });
+
   testWidgets('変形モード中はツール UI が無効化される(Phase3b)', (tester) async {
     await tester.pumpWidget(_app());
     await tester.pump();

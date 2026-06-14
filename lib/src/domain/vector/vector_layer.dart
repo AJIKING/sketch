@@ -33,6 +33,13 @@ class VectorLayer {
 
   void clear() => _objects.clear();
 
+  /// 中身を [objects] で丸ごと置き換える(undo/redo の復元用)。
+  void replaceAll(Iterable<VectorObject> objects) {
+    _objects
+      ..clear()
+      ..addAll(objects);
+  }
+
   /// [p] に当たる最前面のオブジェクトを返す(無ければ null)。
   VectorObject? hitTest(VecPoint p, {double tolerance = 8}) {
     for (var i = _objects.length - 1; i >= 0; i--) {

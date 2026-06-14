@@ -4,12 +4,15 @@ import 'package:flutter/rendering.dart';
 
 import '../../domain/canvas/layer_stack.dart';
 import '../../domain/color/ink_color.dart';
+import '../../domain/vector/vector_layer.dart';
+import '../../domain/vector/vector_object.dart';
 import '../theme/atelier_theme.dart';
 import 'blend_mode_map.dart';
 import 'painted_stroke.dart';
 import 'raster_layer_store.dart';
 import 'shape_render.dart';
 import 'stroke_render.dart';
+import 'vector_render.dart';
 import 'viewport_transform.dart';
 
 /// レイヤー画像を紙の上に合成して描く(ADR 0004 / Phase1)。
@@ -29,6 +32,9 @@ class RasterPainter extends CustomPainter {
     this.selection,
     this.transformLayerId,
     this.layerTransform = const ViewportTransform(),
+    this.vectorLayer,
+    this.liveVector,
+    this.selectedVectorId,
     super.repaint,
   });
 
@@ -50,6 +56,15 @@ class RasterPainter extends CustomPainter {
 
   /// [transformLayerId] のレイヤー画像に適用する変形(プレビュー)。
   final ViewportTransform layerTransform;
+
+  /// ラスター層の上に重ねる確定ベクター層(ADR 0005, 無ければ null)。
+  final VectorLayer? vectorLayer;
+
+  /// 描画中のベクターオブジェクト(プレビュー、無ければ null)。
+  final VectorObject? liveVector;
+
+  /// 選択中ベクターオブジェクトの id(枠を描く、無ければ null)。
+  final String? selectedVectorId;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -74,6 +89,13 @@ class RasterPainter extends CustomPainter {
       i = j;
     }
 
+    // ラスター層の上にベクターオーバーレイ(確定 + 描画中)を重ねる。
+    final vec = vectorLayer;
+    if (vec != null) renderVectorLayer(canvas, vec);
+    final live = liveVector;
+    if (live != null) renderVectorObject(canvas, live);
+    _paintVectorSelection(canvas);
+
     final sel = selection;
     if (sel != null) {
       // 黒+白の二重線で、どの背景でも視認できる選択アウトライン。
@@ -93,6 +115,31 @@ class RasterPainter extends CustomPainter {
       );
     }
     canvas.restore();
+  }
+
+  /// 選択中ベクターオブジェクトの外接矩形を破線風の二重線で示す。
+  void _paintVectorSelection(Canvas canvas) {
+    final id = selectedVectorId;
+    final vec = vectorLayer;
+    if (id == null || vec == null) return;
+    final object = vec.byId(id);
+    if (object == null) return;
+    final b = object.bounds;
+    final rect = Rect.fromLTRB(b.left, b.top, b.right, b.bottom).inflate(6);
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5
+        ..color = const Color(0xCC000000),
+    );
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..color = const Color(0xFFFFFFFF),
+    );
   }
 
   void _paintGroup(
