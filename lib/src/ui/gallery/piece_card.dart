@@ -12,16 +12,21 @@ class PieceCard extends StatelessWidget {
     required this.sketch,
     required this.imageFuture,
     required this.onTap,
+    this.onLongPress,
   });
 
   final Sketch sketch;
   final Future<Uint8List?> imageFuture;
   final VoidCallback onTap;
 
+  /// 長押し(複製・削除メニュー)。null なら無効。
+  final VoidCallback? onLongPress;
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

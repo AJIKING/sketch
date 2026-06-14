@@ -77,6 +77,7 @@ class GalleryScreen extends StatelessWidget {
                           sketch: sketch,
                           imageFuture: controller.image(sketch.id),
                           onTap: () => onOpenSketch(sketch),
+                          onLongPress: () => _showActions(context, sketch),
                         ),
                     ],
                   ),
@@ -87,6 +88,78 @@ class GalleryScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// 長押しメニュー(複製・削除)。
+  void _showActions(BuildContext context, Sketch sketch) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AtelierTokens.surface,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.copy_all_outlined),
+              title: const Text(
+                '複製',
+                style: TextStyle(color: AtelierTokens.ink),
+              ),
+              onTap: () async {
+                Navigator.of(sheetContext).pop();
+                final messenger = ScaffoldMessenger.of(context);
+                final copy = await controller.duplicate(sketch.id);
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(copy != null ? '複製しました' : '複製できませんでした'),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.delete_outline,
+                color: AtelierTokens.vermilion,
+              ),
+              title: const Text(
+                '削除',
+                style: TextStyle(color: AtelierTokens.vermilion),
+              ),
+              onTap: () async {
+                Navigator.of(sheetContext).pop();
+                final ok = await _confirmDelete(context);
+                if (ok) await controller.remove(sketch.id);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<bool> _confirmDelete(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('スケッチを削除しますか?'),
+        content: const Text('この操作は取り消せません。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text(
+              '削除',
+              style: TextStyle(color: AtelierTokens.vermilion),
+            ),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 }
 

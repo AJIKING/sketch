@@ -56,4 +56,22 @@ void main() {
     expect(c.count, 0);
     expect(await c.image('a'), isNull);
   });
+
+  test('複製は画像をコピーし、新 id・コピー名で増える', () async {
+    await c.save(id: 'a', png: _png(7), title: '朝の習作');
+    final copy = await c.duplicate('a');
+
+    expect(copy, isNotNull);
+    expect(copy!.id, isNot('a'));
+    expect(copy.title, '朝の習作 のコピー');
+    expect(c.count, 2);
+    expect(await c.image(copy.id), [0x89, 7]); // 画像が同一
+    // 元は残る。
+    expect(await c.image('a'), [0x89, 7]);
+  });
+
+  test('存在しない id の複製は null', () async {
+    expect(await c.duplicate('missing'), isNull);
+    expect(c.count, 0);
+  });
 }
