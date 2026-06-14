@@ -268,9 +268,21 @@ class _CanvasScreenState extends State<CanvasScreen> {
                     ),
                   ),
                 ),
-                _topBar(),
-                _leftRail(),
-                _dock(),
+                // 変形モード中はツール UI を無効化(誤操作・状態破壊を防ぐ)。
+                Positioned.fill(
+                  child: ValueListenableBuilder<bool>(
+                    valueListenable: _transforming,
+                    builder: (context, transforming, _) => IgnorePointer(
+                      ignoring: transforming,
+                      child: Opacity(
+                        opacity: transforming ? 0.35 : 1,
+                        child: Stack(
+                          children: [_topBar(), _leftRail(), _dock()],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
                 _transformBar(),
               ],
             );

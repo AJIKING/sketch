@@ -60,6 +60,24 @@ void main() {
     expect(find.byTooltip('スポイト'), findsOneWidget);
   });
 
+  testWidgets('変形モード中はツール UI が無効化される(Phase3b)', (tester) async {
+    await tester.pumpWidget(_app());
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('変形'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('変形を確定'), findsOneWidget); // 変形バー
+
+    // レイヤーボタンは IgnorePointer で無効 → タップしてもシートが開かない。
+    await tester.tap(find.byTooltip('レイヤー'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+    expect(find.text('追加'), findsNothing);
+
+    await tester.tap(find.byTooltip('変形を取消'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('変形を確定'), findsNothing);
+  });
+
   testWidgets('レイヤーシートで追加するとレイヤーが増える', (tester) async {
     await tester.pumpWidget(_app());
     await tester.pump();

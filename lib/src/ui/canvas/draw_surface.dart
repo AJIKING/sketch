@@ -96,7 +96,11 @@ class DrawSurfaceState extends State<DrawSurface> {
   void confirmTransform() {
     final id = _transformLayerId;
     final existing = id == null ? null : widget.surface.imageOf(id);
-    if (id != null && existing != null && !_docSize.isEmpty) {
+    // 対象レイヤーが(変形中の削除などで)消えていたら焼き込まない。
+    if (id != null &&
+        existing != null &&
+        _c.layers.byId(id) != null &&
+        !_docSize.isEmpty) {
       final w = _docSize.width.round().clamp(1, 4096);
       final h = _docSize.height.round().clamp(1, 4096);
       final recorder = ui.PictureRecorder();
@@ -200,15 +204,18 @@ class DrawSurfaceState extends State<DrawSurface> {
     }
     if (_inTransform) {
       final last = _lastPanPos;
-      if (last != null) {
-        final delta =
-            _viewport.toCanvas(e.localPosition) - _viewport.toCanvas(last);
-        _layerTransform = _layerTransform.copyWith(
-          offset: _layerTransform.offset + delta,
-        );
+      if (last == null) {
+        // ジェスチャ後などで基準が無い → ここで再アンカー(差分 0)。
         _lastPanPos = e.localPosition;
-        setState(() {});
+        return;
       }
+      final delta =
+          _viewport.toCanvas(e.localPosition) - _viewport.toCanvas(last);
+      _layerTransform = _layerTransform.copyWith(
+        offset: _layerTransform.offset + delta,
+      );
+      _lastPanPos = e.localPosition;
+      setState(() {});
       return;
     }
     final stroke = _current;
@@ -234,6 +241,8 @@ class DrawSurfaceState extends State<DrawSurface> {
           _gestureStart = null;
           _idA = null;
           _idB = null;
+          // 1 本指移動へ戻る際、残る指で再アンカーさせる(ジャンプ防止)。
+          _lastPanPos = null;
         }
       }
       setState(() {});
@@ -273,8 +282,9 @@ class DrawSurfaceState extends State<DrawSurface> {
     final id = e.pointer;
     final gesturing = _gestureStart != null;
     _pointers.remove(id);
-    _current = null;
+    _current = null; // 進行中ストロークを破棄
     _currentLayerId = null;
+    _lastPanPos = null;
     if (gesturing && (id == _idA || id == _idB)) {
       if (_pointers.length >= 2) {
         _startGesture();
@@ -284,6 +294,7 @@ class DrawSurfaceState extends State<DrawSurface> {
         _idB = null;
       }
     }
+    setState(() {}); // キャンセルしたストローク/状態を画面へ反映
   }
 
   void _startGesture() {
@@ -407,6 +418,7 @@ class DrawSurfaceState extends State<DrawSurface> {
   }
 
   Future<void> _sampleAt(Offset canvasPos) async {
+    if (_docSize.isEmpty) return;
     final existing = widget.surface.imageOf(_c.layers.active.id);
     if (existing == null) {
       _c.setColorHex('#EFE7D6'); // 紙の色
