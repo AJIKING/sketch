@@ -62,7 +62,7 @@ void main() {
     expect(find.text('このレイヤーを消去'), findsOneWidget);
   });
 
-  testWidgets('カラーシートにパレットが出る', (tester) async {
+  testWidgets('カラーシートにパレットと HSV ピッカーが出る', (tester) async {
     await tester.pumpWidget(_app());
     await tester.pump();
 
@@ -70,7 +70,34 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Studio Palette'), findsOneWidget);
-    expect(find.text('色相'), findsOneWidget);
+    expect(find.bySemanticsLabel('彩度と明度'), findsOneWidget);
+    expect(find.bySemanticsLabel('色相'), findsOneWidget);
+  });
+
+  testWidgets('Hue バーを操作すると現在色が変わる', (tester) async {
+    await tester.pumpWidget(_app());
+    await tester.pump();
+
+    await tester.tap(find.bySemanticsLabel('カラーを選択'));
+    await tester.pumpAndSettle();
+    expect(find.text('カラー  #CF4A2C'), findsOneWidget); // 既定は朱
+
+    await tester.drag(find.bySemanticsLabel('色相'), const Offset(60, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('カラー  #CF4A2C'), findsNothing);
+  });
+
+  testWidgets('パレットの色を選ぶと現在色になり最近色へ入る', (tester) async {
+    await tester.pumpWidget(_app());
+    await tester.pump();
+
+    await tester.tap(find.bySemanticsLabel('カラーを選択'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('#2C4A63')); // 藍
+    await tester.pumpAndSettle();
+    expect(find.text('カラー  #2C4A63'), findsOneWidget);
+    expect(find.text('Recent'), findsOneWidget);
   });
 
   testWidgets('描画すると取り消しが有効になる', (tester) async {

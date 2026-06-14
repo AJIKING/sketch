@@ -9,6 +9,7 @@ import '../../application/gallery_controller.dart';
 import '../../domain/brush/brush_preset.dart';
 import '../../domain/gallery/sketch.dart';
 import '../theme/atelier_theme.dart';
+import 'color_picker.dart';
 import 'draw_surface.dart';
 import 'v_slider.dart';
 import 'vector_canvas_surface.dart';
@@ -338,7 +339,6 @@ class _ColorSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (h, s, v) = controller.hsv;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -347,32 +347,9 @@ class _ColorSheet extends StatelessWidget {
           'カラー  ${controller.colorHex}',
           style: const TextStyle(color: AtelierTokens.ink, fontSize: 18),
         ),
-        const SizedBox(height: 8),
-        _hsvSlider(
-          '色相',
-          h,
-          0,
-          360,
-          (x) => controller.setHsv(x, s, v),
-          () => controller.addRecent(),
-        ),
-        _hsvSlider(
-          '彩度',
-          s,
-          0,
-          1,
-          (x) => controller.setHsv(h, x, v),
-          () => controller.addRecent(),
-        ),
-        _hsvSlider(
-          '明度',
-          v,
-          0,
-          1,
-          (x) => controller.setHsv(h, s, x),
-          () => controller.addRecent(),
-        ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
+        ColorPicker(controller: controller),
+        const SizedBox(height: 12),
         const Text(
           'Studio Palette',
           style: TextStyle(color: AtelierTokens.inkDim),
@@ -389,36 +366,6 @@ class _ColorSheet extends StatelessWidget {
                 ),
               )
             : _swatches(controller.recent, controller.selectColor),
-      ],
-    );
-  }
-
-  Widget _hsvSlider(
-    String label,
-    double value,
-    double min,
-    double max,
-    ValueChanged<double> onChanged,
-    VoidCallback onEnd,
-  ) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 36,
-          child: Text(
-            label,
-            style: const TextStyle(color: AtelierTokens.inkDim, fontSize: 12),
-          ),
-        ),
-        Expanded(
-          child: Slider(
-            value: value,
-            min: min,
-            max: max,
-            onChanged: onChanged,
-            onChangeEnd: (_) => onEnd(),
-          ),
-        ),
       ],
     );
   }
