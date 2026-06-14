@@ -11,6 +11,7 @@ import '../../domain/color/ink_color.dart';
 import 'painted_stroke.dart';
 import 'raster_layer_store.dart';
 import 'raster_painter.dart';
+import 'shape_render.dart';
 import 'stroke_stabilizer.dart';
 import 'viewport_transform.dart';
 
@@ -62,6 +63,10 @@ class DrawSurfaceState extends State<DrawSurface> {
   ViewportTransform _layerTransform = const ViewportTransform();
   String? _transformLayerId;
   Offset? _lastPanPos;
+
+  // 図形ツール(ドラッグで bounding box → 離上で焼込)。canvas 空間。
+  Offset? _shapeStart, _shapeEnd;
+  String? _shapeLayerId;
 
   CanvasController get _c => widget.controller;
   double get _nowMs => widget.clock.now().millisecondsSinceEpoch.toDouble();
@@ -155,11 +160,14 @@ class DrawSurfaceState extends State<DrawSurface> {
     if (_pointers.length >= 2) {
       // 2 本指で変形を開始。既に変形中(3 本目以降)はアンカーを変えない。
       if (_gestureStart == null) {
-        // 進行中ストロークは(未焼込なので)破棄し、非ストロークツールの
+        // 進行中ストローク/図形は(未焼込なので)破棄し、非ストロークツールの
         // 開始点も捨てる(離上時の誤発火を防ぐ)。
         _current = null;
         _currentLayerId = null;
         _startPos = null;
+        _shapeStart = null;
+        _shapeEnd = null;
+        _shapeLayerId = null;
         _startGesture();
       }
       setState(() {});
@@ -167,6 +175,18 @@ class DrawSurfaceState extends State<DrawSurface> {
     }
     if (_inTransform) {
       _lastPanPos = e.localPosition; // 1 本指で移動
+      return;
+    }
+    if (_c.tool == Tool.shape) {
+      if (!_c.layers.active.visible) {
+        _warnHidden();
+        return;
+      }
+      final p = _viewport.toCanvas(e.localPosition);
+      _shapeLayerId = _c.layers.active.id;
+      _shapeStart = p;
+      _shapeEnd = p;
+      setState(() {});
       return;
     }
     _startPos = e.localPosition;
@@ -218,6 +238,11 @@ class DrawSurfaceState extends State<DrawSurface> {
       setState(() {});
       return;
     }
+    if (_shapeStart != null) {
+      _shapeEnd = _viewport.toCanvas(e.localPosition);
+      setState(() {});
+      return;
+    }
     final stroke = _current;
     if (stroke == null) return;
     stroke.addPoint(
@@ -259,6 +284,10 @@ class DrawSurfaceState extends State<DrawSurface> {
       setState(() {});
       return;
     }
+    if (_shapeStart != null) {
+      _bakeShape();
+      return;
+    }
     final start = _startPos;
     _startPos = null;
     if (start == null) return;
@@ -274,6 +303,8 @@ class DrawSurfaceState extends State<DrawSurface> {
       case Tool.brush:
       case Tool.smudge:
       case Tool.erase:
+      case Tool.shape:
+      case Tool.text:
         break;
     }
   }
@@ -285,6 +316,9 @@ class DrawSurfaceState extends State<DrawSurface> {
     _current = null; // 進行中ストロークを破棄
     _currentLayerId = null;
     _lastPanPos = null;
+    _shapeStart = null;
+    _shapeEnd = null;
+    _shapeLayerId = null;
     if (gesturing && (id == _idA || id == _idB)) {
       if (_pointers.length >= 2) {
         _startGesture();
@@ -347,6 +381,52 @@ class DrawSurfaceState extends State<DrawSurface> {
         alphaLocked: alphaLocked,
       ),
     );
+  }
+
+  void _bakeShape() {
+    final id = _shapeLayerId;
+    final a = _shapeStart;
+    final b = _shapeEnd;
+    if (id != null &&
+        a != null &&
+        b != null &&
+        !_docSize.isEmpty &&
+        _c.layers.byId(id) != null) {
+      final w = _docSize.width.round().clamp(1, 4096);
+      final h = _docSize.height.round().clamp(1, 4096);
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      final existing = widget.surface.imageOf(id);
+      if (existing != null) {
+        canvas.drawImageRect(
+          existing,
+          Rect.fromLTWH(
+            0,
+            0,
+            existing.width.toDouble(),
+            existing.height.toDouble(),
+          ),
+          Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
+          Paint(),
+        );
+      }
+      renderShape(
+        canvas,
+        kind: _c.shapeKind,
+        start: a,
+        end: b,
+        rgb: _currentRgb(),
+        size: _c.size,
+        opacity: _c.opacity,
+        filled: _c.shapeFilled,
+      );
+      _c.beginStroke(id);
+      widget.surface.set(id, recorder.endRecording().toImageSync(w, h));
+    }
+    _shapeStart = null;
+    _shapeEnd = null;
+    _shapeLayerId = null;
+    setState(() {});
   }
 
   (int, int, int) _currentRgb() => hexToRgb(_c.colorHex);
@@ -519,6 +599,23 @@ class DrawSurfaceState extends State<DrawSurface> {
     return data?.buffer.asUint8List();
   }
 
+  LiveShape? _buildLiveShape() {
+    final a = _shapeStart;
+    final b = _shapeEnd;
+    final id = _shapeLayerId;
+    if (a == null || b == null || id == null) return null;
+    return LiveShape(
+      kind: _c.shapeKind,
+      start: a,
+      end: b,
+      layerId: id,
+      colorHex: _c.colorHex,
+      size: _c.size,
+      opacity: _c.opacity,
+      filled: _c.shapeFilled,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
@@ -540,6 +637,7 @@ class DrawSurfaceState extends State<DrawSurface> {
                 liveLayerId: _currentLayerId,
                 viewport: _viewport,
                 docSize: _docSize,
+                liveShape: _buildLiveShape(),
                 transformLayerId: _transformLayerId,
                 layerTransform: _layerTransform,
               ),

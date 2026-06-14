@@ -111,6 +111,24 @@ void main() {
     expect(surface.imageOf(activeId), isNull, reason: '不透明部分が無いので塗れない');
   });
 
+  testWidgets('図形ツール: ドラッグで焼き込み、undo で戻る', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface)
+      ..selectTool(Tool.shape);
+    await _pump(tester, controller, surface);
+    final id = controller.layers.active.id;
+    expect(surface.imageOf(id), isNull);
+
+    await tester.drag(find.byType(DrawSurface), const Offset(60, 40));
+    await tester.pump();
+
+    expect(surface.imageOf(id), isNotNull);
+    expect(controller.canUndo, isTrue);
+
+    controller.undo();
+    expect(surface.imageOf(id), isNull);
+  });
+
   testWidgets('グラデーションをドラッグするとレイヤーへ焼き込まれる(Phase2)', (tester) async {
     final surface = RasterLayerStore();
     final controller = CanvasController(surface: surface)

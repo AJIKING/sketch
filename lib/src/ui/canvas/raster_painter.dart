@@ -3,10 +3,12 @@ import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 
 import '../../domain/canvas/layer_stack.dart';
+import '../../domain/color/ink_color.dart';
 import '../theme/atelier_theme.dart';
 import 'blend_mode_map.dart';
 import 'painted_stroke.dart';
 import 'raster_layer_store.dart';
+import 'shape_render.dart';
 import 'stroke_render.dart';
 import 'viewport_transform.dart';
 
@@ -23,6 +25,7 @@ class RasterPainter extends CustomPainter {
     required this.liveLayerId,
     required this.viewport,
     required this.docSize,
+    this.liveShape,
     this.transformLayerId,
     this.layerTransform = const ViewportTransform(),
     super.repaint,
@@ -32,6 +35,9 @@ class RasterPainter extends CustomPainter {
   final RasterLayerStore store;
   final PaintedStroke? liveStroke;
   final String? liveLayerId;
+
+  /// 描画中の図形プレビュー(無ければ null)。
+  final LiveShape? liveShape;
   final ViewportTransform viewport;
   final Size docSize;
 
@@ -117,6 +123,19 @@ class RasterPainter extends CustomPainter {
     }
     if (liveStroke != null && layer.id == liveLayerId) {
       renderStroke(canvas, liveStroke!);
+    }
+    final shape = liveShape;
+    if (shape != null && layer.id == shape.layerId) {
+      renderShape(
+        canvas,
+        kind: shape.kind,
+        start: shape.start,
+        end: shape.end,
+        rgb: hexToRgb(shape.colorHex),
+        size: shape.size,
+        opacity: shape.opacity,
+        filled: shape.filled,
+      );
     }
   }
 

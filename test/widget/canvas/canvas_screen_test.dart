@@ -58,6 +58,21 @@ void main() {
     expect(find.byTooltip('塗りつぶし'), findsOneWidget);
     expect(find.byTooltip('グラデーション'), findsOneWidget);
     expect(find.byTooltip('スポイト'), findsOneWidget);
+    expect(find.byTooltip('図形'), findsOneWidget);
+  });
+
+  testWidgets('図形ツール再タップで図形シートが開く', (tester) async {
+    await tester.pumpWidget(_app());
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('図形')); // 選択
+    await tester.pump();
+    await tester.tap(find.byTooltip('図形')); // 再タップ → シート
+    await tester.pumpAndSettle();
+
+    expect(find.text('直線'), findsOneWidget);
+    expect(find.text('四角'), findsOneWidget);
+    expect(find.text('楕円'), findsOneWidget);
   });
 
   testWidgets('変形モード中はツール UI が無効化される(Phase3b)', (tester) async {

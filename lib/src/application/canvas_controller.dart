@@ -5,10 +5,11 @@ import '../domain/canvas/canvas_surface.dart';
 import '../domain/canvas/history.dart';
 import '../domain/canvas/layer_blend_mode.dart';
 import '../domain/canvas/layer_stack.dart';
+import '../domain/canvas/shape_kind.dart';
 import '../domain/color/ink_color.dart';
 
 /// キャンバスのツール。
-enum Tool { brush, smudge, erase, fill, eyedropper, gradient }
+enum Tool { brush, smudge, erase, fill, eyedropper, gradient, shape, text }
 
 /// undo/redo のスナップショット(対象レイヤー id + 不透明な画素トークン)。
 typedef LayerSnapshot = ({String layerId, Object pixels});
@@ -32,6 +33,8 @@ class CanvasController extends ChangeNotifier {
   double _stabilization = 0;
   Hsv _hsv = rgbToHsv(0xCF, 0x4A, 0x2C); // 既定は朱(#CF4A2C)
   final List<String> _recent = [];
+  ShapeKind _shapeKind = ShapeKind.line;
+  bool _shapeFilled = false;
 
   Tool get tool => _tool;
   BrushPreset get brush => _brush;
@@ -41,6 +44,8 @@ class CanvasController extends ChangeNotifier {
   Hsv get hsv => _hsv;
   List<String> get recent => List.unmodifiable(_recent);
   List<String> get palette => studioPalette;
+  ShapeKind get shapeKind => _shapeKind;
+  bool get shapeFilled => _shapeFilled;
   LayerStack get layers => _layers;
   bool get canUndo => _history.canUndo;
   bool get canRedo => _history.canRedo;
@@ -82,6 +87,18 @@ class CanvasController extends ChangeNotifier {
     final clamped = value.clamp(0.0, 1.0);
     if (clamped == _stabilization) return;
     _stabilization = clamped;
+    notifyListeners();
+  }
+
+  void setShapeKind(ShapeKind kind) {
+    if (kind == _shapeKind) return;
+    _shapeKind = kind;
+    notifyListeners();
+  }
+
+  void setShapeFilled(bool filled) {
+    if (filled == _shapeFilled) return;
+    _shapeFilled = filled;
     notifyListeners();
   }
 

@@ -9,6 +9,7 @@ import '../../application/gallery_controller.dart';
 import '../../domain/brush/brush_preset.dart';
 import '../../domain/canvas/filters.dart' as filters;
 import '../../domain/canvas/layer_blend_mode.dart';
+import '../../domain/canvas/shape_kind.dart';
 import '../../domain/gallery/sketch.dart';
 import '../theme/atelier_theme.dart';
 import '../widgets/brush_preview.dart';
@@ -240,7 +241,45 @@ class _CanvasScreenState extends State<CanvasScreen> {
       _openBrushSheet(); // アクティブなブラシ再タップ → ブラシライブラリ
       return;
     }
+    if (tool == Tool.shape && _c.tool == Tool.shape) {
+      _openShapeSheet(); // 図形ツール再タップ → 図形の種類設定
+      return;
+    }
     _c.selectTool(tool);
+  }
+
+  void _openShapeSheet() {
+    _openSheet(
+      (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final kind in ShapeKind.values)
+            ListTile(
+              leading: Icon(switch (kind) {
+                ShapeKind.line => Icons.remove,
+                ShapeKind.rectangle => Icons.crop_square,
+                ShapeKind.ellipse => Icons.circle_outlined,
+              }),
+              title: Text(
+                kind.label,
+                style: const TextStyle(color: AtelierTokens.ink),
+              ),
+              trailing: _c.shapeKind == kind
+                  ? const Icon(Icons.check, color: AtelierTokens.vermilion)
+                  : null,
+              onTap: () => _c.setShapeKind(kind),
+            ),
+          SwitchListTile(
+            title: const Text(
+              '塗りつぶし(枠線 ↔ 塗り)',
+              style: TextStyle(color: AtelierTokens.ink),
+            ),
+            value: _c.shapeFilled,
+            onChanged: _c.setShapeFilled,
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -427,6 +466,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
                     _toolButton(Tool.erase, Icons.auto_fix_normal, '消しゴム'),
                     _toolButton(Tool.fill, Icons.format_color_fill, '塗りつぶし'),
                     _toolButton(Tool.gradient, Icons.gradient, 'グラデーション'),
+                    _toolButton(Tool.shape, Icons.category_outlined, '図形'),
                     _toolButton(Tool.eyedropper, Icons.colorize, 'スポイト'),
                     IconButton(
                       icon: const Icon(Icons.transform),
