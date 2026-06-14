@@ -4,9 +4,11 @@ import 'package:path_provider/path_provider.dart';
 
 import '../core/clock.dart';
 import '../data/file_gallery_store.dart';
+import '../data/file_palette_store.dart';
 import '../data/share_image_exporter.dart';
 import '../domain/gallery/gallery_store.dart';
 import '../domain/gallery/image_exporter.dart';
+import '../domain/palette/palette_store.dart';
 
 /// 差し替え境界の束(`docs/architecture.md`)。
 ///
@@ -17,11 +19,15 @@ class Dependencies {
     required this.clock,
     required this.galleryStore,
     required this.imageExporter,
+    this.paletteStore,
   });
 
   final Clock clock;
   final GalleryStore galleryStore;
   final ImageExporter imageExporter;
+
+  /// ユーザー定義カラーパレットの保存先(任意。null なら非永続)。
+  final PaletteStore? paletteStore;
 
   /// 本番構成。スケッチはアプリ内ドキュメントディレクトリに永続化し(ADR 0001)、
   /// 画像エクスポートは OS の共有シート経由(`ShareImageExporter`)。
@@ -34,5 +40,11 @@ class Dependencies {
       },
     ),
     imageExporter: const ShareImageExporter(),
+    paletteStore: FilePaletteStore(
+      resolveDir: () async {
+        final docs = await getApplicationDocumentsDirectory();
+        return Directory('${docs.path}/hatch_sketches');
+      },
+    ),
   );
 }

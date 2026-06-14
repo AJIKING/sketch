@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../domain/brush/brush_preset.dart';
@@ -9,6 +11,7 @@ import '../domain/canvas/layer_stack.dart';
 import '../domain/canvas/selection_kind.dart';
 import '../domain/canvas/shape_kind.dart';
 import '../domain/color/ink_color.dart';
+import '../domain/palette/palette_store.dart';
 
 /// キャンバスのツール。
 enum Tool {
@@ -31,12 +34,19 @@ typedef LayerSnapshot = ({String layerId, Object pixels});
 /// ツール・ブラシ・サイズ・不透明度・現在色・最近色・レイヤー・履歴を保持する。
 /// 実際のラスタライズは ui 層が `stroke_planner` と [CanvasSurface] を使って行う。
 class CanvasController extends ChangeNotifier {
-  CanvasController({required this.surface, int historyLimit = 16})
-    : _history = History<LayerSnapshot>(limit: historyLimit);
+  CanvasController({
+    required this.surface,
+    this.paletteStore,
+    int historyLimit = 16,
+  }) : _history = History<LayerSnapshot>(limit: historyLimit);
 
   final CanvasSurface surface;
+
+  /// ユーザー定義パレットの保存先(任意。null なら非永続)。
+  final PaletteStore? paletteStore;
   final History<LayerSnapshot> _history;
   final LayerStack _layers = LayerStack.initial();
+  final List<String> _customPalette = [];
 
   Tool _tool = Tool.brush;
   BrushPreset _brush = inkBrush;
@@ -61,6 +71,9 @@ class CanvasController extends ChangeNotifier {
   Hsv get hsv => _hsv;
   List<String> get recent => List.unmodifiable(_recent);
   List<String> get palette => studioPalette;
+
+  /// ユーザーが保存したカスタム色(新しい順)。
+  List<String> get customPalette => List.unmodifiable(_customPalette);
   ShapeKind get shapeKind => _shapeKind;
   bool get shapeFilled => _shapeFilled;
   bool get shapeSnap => _shapeSnap;
@@ -198,6 +211,43 @@ class CanvasController extends ChangeNotifier {
       ..insert(0, hex);
     if (_recent.length > 8) _recent.removeRange(8, _recent.length);
     notifyListeners();
+  }
+
+  /// 保存済みカスタムパレットを読み込む(起動時に 1 回)。store が無ければ無処理。
+  Future<void> loadCustomPalette() async {
+    final store = paletteStore;
+    if (store == null) return;
+    final loaded = await store.load();
+    _customPalette
+      ..clear()
+      ..addAll(loaded);
+    notifyListeners();
+  }
+
+  /// 現在色([hex] 省略時)をカスタムパレットへ保存する(重複は先頭へ寄せ、最大 24 件)。
+  void addCustomColor([String? hex]) {
+    final h = hex ?? colorHex;
+    _customPalette
+      ..remove(h)
+      ..insert(0, h);
+    if (_customPalette.length > 24) {
+      _customPalette.removeRange(24, _customPalette.length);
+    }
+    _persistCustomPalette();
+    notifyListeners();
+  }
+
+  /// カスタムパレットから色を削除する。
+  void removeCustomColor(String hex) {
+    if (_customPalette.remove(hex)) {
+      _persistCustomPalette();
+      notifyListeners();
+    }
+  }
+
+  void _persistCustomPalette() {
+    final store = paletteStore;
+    if (store != null) unawaited(store.save(List.of(_customPalette)));
   }
 
   void addLayer() {

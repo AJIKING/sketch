@@ -48,7 +48,10 @@ class _CanvasScreenState extends State<CanvasScreen> {
   final ValueNotifier<bool> _transforming = ValueNotifier<bool>(false);
   bool _uiVisible = true; // ヘッダー/フッター等のツール UI を表示するか
   late final RasterLayerStore _surface = RasterLayerStore();
-  late final CanvasController _c = CanvasController(surface: _surface);
+  late final CanvasController _c = CanvasController(
+    surface: _surface,
+    paletteStore: widget.dependencies.paletteStore,
+  );
 
   late final String _id =
       widget.existing?.id ??
@@ -57,6 +60,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
   @override
   void initState() {
     super.initState();
+    _c.loadCustomPalette();
     final png = widget.backgroundPng;
     if (png != null) _decodeBackground(png);
   }
@@ -717,11 +721,40 @@ class _ColorSheet extends StatelessWidget {
                 ),
               )
             : _swatches(controller.recent, controller.selectColor),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            const Text('マイパレット', style: TextStyle(color: AtelierTokens.inkDim)),
+            const Spacer(),
+            TextButton.icon(
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('現在色を保存'),
+              onPressed: () => controller.addCustomColor(),
+            ),
+          ],
+        ),
+        controller.customPalette.isEmpty
+            ? const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  '「現在色を保存」で自分の色を貯められます(長押しで削除)',
+                  style: TextStyle(color: AtelierTokens.inkFaint),
+                ),
+              )
+            : _swatches(
+                controller.customPalette,
+                controller.selectColor,
+                onLongPress: controller.removeCustomColor,
+              ),
       ],
     );
   }
 
-  Widget _swatches(List<String> hexes, ValueChanged<String> onPick) {
+  Widget _swatches(
+    List<String> hexes,
+    ValueChanged<String> onPick, {
+    ValueChanged<String>? onLongPress,
+  }) {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -729,6 +762,7 @@ class _ColorSheet extends StatelessWidget {
         for (final hex in hexes)
           GestureDetector(
             onTap: () => onPick(hex),
+            onLongPress: onLongPress == null ? null : () => onLongPress(hex),
             child: Semantics(
               button: true,
               label: hex,

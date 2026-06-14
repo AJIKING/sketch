@@ -165,6 +165,21 @@ void main() {
     expect(find.bySemanticsLabel('色相'), findsOneWidget);
   });
 
+  testWidgets('カラーシートで現在色をマイパレットへ保存できる', (tester) async {
+    await tester.pumpWidget(_app());
+    await tester.pump();
+
+    await tester.tap(find.bySemanticsLabel('カラーを選択'));
+    await tester.pumpAndSettle();
+    expect(find.text('マイパレット'), findsOneWidget);
+    expect(find.textContaining('自分の色を貯められます'), findsOneWidget);
+
+    await tester.tap(find.text('現在色を保存'));
+    await tester.pumpAndSettle();
+    // 保存されたのでプレースホルダが消える。
+    expect(find.textContaining('自分の色を貯められます'), findsNothing);
+  });
+
   testWidgets('Hue バーを操作すると現在色が変わる', (tester) async {
     await tester.pumpWidget(_app());
     await tester.pump();

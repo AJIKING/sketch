@@ -4,6 +4,7 @@ import 'package:sketch/src/domain/brush/brush_preset.dart';
 import 'package:sketch/src/domain/canvas/layer_blend_mode.dart';
 
 import '../../fixtures/fake_canvas_surface.dart';
+import '../../fixtures/in_memory_palette_store.dart';
 
 void main() {
   late FakeCanvasSurface surface;
@@ -179,6 +180,51 @@ void main() {
       c.undo();
       expect(surface.state[a], 'A0'); // a が戻る
       expect(surface.state[b], 'B0'); // b は不変
+    });
+  });
+
+  group('カスタムパレット', () {
+    test('現在色を保存し、重複は先頭へ寄せる', () {
+      c.setColorHex('#112233');
+      c.addCustomColor();
+      c.setColorHex('#445566');
+      c.addCustomColor();
+      expect(c.customPalette, ['#445566', '#112233']);
+      // 既存色を再保存 → 先頭へ移動(重複しない)
+      c.addCustomColor('#112233');
+      expect(c.customPalette, ['#112233', '#445566']);
+    });
+
+    test('削除できる', () {
+      c.addCustomColor('#112233');
+      c.addCustomColor('#445566');
+      c.removeCustomColor('#112233');
+      expect(c.customPalette, ['#445566']);
+    });
+
+    test('store 注入時は load で復元、変更で save される', () async {
+      final store = InMemoryPaletteStore(['#AA0000', '#00BB00']);
+      final cc = CanvasController(
+        surface: FakeCanvasSurface(),
+        paletteStore: store,
+      );
+      await cc.loadCustomPalette();
+      expect(cc.customPalette, ['#AA0000', '#00BB00']);
+
+      cc.addCustomColor('#0000CC');
+      expect(cc.customPalette.first, '#0000CC');
+      expect(store.saves, 1);
+
+      cc.removeCustomColor('#AA0000');
+      expect(store.saves, 2);
+      expect(await store.load(), ['#0000CC', '#00BB00']);
+    });
+
+    test('store 無しでも add/remove は動く(非永続)', () {
+      c.addCustomColor('#123456');
+      expect(c.customPalette, ['#123456']);
+      c.removeCustomColor('#123456');
+      expect(c.customPalette, isEmpty);
     });
   });
 }
