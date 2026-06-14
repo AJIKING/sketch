@@ -27,6 +27,7 @@ class DrawSurface extends StatefulWidget {
     required this.controller,
     required this.surface,
     required this.clock,
+    required this.transforming,
   });
 
   final CanvasController controller;
@@ -34,6 +35,9 @@ class DrawSurface extends StatefulWidget {
 
   /// 速度(→ ink の筆幅)を実時間に縛られず測るための時間源(ADR 0003)。
   final Clock clock;
+
+  /// 変形モードの ON/OFF(canvas_screen が確認/取消バーを出すために共有)。
+  final ValueNotifier<bool> transforming;
 
   @override
   State<DrawSurface> createState() => DrawSurfaceState();
@@ -56,10 +60,79 @@ class DrawSurfaceState extends State<DrawSurface> {
   int? _idA, _idB;
   Offset _a0 = Offset.zero, _b0 = Offset.zero;
 
+  // レイヤー変形モード(移動/拡縮/回転 → 確定で焼き込み)。
+  ViewportTransform _layerTransform = const ViewportTransform();
+  String? _transformLayerId;
+  Offset? _lastPanPos;
+
   CanvasController get _c => widget.controller;
   double get _nowMs => widget.clock.now().millisecondsSinceEpoch.toDouble();
   bool get _strokeTool =>
       _c.tool == Tool.brush || _c.tool == Tool.smudge || _c.tool == Tool.erase;
+  bool get _inTransform => widget.transforming.value;
+
+  /// ジェスチャ点を扱う空間へ変換(変形中は doc 空間、通常は view 空間)。
+  Offset _gPoint(Offset viewPos) =>
+      _inTransform ? _viewport.toCanvas(viewPos) : viewPos;
+
+  // ---- layer transform mode ----
+  /// 変形モードに入る(アクティブレイヤー対象)。
+  void enterTransform() {
+    if (!_c.layers.active.visible) {
+      _warnHidden();
+      return;
+    }
+    _layerTransform = const ViewportTransform();
+    _transformLayerId = _c.layers.active.id;
+    _pointers.clear();
+    _gestureStart = null;
+    _current = null;
+    _currentLayerId = null;
+    _startPos = null;
+    _lastPanPos = null;
+    widget.transforming.value = true;
+    _tick.value++;
+  }
+
+  /// 変形を確定してレイヤー画像へ焼き込む(undo 可能)。
+  void confirmTransform() {
+    final id = _transformLayerId;
+    final existing = id == null ? null : widget.surface.imageOf(id);
+    if (id != null && existing != null && !_docSize.isEmpty) {
+      final w = _docSize.width.round().clamp(1, 4096);
+      final h = _docSize.height.round().clamp(1, 4096);
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      canvas.transform(_layerTransform.toMatrix().storage);
+      canvas.drawImageRect(
+        existing,
+        Rect.fromLTWH(
+          0,
+          0,
+          existing.width.toDouble(),
+          existing.height.toDouble(),
+        ),
+        Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
+        Paint(),
+      );
+      _c.beginStroke(id);
+      widget.surface.set(id, recorder.endRecording().toImageSync(w, h));
+    }
+    _exitTransform();
+  }
+
+  /// 変形を破棄してモードを抜ける。
+  void cancelTransform() => _exitTransform();
+
+  void _exitTransform() {
+    widget.transforming.value = false;
+    _layerTransform = const ViewportTransform();
+    _transformLayerId = null;
+    _lastPanPos = null;
+    _pointers.clear();
+    _gestureStart = null;
+    _tick.value++;
+  }
 
   /// テスト/外部から現在のビューポートを読む。
   ViewportTransform get viewport => _viewport;
@@ -96,6 +169,10 @@ class DrawSurfaceState extends State<DrawSurface> {
       _tick.value++;
       return;
     }
+    if (_inTransform) {
+      _lastPanPos = e.localPosition; // 1 本指で移動
+      return;
+    }
     _startPos = e.localPosition;
     if (_strokeTool) {
       if (!_c.layers.active.visible) {
@@ -129,6 +206,19 @@ class DrawSurfaceState extends State<DrawSurface> {
       _updateGesture();
       return;
     }
+    if (_inTransform) {
+      final last = _lastPanPos;
+      if (last != null) {
+        final delta =
+            _viewport.toCanvas(e.localPosition) - _viewport.toCanvas(last);
+        _layerTransform = _layerTransform.copyWith(
+          offset: _layerTransform.offset + delta,
+        );
+        _lastPanPos = e.localPosition;
+        _tick.value++;
+      }
+      return;
+    }
     final stroke = _current;
     if (stroke == null) return;
     stroke.addPoint(
@@ -155,6 +245,10 @@ class DrawSurfaceState extends State<DrawSurface> {
         }
       }
       _tick.value++;
+      return;
+    }
+    if (_inTransform) {
+      _lastPanPos = null;
       return;
     }
     if (_current != null) {
@@ -204,9 +298,9 @@ class DrawSurfaceState extends State<DrawSurface> {
     final ids = _pointers.keys.toList();
     _idA = ids[0];
     _idB = ids[1];
-    _a0 = _pointers[_idA]!;
-    _b0 = _pointers[_idB]!;
-    _gestureStart = _viewport;
+    _a0 = _gPoint(_pointers[_idA]!);
+    _b0 = _gPoint(_pointers[_idB]!);
+    _gestureStart = _inTransform ? _layerTransform : _viewport;
   }
 
   void _updateGesture() {
@@ -214,13 +308,18 @@ class DrawSurfaceState extends State<DrawSurface> {
     final a = _pointers[_idA];
     final b = _pointers[_idB];
     if (start == null || a == null || b == null) return;
-    _viewport = ViewportTransform.fromTwoFinger(
+    final next = ViewportTransform.fromTwoFinger(
       start: start,
       a0: _a0,
       b0: _b0,
-      a: a,
-      b: b,
+      a: _gPoint(a),
+      b: _gPoint(b),
     );
+    if (_inTransform) {
+      _layerTransform = next;
+    } else {
+      _viewport = next;
+    }
     _tick.value++;
   }
 
@@ -437,6 +536,8 @@ class DrawSurfaceState extends State<DrawSurface> {
                 liveLayerId: _currentLayerId,
                 viewport: _viewport,
                 docSize: _docSize,
+                transformLayerId: _transformLayerId,
+                layerTransform: _layerTransform,
                 repaint: Listenable.merge([_c, _tick]),
               ),
               size: Size.infinite,

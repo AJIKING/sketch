@@ -42,6 +42,7 @@ class CanvasScreen extends StatefulWidget {
 
 class _CanvasScreenState extends State<CanvasScreen> {
   final GlobalKey<DrawSurfaceState> _drawKey = GlobalKey<DrawSurfaceState>();
+  final ValueNotifier<bool> _transforming = ValueNotifier<bool>(false);
   late final RasterLayerStore _surface = RasterLayerStore();
   late final CanvasController _c = CanvasController(surface: _surface);
 
@@ -68,6 +69,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
 
   @override
   void dispose() {
+    _transforming.dispose();
     _c.dispose();
     _surface.disposeAll(); // ライブのレイヤー画像を解放(履歴画像とは別オブジェクト)
     super.dispose();
@@ -261,6 +263,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
                         controller: _c,
                         surface: _surface,
                         clock: widget.dependencies.clock,
+                        transforming: _transforming,
                       ),
                     ),
                   ),
@@ -268,6 +271,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
                 _topBar(),
                 _leftRail(),
                 _dock(),
+                _transformBar(),
               ],
             );
           },
@@ -342,6 +346,52 @@ class _CanvasScreenState extends State<CanvasScreen> {
     );
   }
 
+  // 変形モード中の確定/取消バー(画面上部中央)。
+  Widget _transformBar() {
+    return Positioned(
+      top: 56,
+      left: 0,
+      right: 0,
+      child: ValueListenableBuilder<bool>(
+        valueListenable: _transforming,
+        builder: (context, on, _) {
+          if (!on) return const SizedBox.shrink();
+          return Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AtelierTokens.surface3,
+                borderRadius: BorderRadius.circular(AtelierTokens.rLg),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    tooltip: '変形を取消',
+                    onPressed: () => _drawKey.currentState?.cancelTransform(),
+                  ),
+                  const Text(
+                    '変形(1本指=移動 / 2本指=拡縮・回転)',
+                    style: TextStyle(color: AtelierTokens.ink, fontSize: 12),
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.check,
+                      color: AtelierTokens.vermilion,
+                    ),
+                    tooltip: '変形を確定',
+                    onPressed: () => _drawKey.currentState?.confirmTransform(),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _dock() {
     return Positioned(
       bottom: 12,
@@ -366,6 +416,11 @@ class _CanvasScreenState extends State<CanvasScreen> {
                     _toolButton(Tool.fill, Icons.format_color_fill, '塗りつぶし'),
                     _toolButton(Tool.gradient, Icons.gradient, 'グラデーション'),
                     _toolButton(Tool.eyedropper, Icons.colorize, 'スポイト'),
+                    IconButton(
+                      icon: const Icon(Icons.transform),
+                      tooltip: '変形',
+                      onPressed: () => _drawKey.currentState?.enterTransform(),
+                    ),
                   ],
                 ),
               ),

@@ -23,6 +23,8 @@ class RasterPainter extends CustomPainter {
     required this.liveLayerId,
     required this.viewport,
     required this.docSize,
+    this.transformLayerId,
+    this.layerTransform = const ViewportTransform(),
     super.repaint,
   });
 
@@ -32,6 +34,12 @@ class RasterPainter extends CustomPainter {
   final String? liveLayerId;
   final ViewportTransform viewport;
   final Size docSize;
+
+  /// 変形プレビュー中のレイヤー id(無ければ null)。
+  final String? transformLayerId;
+
+  /// [transformLayerId] のレイヤー画像に適用する変形(プレビュー)。
+  final ViewportTransform layerTransform;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -94,12 +102,18 @@ class RasterPainter extends CustomPainter {
   void _drawContent(Canvas canvas, Rect rect, LayerMeta layer) {
     final image = store.imageOf(layer.id);
     if (image != null) {
+      final transformed = layer.id == transformLayerId;
+      if (transformed) {
+        canvas.save();
+        canvas.transform(layerTransform.toMatrix().storage);
+      }
       canvas.drawImageRect(
         image,
         Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
         rect,
         Paint(),
       );
+      if (transformed) canvas.restore();
     }
     if (liveStroke != null && layer.id == liveLayerId) {
       renderStroke(canvas, liveStroke!);

@@ -18,6 +18,16 @@ class ViewportTransform {
   final double rotation;
   final Offset offset;
 
+  ViewportTransform copyWith({
+    double? scale,
+    double? rotation,
+    Offset? offset,
+  }) => ViewportTransform(
+    scale: scale ?? this.scale,
+    rotation: rotation ?? this.rotation,
+    offset: offset ?? this.offset,
+  );
+
   /// canvas 座標 → view 座標。
   Offset toView(Offset c) {
     final cosr = math.cos(rotation);

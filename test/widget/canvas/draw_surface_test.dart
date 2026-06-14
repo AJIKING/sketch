@@ -26,6 +26,7 @@ Future<void> _pumpKeyed(
               controller: c,
               surface: s,
               clock: FakeClock(),
+              transforming: ValueNotifier<bool>(false),
             ),
           ),
         ),
@@ -46,7 +47,12 @@ Future<void> _pump(
           child: SizedBox(
             width: 200,
             height: 200,
-            child: DrawSurface(controller: c, surface: s, clock: FakeClock()),
+            child: DrawSurface(
+              controller: c,
+              surface: s,
+              clock: FakeClock(),
+              transforming: ValueNotifier<bool>(false),
+            ),
           ),
         ),
       ),
@@ -191,5 +197,58 @@ void main() {
 
     expect(before, isNotNull);
     expect(after, equals(before)); // ズームしても出力は同一
+  });
+
+  testWidgets('変形モード: 移動して確定で焼き込み、undo で戻る(Phase3b)', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final key = GlobalKey<DrawSurfaceState>();
+    final transforming = ValueNotifier<bool>(false);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 200,
+              height: 200,
+              child: DrawSurface(
+                key: key,
+                controller: controller,
+                surface: surface,
+                clock: FakeClock(),
+                transforming: transforming,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.drag(find.byType(DrawSurface), const Offset(40, 30));
+    await tester.pump();
+    final id = controller.layers.active.id;
+    final before = surface.imageOf(id);
+    expect(before, isNotNull);
+
+    key.currentState!.enterTransform();
+    await tester.pump();
+    expect(transforming.value, isTrue);
+
+    // 1 本指で移動(プレビュー)。確定までレイヤー画像は変わらない。
+    await tester.drag(find.byType(DrawSurface), const Offset(20, 10));
+    await tester.pump();
+    expect(surface.imageOf(id), same(before));
+
+    key.currentState!.confirmTransform();
+    await tester.pump();
+    expect(transforming.value, isFalse);
+    expect(surface.imageOf(id), isNotNull);
+    expect(surface.imageOf(id), isNot(same(before))); // 新しい画像へ焼込
+    expect(controller.canUndo, isTrue);
+
+    controller.undo();
+    expect(surface.imageOf(id), same(before)); // 変形前へ戻る
+
+    transforming.dispose();
   });
 }
