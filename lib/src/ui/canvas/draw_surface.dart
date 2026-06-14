@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 
 import '../../application/canvas_controller.dart';
 import '../../core/clock.dart';
@@ -41,7 +40,6 @@ class DrawSurface extends StatefulWidget {
 }
 
 class DrawSurfaceState extends State<DrawSurface> {
-  final GlobalKey _boundaryKey = GlobalKey();
   final ValueNotifier<int> _tick = ValueNotifier<int>(0);
 
   PaintedStroke? _current;
@@ -86,9 +84,11 @@ class DrawSurfaceState extends State<DrawSurface> {
   void _onDown(PointerDownEvent e) {
     _pointers[e.pointer] = e.localPosition;
     if (_pointers.length >= 2) {
-      // 2 本指: 変形へ。進行中ストロークは(未焼込なので)破棄する。
+      // 2 本指: 変形へ。進行中ストロークは(未焼込なので)破棄し、
+      // 非ストロークツールの開始点も捨てる(離上時の誤発火を防ぐ)。
       _current = null;
       _currentLayerId = null;
+      _startPos = null;
       _startGesture();
       _tick.value++;
       return;
@@ -369,13 +369,25 @@ class DrawSurfaceState extends State<DrawSurface> {
     _tick.value++;
   }
 
-  /// 現在の合成を PNG バイト列に書き出す。
-  Future<Uint8List?> exportPng({double pixelRatio = 3}) async {
-    final boundary =
-        _boundaryKey.currentContext?.findRenderObject()
-            as RenderRepaintBoundary?;
-    if (boundary == null) return null;
-    final image = await boundary.toImage(pixelRatio: pixelRatio);
+  /// ドキュメントを等倍で合成して PNG バイト列に書き出す。
+  ///
+  /// 画面のビューポート(ズーム/回転/移動)に依存せず、常にキャンバス全体を
+  /// 出力する(保存・サムネ・共有が拡大表示の影響を受けない)。
+  Future<Uint8List?> exportPng() async {
+    if (_docSize.isEmpty) return null;
+    final w = _docSize.width.round().clamp(1, 4096);
+    final h = _docSize.height.round().clamp(1, 4096);
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    RasterPainter(
+      layers: _c.layers,
+      store: widget.surface,
+      liveStroke: null,
+      liveLayerId: null,
+      viewport: const ViewportTransform(), // 等倍・無回転で全体を出力
+      docSize: _docSize,
+    ).paint(canvas, Size(w.toDouble(), h.toDouble()));
+    final image = await recorder.endRecording().toImage(w, h);
     final data = await image.toByteData(format: ui.ImageByteFormat.png);
     return data?.buffer.asUint8List();
   }
@@ -383,7 +395,6 @@ class DrawSurfaceState extends State<DrawSurface> {
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
-      key: _boundaryKey,
       child: LayoutBuilder(
         builder: (context, constraints) {
           if (_docSize.isEmpty) _docSize = constraints.biggest;

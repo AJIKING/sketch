@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sketch/src/application/canvas_controller.dart';
@@ -156,5 +158,38 @@ void main() {
 
     key.currentState!.resetView();
     expect(key.currentState!.viewport.scale, 1);
+  });
+
+  testWidgets('保存はビューポート(ズーム)に依存しない(回帰)', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final key = GlobalKey<DrawSurfaceState>();
+    await _pumpKeyed(tester, key, controller, surface);
+
+    await tester.drag(find.byType(DrawSurface), const Offset(50, 30));
+    await tester.pump();
+
+    Uint8List? before;
+    Uint8List? after;
+    await tester.runAsync(() async {
+      before = await key.currentState!.exportPng();
+    });
+
+    final c = tester.getCenter(find.byType(DrawSurface));
+    final g1 = await tester.startGesture(c + const Offset(-20, 0), pointer: 1);
+    final g2 = await tester.startGesture(c + const Offset(20, 0), pointer: 2);
+    await g1.moveBy(const Offset(-50, 0));
+    await g2.moveBy(const Offset(50, 0));
+    await g1.up();
+    await g2.up();
+    await tester.pump();
+    expect(key.currentState!.viewport.scale, greaterThan(1.0));
+
+    await tester.runAsync(() async {
+      after = await key.currentState!.exportPng();
+    });
+
+    expect(before, isNotNull);
+    expect(after, equals(before)); // ズームしても出力は同一
   });
 }
