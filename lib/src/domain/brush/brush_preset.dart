@@ -35,6 +35,24 @@ class BrushPreset {
   final bool flat;
 
   bool get isStroked => stroked;
+
+  BrushPreset copyWith({
+    double? flow,
+    double? soft,
+    double? scatter,
+    double? spacing,
+  }) => BrushPreset(
+    key: key,
+    name: name,
+    description: description,
+    flow: flow ?? this.flow,
+    soft: soft ?? this.soft,
+    scatter: scatter ?? this.scatter,
+    spacing: spacing ?? this.spacing,
+    stroked: stroked,
+    velocity: velocity,
+    flat: flat,
+  );
 }
 
 const BrushPreset inkBrush = BrushPreset(

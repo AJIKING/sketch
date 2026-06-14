@@ -2,7 +2,6 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import '../../application/canvas_controller.dart' show Tool;
-import '../../domain/brush/brush_preset.dart';
 import '../../domain/brush/stroke_planner.dart';
 import '../../domain/color/ink_color.dart';
 import 'painted_stroke.dart';
@@ -21,7 +20,7 @@ void renderStroke(Canvas canvas, PaintedStroke stroke) {
   }
 
   final (r, g, b) = hexToRgb(stroke.colorHex);
-  final brush = brushByKey(stroke.brushKey);
+  final brush = stroke.brush;
   final rng = math.Random(stroke.seed);
 
   // 単独点(タップ)はその場に 1 区間を描く。

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../application/canvas_controller.dart' show Tool;
+import '../../domain/brush/brush_preset.dart';
 import '../canvas/painted_stroke.dart';
 import '../canvas/stroke_render.dart';
 
@@ -57,7 +58,7 @@ class _BrushPreviewPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final stroke = PaintedStroke(
       tool: Tool.brush,
-      brushKey: brushKey,
+      brush: brushByKey(brushKey),
       colorHex: colorHex,
       size: brushSize,
       opacity: 1,

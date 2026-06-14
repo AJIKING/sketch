@@ -69,6 +69,21 @@ class CanvasController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setBrushFlow(double value) {
+    _brush = _brush.copyWith(flow: value.clamp(0.02, 1.0));
+    notifyListeners();
+  }
+
+  void setBrushScatter(double value) {
+    _brush = _brush.copyWith(scatter: value.clamp(0.0, 2.0));
+    notifyListeners();
+  }
+
+  void setBrushSpacing(double value) {
+    _brush = _brush.copyWith(spacing: value.clamp(0.05, 2.0));
+    notifyListeners();
+  }
+
   void setSize(double value) {
     final clamped = value.clamp(1.0, 80.0);
     if (clamped == _size) return;

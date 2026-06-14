@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import '../../application/canvas_controller.dart' show Tool;
+import '../../domain/brush/brush_preset.dart';
 
 /// 1 ストロークの保持データ(retained-mode)。
 ///
@@ -13,7 +14,7 @@ import '../../application/canvas_controller.dart' show Tool;
 class PaintedStroke {
   PaintedStroke({
     required this.tool,
-    required this.brushKey,
+    required this.brush,
     required this.colorHex,
     required this.size,
     required this.opacity,
@@ -22,7 +23,7 @@ class PaintedStroke {
        _times = <double>[];
 
   final Tool tool;
-  final String brushKey;
+  final BrushPreset brush;
   final String colorHex;
   final double size;
   final double opacity;

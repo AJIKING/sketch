@@ -625,8 +625,29 @@ class _BrushSheet extends StatelessWidget {
             ),
           ],
         ),
+        _brushParam(
+          '濃さ',
+          controller.brush.flow,
+          0.02,
+          1,
+          controller.setBrushFlow,
+        ),
+        _brushParam(
+          '散り',
+          controller.brush.scatter,
+          0,
+          2,
+          controller.setBrushScatter,
+        ),
+        _brushParam(
+          '間隔',
+          controller.brush.spacing,
+          0.05,
+          2,
+          controller.setBrushSpacing,
+        ),
         ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 360),
+          constraints: const BoxConstraints(maxHeight: 300),
           child: ListView(
             shrinkWrap: true,
             children: [
@@ -663,6 +684,34 @@ class _BrushSheet extends StatelessWidget {
                   },
                 ),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _brushParam(
+    String label,
+    double value,
+    double min,
+    double max,
+    ValueChanged<double> onChanged,
+  ) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 96,
+          child: Text(
+            label,
+            style: const TextStyle(color: AtelierTokens.inkDim, fontSize: 13),
+          ),
+        ),
+        Expanded(
+          child: Slider(
+            value: value.clamp(min, max),
+            min: min,
+            max: max,
+            onChanged: onChanged,
           ),
         ),
       ],

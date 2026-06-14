@@ -43,6 +43,19 @@ void main() {
       expect(c.brush.key, 'pencil');
       expect(c.tool, Tool.brush);
     });
+
+    test('ブラシの flow/scatter/spacing を上書きできる(クランプ付き)', () {
+      c.selectBrush(inkBrush);
+      c.setBrushFlow(0.3);
+      expect(c.brush.flow, closeTo(0.3, 1e-9));
+      c.setBrushScatter(5); // クランプ上限 2
+      expect(c.brush.scatter, 2);
+      c.setBrushSpacing(0.01); // クランプ下限 0.05
+      expect(c.brush.spacing, 0.05);
+      // 他ブラシ選択で上書きはリセットされる
+      c.selectBrush(inkBrush);
+      expect(c.brush.flow, inkBrush.flow);
+    });
   });
 
   group('サイズ / 不透明度', () {

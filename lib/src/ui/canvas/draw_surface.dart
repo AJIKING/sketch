@@ -198,7 +198,7 @@ class DrawSurfaceState extends State<DrawSurface> {
       _currentLayerId = _c.layers.active.id;
       final stroke = PaintedStroke(
         tool: _c.tool,
-        brushKey: _c.brush.key,
+        brush: _c.brush,
         colorHex: _c.colorHex,
         size: _c.size,
         opacity: _c.opacity,
