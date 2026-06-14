@@ -126,25 +126,37 @@ class DrawSurfaceState extends State<DrawSurface> {
     super.dispose();
   }
 
-  /// ベクター状態の変化(選択・undo 等)で再描画する。
+  /// ベクター状態の変化(選択・undo 等)で再描画する。ベクターモードが切れたら
+  /// 進行中のベクター操作も破棄する(描きかけが次の操作へ漏れないように)。
   void _onVectorChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    if (!_vectorMode) _vecCancelInProgress();
+    setState(() {});
   }
 
   bool get _vectorMode => widget.vector?.enabled ?? false;
+
+  bool get _vecInProgress =>
+      _vecStrokePts != null || _vecShapeStart != null || _vecMoving;
 
   /// 外部からの状態変更(ツール変更・レイヤー操作・undo/redo 等)で、進行中の
   /// 操作を無効化する。これらの変更中はコントローラが通知するが、通常の描画
   /// 中(down/move)はコントローラを呼ばないため、ここで安全に破棄できる。
   /// 古いレイヤーへの誤焼込や履歴の食い違いを防ぐ。
   void _onControllerChanged() {
-    if (_current == null && _shapeStart == null && _selDraft == null) return;
+    if (_current == null &&
+        _shapeStart == null &&
+        _selDraft == null &&
+        !_vecInProgress) {
+      return;
+    }
     _current = null;
     _currentLayerId = null;
     _shapeStart = null;
     _shapeEnd = null;
     _shapeLayerId = null;
     _selDraft = null;
+    _vecCancelInProgress();
     _cancelLongPress();
     // ListenableBuilder(_c) が DrawSurface を再ビルドするので setState 不要。
   }
@@ -387,8 +399,7 @@ class DrawSurfaceState extends State<DrawSurface> {
       setState(() {});
       return;
     }
-    if (_vectorMode &&
-        (_vecStrokePts != null || _vecShapeStart != null || _vecMoving)) {
+    if (_vectorMode && _vecInProgress) {
       _vecMove(e.localPosition);
       setState(() {});
       return;
@@ -449,8 +460,7 @@ class DrawSurfaceState extends State<DrawSurface> {
       _lastPanPos = null;
       return;
     }
-    if (_vectorMode &&
-        (_vecStrokePts != null || _vecShapeStart != null || _vecMoving)) {
+    if (_vectorMode && _vecInProgress) {
       _vecUp(e.localPosition);
       setState(() {});
       return;

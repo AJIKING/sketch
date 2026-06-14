@@ -20,6 +20,7 @@ class VectorController extends ChangeNotifier {
 
   bool _enabled = false;
   String? _selectedId;
+  bool _moveArmed = false; // 移動ドラッグ開始済みだがまだスナップショット未取得
   int _seq = 0;
 
   VectorLayer get layer => _layer;
@@ -35,7 +36,10 @@ class VectorController extends ChangeNotifier {
   void setEnabled(bool value) {
     if (value == _enabled) return;
     _enabled = value;
-    if (!value) _selectedId = null;
+    if (!value) {
+      _selectedId = null;
+      _moveArmed = false;
+    }
     notifyListeners();
   }
 
@@ -118,26 +122,33 @@ class VectorController extends ChangeNotifier {
   bool selectAt(VecPoint p, {double tolerance = 10}) {
     final hit = _layer.hitTest(p, tolerance: tolerance);
     _selectedId = hit?.id;
+    _moveArmed = false;
     notifyListeners();
     return hit != null;
   }
 
   void clearSelection() {
+    _moveArmed = false;
     if (_selectedId == null) return;
     _selectedId = null;
     notifyListeners();
   }
 
-  /// 移動ドラッグの開始。ドラッグ全体を 1 操作として undo できるよう、ここで
-  /// 一度だけスナップショットを積む(以降の [moveSelectedBy] は積まない)。
+  /// 移動ドラッグの開始を予約する。実際に動いた最初の [moveSelectedBy] で初めて
+  /// スナップショットを積むため、タップ選択(移動なし)では履歴を汚さない。
   void beginMove() {
     if (_selectedId == null) return;
-    _pushUndo();
+    _moveArmed = true;
   }
 
   void moveSelectedBy(double dx, double dy) {
     final id = _selectedId;
     if (id == null) return;
+    if (dx == 0 && dy == 0) return; // 動きが無ければ何もしない
+    if (_moveArmed) {
+      _pushUndo(); // ドラッグ全体を 1 操作にする(最初の移動でだけ積む)
+      _moveArmed = false;
+    }
     if (_layer.moveBy(id, dx, dy)) notifyListeners();
   }
 

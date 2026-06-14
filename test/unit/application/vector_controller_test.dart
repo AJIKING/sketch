@@ -79,6 +79,26 @@ void main() {
     );
   });
 
+  test('タップ選択だけ(移動なし)では履歴を汚さない(回帰)', () {
+    c.addStroke(const [VecPoint(5, 5)], colorHex: '#000000', width: 10);
+    c.selectAt(const VecPoint(5, 5));
+    c.beginMove();
+    c.moveSelectedBy(0, 0); // 動きゼロ
+    expect(c.canUndo, isTrue); // 追加ぶんの 1 件だけ
+    c.undo();
+    expect(c.count, 0); // 1 回の undo でストロークが消える(no-op move が無い)
+  });
+
+  test('移動しない選択は redo スタックを壊さない(回帰)', () {
+    c.addStroke(const [VecPoint(0, 0)], colorHex: '#000000', width: 10);
+    c.addStroke(const [VecPoint(9, 9)], colorHex: '#000000', width: 10);
+    c.undo(); // 2 本目を取り消し → redo 可能
+    expect(c.canRedo, isTrue);
+    c.selectAt(const VecPoint(0, 0)); // 残ったものを選択
+    c.beginMove(); // 動かさない
+    expect(c.canRedo, isTrue); // redo は保持される
+  });
+
   test('削除・色変更', () {
     c.addStroke(const [VecPoint(0, 0)], colorHex: '#000000', width: 10);
     c.recolorSelected('#123456');
