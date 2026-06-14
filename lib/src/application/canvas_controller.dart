@@ -8,7 +8,7 @@ import '../domain/canvas/layer_stack.dart';
 import '../domain/color/ink_color.dart';
 
 /// キャンバスのツール。
-enum Tool { brush, smudge, erase }
+enum Tool { brush, smudge, erase, fill, eyedropper, gradient }
 
 /// undo/redo のスナップショット(対象レイヤー id + 不透明な画素トークン)。
 typedef LayerSnapshot = ({String layerId, Object pixels});

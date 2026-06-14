@@ -36,6 +36,15 @@ void main() {
     expect(find.text('エアブラシ'), findsOneWidget);
   });
 
+  testWidgets('ドックに塗りつぶし/グラデ/スポイトがある(Phase2)', (tester) async {
+    await tester.pumpWidget(_app());
+    await tester.pump();
+
+    expect(find.byTooltip('塗りつぶし'), findsOneWidget);
+    expect(find.byTooltip('グラデーション'), findsOneWidget);
+    expect(find.byTooltip('スポイト'), findsOneWidget);
+  });
+
   testWidgets('レイヤーシートで追加するとレイヤーが増える', (tester) async {
     await tester.pumpWidget(_app());
     await tester.pump();

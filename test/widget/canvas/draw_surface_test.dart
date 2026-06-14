@@ -76,4 +76,30 @@ void main() {
 
     expect(surface.imageOf(activeId), isNull, reason: '不透明部分が無いので塗れない');
   });
+
+  testWidgets('グラデーションをドラッグするとレイヤーへ焼き込まれる(Phase2)', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface)
+      ..selectTool(Tool.gradient);
+    await _pump(tester, controller, surface);
+    final id = controller.layers.active.id;
+
+    await tester.drag(find.byType(DrawSurface), const Offset(60, 60));
+    await tester.pump();
+
+    expect(surface.imageOf(id), isNotNull);
+    expect(controller.canUndo, isTrue);
+  });
+
+  testWidgets('空レイヤーでスポイトすると紙の色になる(Phase2)', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface)
+      ..selectTool(Tool.eyedropper);
+    await _pump(tester, controller, surface);
+
+    await tester.tap(find.byType(DrawSurface));
+    await tester.pump();
+
+    expect(controller.colorHex, '#EFE7D6'); // 紙の色
+  });
 }

@@ -278,11 +278,22 @@ class _CanvasScreenState extends State<CanvasScreen> {
           borderRadius: BorderRadius.circular(AtelierTokens.rLg),
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _toolButton(Tool.brush, Icons.brush, 'ブラシ'),
-            _toolButton(Tool.smudge, Icons.water_drop_outlined, 'スマッジ'),
-            _toolButton(Tool.erase, Icons.auto_fix_normal, '消しゴム'),
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _toolButton(Tool.brush, Icons.brush, 'ブラシ'),
+                    _toolButton(Tool.smudge, Icons.water_drop_outlined, 'スマッジ'),
+                    _toolButton(Tool.erase, Icons.auto_fix_normal, '消しゴム'),
+                    _toolButton(Tool.fill, Icons.format_color_fill, '塗りつぶし'),
+                    _toolButton(Tool.gradient, Icons.gradient, 'グラデーション'),
+                    _toolButton(Tool.eyedropper, Icons.colorize, 'スポイト'),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(
               width: 1,
               height: 28,
@@ -296,6 +307,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
               tooltip: 'レイヤー',
               onPressed: _openLayerSheet,
             ),
+            const SizedBox(width: 4),
             GestureDetector(
               onTap: _openColorSheet,
               child: Semantics(
