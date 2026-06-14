@@ -59,6 +59,7 @@ void main() {
     expect(find.byTooltip('グラデーション'), findsOneWidget);
     expect(find.byTooltip('スポイト'), findsOneWidget);
     expect(find.byTooltip('図形'), findsOneWidget);
+    expect(find.byTooltip('テキスト'), findsOneWidget);
   });
 
   testWidgets('図形ツール再タップで図形シートが開く', (tester) async {

@@ -111,6 +111,28 @@ void main() {
     expect(surface.imageOf(activeId), isNull, reason: '不透明部分が無いので塗れない');
   });
 
+  testWidgets('テキストツール: タップ→入力→焼込、undo で戻る', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface)
+      ..selectTool(Tool.text);
+    await _pump(tester, controller, surface);
+    final id = controller.layers.active.id;
+
+    await tester.tap(find.byType(DrawSurface));
+    await tester.pumpAndSettle();
+    expect(find.text('テキストを入力'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'ABC');
+    await tester.tap(find.text('追加'));
+    await tester.pumpAndSettle();
+
+    expect(surface.imageOf(id), isNotNull);
+    expect(controller.canUndo, isTrue);
+
+    controller.undo();
+    expect(surface.imageOf(id), isNull);
+  });
+
   testWidgets('図形ツール: ドラッグで焼き込み、undo で戻る', (tester) async {
     final surface = RasterLayerStore();
     final controller = CanvasController(surface: surface)

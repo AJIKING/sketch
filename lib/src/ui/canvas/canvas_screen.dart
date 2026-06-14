@@ -467,6 +467,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
                     _toolButton(Tool.fill, Icons.format_color_fill, '塗りつぶし'),
                     _toolButton(Tool.gradient, Icons.gradient, 'グラデーション'),
                     _toolButton(Tool.shape, Icons.category_outlined, '図形'),
+                    _toolButton(Tool.text, Icons.text_fields, 'テキスト'),
                     _toolButton(Tool.eyedropper, Icons.colorize, 'スポイト'),
                     IconButton(
                       icon: const Icon(Icons.transform),

@@ -300,11 +300,12 @@ class DrawSurfaceState extends State<DrawSurface> {
         unawaited(_sampleAt(cs));
       case Tool.gradient:
         _gradientFromTo(cs, cu);
+      case Tool.text:
+        unawaited(_placeTextAt(cs));
       case Tool.brush:
       case Tool.smudge:
       case Tool.erase:
       case Tool.shape:
-      case Tool.text:
         break;
     }
   }
@@ -427,6 +428,80 @@ class DrawSurfaceState extends State<DrawSurface> {
     _shapeEnd = null;
     _shapeLayerId = null;
     setState(() {});
+  }
+
+  /// テキストツール: タップ位置に文字を配置する。入力ダイアログ→焼込(undo 可)。
+  Future<void> _placeTextAt(Offset canvasPos) async {
+    if (!_c.layers.active.visible) {
+      _warnHidden();
+      return;
+    }
+    final text = await _promptText();
+    if (!mounted || text == null || text.trim().isEmpty || _docSize.isEmpty) {
+      return;
+    }
+    final id = _c.layers.active.id;
+    final w = _docSize.width.round().clamp(1, 4096);
+    final h = _docSize.height.round().clamp(1, 4096);
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    final existing = widget.surface.imageOf(id);
+    if (existing != null) {
+      canvas.drawImageRect(
+        existing,
+        Rect.fromLTWH(
+          0,
+          0,
+          existing.width.toDouble(),
+          existing.height.toDouble(),
+        ),
+        Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
+        Paint(),
+      );
+    }
+    final (r, g, b) = _currentRgb();
+    final painter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          color: Color.fromARGB(_alpha, r, g, b),
+          fontSize: (_c.size * 2.2).clamp(12.0, 240.0),
+          fontWeight: FontWeight.w600,
+          height: 1.2,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: w.toDouble());
+    painter.paint(canvas, canvasPos);
+    _c.beginStroke(id);
+    widget.surface.set(id, recorder.endRecording().toImageSync(w, h));
+    setState(() {});
+  }
+
+  Future<String?> _promptText() {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('テキストを入力'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: null,
+          decoration: const InputDecoration(hintText: '文字を入力'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text),
+            child: const Text('追加'),
+          ),
+        ],
+      ),
+    );
   }
 
   (int, int, int) _currentRgb() => hexToRgb(_c.colorHex);
