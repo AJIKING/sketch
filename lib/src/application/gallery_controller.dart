@@ -83,6 +83,23 @@ class GalleryController extends ChangeNotifier {
     return '$base-$n';
   }
 
+  /// スケッチの名前を変更する。空文字は既定名(タイトルなし)に戻す。
+  /// 並び順を乱さないよう updatedAt は据え置く。存在しなければ null。
+  Future<Sketch?> rename(String id, String title) async {
+    final source = _byId(id);
+    if (source == null) return null;
+    final trimmed = title.trim();
+    final updated = Sketch(
+      id: source.id,
+      title: trimmed.isEmpty ? null : trimmed,
+      createdAt: source.createdAt,
+      updatedAt: source.updatedAt,
+    );
+    await store.updateMeta(updated);
+    await load();
+    return updated;
+  }
+
   Future<void> remove(String id) async {
     await store.delete(id);
     await load();

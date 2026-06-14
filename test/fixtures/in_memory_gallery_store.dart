@@ -24,6 +24,12 @@ class InMemoryGalleryStore implements GalleryStore {
   }
 
   @override
+  Future<void> updateMeta(Sketch sketch) async {
+    if (!_meta.containsKey(sketch.id)) return;
+    _meta[sketch.id] = sketch;
+  }
+
+  @override
   Future<Uint8List?> loadImage(String id) async => _images[id];
 
   @override

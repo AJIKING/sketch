@@ -81,6 +81,39 @@ void main() {
     expect(controller.sketches.any((s) => s.title == '朝の習作 のコピー'), isTrue);
   });
 
+  testWidgets('長押し→名前を変更で一覧の名称が変わる', (tester) async {
+    final controller = GalleryController(
+      store: InMemoryGalleryStore(),
+      clock: FakeClock(),
+    );
+    await controller.save(id: 'a', png: _png, title: '朝の習作');
+    await controller.load();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GalleryScreen(
+          controller: controller,
+          onNewCanvas: () {},
+          onOpenSketch: (_) {},
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('朝の習作'), findsOneWidget);
+
+    await tester.longPress(find.text('朝の習作'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('名前を変更'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), '夜の習作');
+    await tester.tap(find.text('変更'));
+    await tester.pumpAndSettle();
+
+    expect(controller.sketches.single.title, '夜の習作');
+    expect(find.text('夜の習作'), findsOneWidget);
+  });
+
   testWidgets('スケッチ 0 件でも新規カードが出る', (tester) async {
     final controller = GalleryController(
       store: InMemoryGalleryStore(),

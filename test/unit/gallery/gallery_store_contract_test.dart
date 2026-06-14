@@ -71,5 +71,26 @@ void main() {
     test('未知 id の画像読み出しは null', () async {
       expect(await InMemoryGalleryStore().loadImage('none'), isNull);
     });
+
+    test('updateMeta はメタだけ更新し画像は保つ', () async {
+      final store = InMemoryGalleryStore();
+      await store.save(_sketch('a'), _png(1));
+      await store.updateMeta(
+        Sketch(
+          id: 'a',
+          title: '新しい名前',
+          createdAt: DateTime.utc(2026, 1, 1),
+          updatedAt: DateTime.utc(2026, 1, 1),
+        ),
+      );
+      expect((await store.loadIndex()).single.title, '新しい名前');
+      expect(await store.loadImage('a'), [0x89, 0x50, 1]); // 画像は不変
+    });
+
+    test('updateMeta は存在しない id では何もしない', () async {
+      final store = InMemoryGalleryStore();
+      await store.updateMeta(_sketch('ghost'));
+      expect(await store.loadIndex(), isEmpty);
+    });
   });
 }

@@ -75,6 +75,15 @@ class FileGalleryStore implements GalleryStore {
   }
 
   @override
+  Future<void> updateMeta(Sketch sketch) async {
+    final dir = await _dir();
+    final map = await _readIndex(dir);
+    if (!map.containsKey(sketch.id)) return; // 画像が無いものは作らない
+    map[sketch.id] = sketch;
+    await _writeIndex(dir, map);
+  }
+
+  @override
   Future<Uint8List?> loadImage(String id) async {
     final dir = await _dir();
     final file = _imageFile(dir, id);

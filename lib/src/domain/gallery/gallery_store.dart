@@ -14,6 +14,10 @@ abstract interface class GalleryStore {
   /// メタ + PNG を保存する。同じ id があれば上書きする。
   Future<void> save(Sketch sketch, Uint8List png);
 
+  /// メタ情報(タイトル等)だけを更新する。画像は触らない。
+  /// 対象 id が無ければ何もしない。
+  Future<void> updateMeta(Sketch sketch);
+
   /// id の PNG バイト列を返す。無ければ null。
   Future<Uint8List?> loadImage(String id);
 

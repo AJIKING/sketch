@@ -75,6 +75,27 @@ void main() {
     expect(c.count, 0);
   });
 
+  test('rename はタイトルを変え、画像と並び順を保つ', () async {
+    await c.save(id: 'a', png: _png(1), title: '朝の習作');
+    clock.advance(const Duration(hours: 1));
+    await c.save(id: 'b', png: _png(2), title: 'b');
+    // 並びは新しい順で [b, a]。a をリネームしても updatedAt 据え置きで順序維持。
+    final updated = await c.rename('a', '夜の習作');
+    expect(updated!.title, '夜の習作');
+    expect(c.sketches.map((s) => s.id), ['b', 'a']); // 順序不変
+    expect(await c.image('a'), [0x89, 1]); // 画像不変
+  });
+
+  test('rename で空文字は既定名(null)に戻す', () async {
+    await c.save(id: 'a', png: _png(1), title: '名前');
+    final updated = await c.rename('a', '   ');
+    expect(updated!.title, isNull);
+  });
+
+  test('存在しない id の rename は null', () async {
+    expect(await c.rename('missing', 'x'), isNull);
+  });
+
   test('同一時刻で連続複製しても id が衝突しない(回帰)', () async {
     await c.save(id: 'a', png: _png(1));
     final c1 = await c.duplicate('a'); // clock は進めない

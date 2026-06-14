@@ -90,7 +90,7 @@ class GalleryScreen extends StatelessWidget {
     );
   }
 
-  /// 長押しメニュー(複製・削除)。
+  /// 長押しメニュー(名前変更・複製・削除)。
   void _showActions(BuildContext context, Sketch sketch) {
     showModalBottomSheet<void>(
       context: context,
@@ -100,6 +100,23 @@ class GalleryScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            ListTile(
+              leading: const Icon(Icons.drive_file_rename_outline),
+              title: const Text(
+                '名前を変更',
+                style: TextStyle(color: AtelierTokens.ink),
+              ),
+              onTap: () async {
+                Navigator.of(sheetContext).pop();
+                final messenger = ScaffoldMessenger.of(context);
+                final name = await _promptName(context, sketch.title);
+                if (name == null) return; // キャンセル
+                await controller.rename(sketch.id, name);
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('名前を変更しました')),
+                );
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.copy_all_outlined),
               title: const Text(
@@ -160,6 +177,57 @@ class GalleryScreen extends StatelessWidget {
       ),
     );
     return result ?? false;
+  }
+
+  /// 名前入力ダイアログ。確定で入力文字列、キャンセルで null を返す。
+  Future<String?> _promptName(BuildContext context, String? initial) {
+    return showDialog<String>(
+      context: context,
+      builder: (_) => _RenameDialog(initial: initial ?? ''),
+    );
+  }
+}
+
+/// 名前変更ダイアログ(コントローラを State で確実に dispose する)。
+class _RenameDialog extends StatefulWidget {
+  const _RenameDialog({required this.initial});
+  final String initial;
+
+  @override
+  State<_RenameDialog> createState() => _RenameDialogState();
+}
+
+class _RenameDialogState extends State<_RenameDialog> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initial,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() => Navigator.of(context).pop(_controller.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('名前を変更'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        decoration: const InputDecoration(hintText: 'スケッチの名前'),
+        onSubmitted: (_) => _submit(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('キャンセル'),
+        ),
+        TextButton(onPressed: _submit, child: const Text('変更')),
+      ],
+    );
   }
 }
 
