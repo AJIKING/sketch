@@ -78,10 +78,7 @@ void main() {
     expect(controller.count, 2);
     expect(find.text('複製しました'), findsOneWidget); // SnackBar
     // 複製されたスケッチが「… のコピー」名で存在する。
-    expect(
-      controller.sketches.any((s) => s.title == '朝の習作 のコピー'),
-      isTrue,
-    );
+    expect(controller.sketches.any((s) => s.title == '朝の習作 のコピー'), isTrue);
   });
 
   testWidgets('スケッチ 0 件でも新規カードが出る', (tester) async {

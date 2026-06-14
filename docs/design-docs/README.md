@@ -13,3 +13,5 @@
 | [0001](0001-sketch-persistence.md) | スケッチの永続化方式 | 採用(実装済み) |
 | [0002](0002-golden-test-operations.md) | golden test の基準 platform と baseline 運用 | 採用 |
 | [0003](0003-drawing-determinism.md) | 描画の決定性(乱数 seed と時間源の注入) | 採用 |
+| [0004](0004-raster-canvas-engine.md) | ラスター(ピクセル)キャンバスエンジンへの移行 | 採用 |
+| [0005](0005-vector-layers.md) | ベクターレイヤー(再編集可能なオブジェクト層) | 採用(段階導入) |
