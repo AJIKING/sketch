@@ -4,7 +4,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../core/clock.dart';
 import '../data/file_gallery_store.dart';
-import '../data/unsupported_image_exporter.dart';
+import '../data/share_image_exporter.dart';
 import '../domain/gallery/gallery_store.dart';
 import '../domain/gallery/image_exporter.dart';
 
@@ -23,9 +23,8 @@ class Dependencies {
   final GalleryStore galleryStore;
   final ImageExporter imageExporter;
 
-  /// 本番構成。スケッチはアプリ内ドキュメントディレクトリに永続化する
-  /// (ADR 0001)。端末への画像保存は ADR 0001 の `ImageExporter` 実装が
-  /// 入るまで未対応。
+  /// 本番構成。スケッチはアプリ内ドキュメントディレクトリに永続化し(ADR 0001)、
+  /// 画像エクスポートは OS の共有シート経由(`ShareImageExporter`)。
   factory Dependencies.production() => Dependencies(
     clock: const SystemClock(),
     galleryStore: FileGalleryStore(
@@ -34,6 +33,6 @@ class Dependencies {
         return Directory('${docs.path}/hatch_sketches');
       },
     ),
-    imageExporter: const UnsupportedImageExporter(),
+    imageExporter: const ShareImageExporter(),
   );
 }

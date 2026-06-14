@@ -127,7 +127,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
                   await widget.dependencies.imageExporter.exportPng(png);
               if (!mounted) return;
               messenger.showSnackBar(
-                SnackBar(content: Text(ok ? '画像を保存しました' : '保存は未対応です')),
+                SnackBar(content: Text(ok ? '画像を書き出しました' : '書き出しをキャンセルしました')),
               );
             },
           ),

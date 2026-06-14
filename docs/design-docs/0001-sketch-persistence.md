@@ -34,4 +34,4 @@
 - 壊れた / 読めないインデックスは例外にせず空ギャラリーとして扱い、アプリは必ず起動できるようにする。
 - 実装: `FileGalleryStore` は保存先ディレクトリを `resolveDir`(関数)で受け取る。本番は path_provider の `getApplicationDocumentsDirectory()` 配下(`hatch_sketches/`)、テストは `Directory.systemTemp` の一時ディレクトリを注入する。これにより contract test を path_provider なしの実ファイル I/O で回せる(`test/unit/gallery/file_gallery_store_test.dart`)。
 - テストのロジック側は `GalleryStore` のインメモリ fake(`test/fixtures/in_memory_gallery_store`)も併用し、実ファイル I/O に依存させない。
-- 端末の写真ライブラリへの書き出しはこの ADR の範囲外。`ImageExporter` 境界として分離する(本番は未実装の `UnsupportedImageExporter`)。
+- 端末の写真ライブラリへの書き出しはこの ADR の範囲外。`ImageExporter` 境界として分離し、本番は OS の共有シート経由(`lib/src/data/share_image_exporter.dart`、share_plus)。テストは記録のみの fake。
