@@ -1,3 +1,5 @@
+import 'dart:ui' show Size;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sketch/src/ui/canvas/viewport_transform.dart';
 
@@ -27,6 +29,50 @@ void main() {
       );
       const p = Offset(12, 25);
       expectOffset(v.toCanvas(v.toView(p)), p, eps: 1e-6);
+    });
+  });
+
+  group('fit(中央フィット)', () {
+    test('同寸法なら等倍・原点(歪みなし)', () {
+      final v = ViewportTransform.fit(
+        const Size(100, 200),
+        const Size(100, 200),
+      );
+      expect(v.scale, closeTo(1, 1e-9));
+      expectOffset(v.offset, Offset.zero);
+      expect(v.rotation, 0);
+    });
+
+    test('横長表示に縦長アートボードを収めると高さ基準で中央寄せ', () {
+      // doc 100x200 を view 300x100 へ。scale = min(3, 0.5) = 0.5。
+      final v = ViewportTransform.fit(
+        const Size(100, 200),
+        const Size(300, 100),
+      );
+      expect(v.scale, closeTo(0.5, 1e-9));
+      // 横: (300 - 100*0.5)/2 = 125、縦: (100 - 200*0.5)/2 = 0。
+      expectOffset(v.offset, const Offset(125, 0), eps: 1e-6);
+      // アートボード中心(50,100)が表示の中心(150,50)へ写る。
+      expectOffset(
+        v.toView(const Offset(50, 100)),
+        const Offset(150, 50),
+        eps: 1e-6,
+      );
+    });
+
+    test('縦長表示に横長アートボードを収めると幅基準で中央寄せ', () {
+      // doc 200x100 を view 100x300 へ。scale = min(0.5, 3) = 0.5。
+      final v = ViewportTransform.fit(
+        const Size(200, 100),
+        const Size(100, 300),
+      );
+      expect(v.scale, closeTo(0.5, 1e-9));
+      expectOffset(v.offset, const Offset(0, 125), eps: 1e-6);
+    });
+
+    test('空サイズなら恒等変換(クラッシュしない)', () {
+      expect(ViewportTransform.fit(Size.zero, const Size(10, 10)).scale, 1);
+      expect(ViewportTransform.fit(const Size(10, 10), Size.zero).scale, 1);
     });
   });
 

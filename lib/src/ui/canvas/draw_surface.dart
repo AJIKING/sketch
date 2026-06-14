@@ -62,7 +62,8 @@ class DrawSurfaceState extends State<DrawSurface> {
   String? _currentLayerId;
   Offset? _startPos; // 非ストロークツールの開始点(view 空間)
   int _seed = 0;
-  Size _docSize = Size.zero;
+  Size _docSize = Size.zero; // アートボード(固定解像度)の寸法
+  Size _viewSize = Size.zero; // 直近の表示域。変化したら中央フィットし直す
   StrokeStabilizer _stabilizer = StrokeStabilizer(0);
 
   // ビューポート(ズーム/回転/移動)。
@@ -237,9 +238,9 @@ class DrawSurfaceState extends State<DrawSurface> {
   /// テスト/外部から現在のビューポートを読む。
   ViewportTransform get viewport => _viewport;
 
-  /// ビューを初期状態(等倍・無回転・原点)へ戻す。
+  /// ビューをアートボードの中央フィット(基準状態)へ戻す。
   void resetView() {
-    _viewport = const ViewportTransform();
+    _viewport = ViewportTransform.fit(_docSize, _viewSize);
     setState(() {});
   }
 
@@ -1069,7 +1070,17 @@ class DrawSurfaceState extends State<DrawSurface> {
     return RepaintBoundary(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          if (_docSize.isEmpty) _docSize = constraints.biggest;
+          final view = constraints.biggest;
+          if (_docSize.isEmpty) {
+            // 初回レイアウトでアートボード寸法を確定(以後は固定解像度)。
+            _docSize = view;
+            _viewSize = view;
+            _viewport = ViewportTransform.fit(_docSize, view);
+          } else if (view != _viewSize) {
+            // 回転・リサイズで表示域が変わったら、歪めず中央フィットし直す。
+            _viewSize = view;
+            _viewport = ViewportTransform.fit(_docSize, view);
+          }
           return Listener(
             behavior: HitTestBehavior.opaque,
             onPointerDown: _onDown,

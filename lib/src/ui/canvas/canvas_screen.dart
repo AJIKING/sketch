@@ -396,34 +396,27 @@ class _CanvasScreenState extends State<CanvasScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AtelierTokens.shell,
+      // テキスト入力などでキーボードが出ても全面キャンバスは縮めない
+      // (縮むと中央フィットがやり直されてズームが失われるため)。
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
         child: ListenableBuilder(
           listenable: _repaint,
           builder: (context, _) {
             return Stack(
               children: [
+                // キャンバスは常に全面。ツール UI はこの上に重ねる(被せる)ので、
+                // 描ける範囲はボタンに削られず最大化される。ボタンは表示/非表示可能。
                 Positioned.fill(
-                  child: Padding(
-                    // UI 非表示時はキャンバスを全面に広げる。
-                    padding: _uiVisible
-                        ? const EdgeInsets.fromLTRB(8, 64, 8, 96)
-                        : EdgeInsets.zero,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(
-                        _uiVisible ? AtelierTokens.rLg : 0,
-                      ),
-                      child: DrawSurface(
-                        key: _drawKey,
-                        controller: _c,
-                        surface: _surface,
-                        clock: widget.dependencies.clock,
-                        transforming: _transforming,
-                        vector: _vec,
-                        // 2 本指ダブルタップでツール UI を表示/非表示。
-                        onToggleUi: () =>
-                            setState(() => _uiVisible = !_uiVisible),
-                      ),
-                    ),
+                  child: DrawSurface(
+                    key: _drawKey,
+                    controller: _c,
+                    surface: _surface,
+                    clock: widget.dependencies.clock,
+                    transforming: _transforming,
+                    vector: _vec,
+                    // 2 本指ダブルタップでツール UI を表示/非表示。
+                    onToggleUi: () => setState(() => _uiVisible = !_uiVisible),
                   ),
                 ),
                 // ツール UI(ヘッダー/左レール/フッター)。非表示時は描画を遮らない。

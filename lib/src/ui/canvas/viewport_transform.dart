@@ -71,6 +71,22 @@ class ViewportTransform {
     );
   }
 
+  /// アートボード [doc] を表示域 [view] に歪みなく収める変換(中央寄せ・無回転)。
+  ///
+  /// アスペクト比を保ったまま「縦横どちらか」が収まる倍率にし、余白を均等に振る。
+  /// 端末回転やリサイズで表示域が変わったときの基準ビューポートに使う。
+  static ViewportTransform fit(Size doc, Size view) {
+    if (doc.isEmpty || view.isEmpty) return const ViewportTransform();
+    final scale = math.min(view.width / doc.width, view.height / doc.height);
+    return ViewportTransform(
+      scale: scale,
+      offset: Offset(
+        (view.width - doc.width * scale) / 2,
+        (view.height - doc.height * scale) / 2,
+      ),
+    );
+  }
+
   /// 2 本指ジェスチャから新しい変換を求める。
   ///
   /// ジェスチャ開始時の状態 [start] と 2 点 [a0],[b0]、現在の 2 点 [a],[b] から、

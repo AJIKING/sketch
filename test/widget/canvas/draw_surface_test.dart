@@ -342,6 +342,44 @@ void main() {
     );
   }
 
+  testWidgets('表示域が変わると中央フィットし直す(縦→横 回帰)', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final key = GlobalKey<DrawSurfaceState>();
+
+    Widget app(Size size) => MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: SizedBox(
+            width: size.width,
+            height: size.height,
+            child: DrawSurface(
+              key: key,
+              controller: controller,
+              surface: surface,
+              clock: FakeClock(),
+              transforming: ValueNotifier<bool>(false),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // 縦長で起動 → アートボード = 100x200、等倍・原点。
+    await tester.pumpWidget(app(const Size(100, 200)));
+    await tester.pump();
+    expect(key.currentState!.viewport.scale, closeTo(1, 1e-9));
+    expect(key.currentState!.viewport.offset, Offset.zero);
+
+    // 横長へ回転(300x100)→ 固定アートボードを歪めず中央フィット。
+    await tester.pumpWidget(app(const Size(300, 100)));
+    await tester.pump();
+    final v = key.currentState!.viewport;
+    expect(v.scale, closeTo(0.5, 1e-9)); // min(300/100, 100/200)
+    expect(v.offset.dx, closeTo(125, 1e-6));
+    expect(v.offset.dy, closeTo(0, 1e-6));
+  });
+
   testWidgets('ベクターモード: ドラッグでベクターを追加し、ラスターは焼かれない', (tester) async {
     final surface = RasterLayerStore();
     final controller = CanvasController(surface: surface);
