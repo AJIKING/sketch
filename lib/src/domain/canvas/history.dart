@@ -19,6 +19,12 @@ class History<T> {
   bool get canRedo => _redo.isNotEmpty;
   int get undoDepth => _undo.length;
 
+  /// 次に [undo] で復元されるスナップショット(消費しない)。空なら null。
+  T? get nextUndo => _undo.isEmpty ? null : _undo.last;
+
+  /// 次に [redo] で復元されるスナップショット(消費しない)。空なら null。
+  T? get nextRedo => _redo.isEmpty ? null : _redo.last;
+
   /// 変更の直前に現在状態を記録する。redo はクリアされる。
   void record(T snapshot) {
     _undo.add(snapshot);
