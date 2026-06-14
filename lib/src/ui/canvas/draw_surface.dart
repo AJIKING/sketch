@@ -1077,9 +1077,17 @@ class DrawSurfaceState extends State<DrawSurface> {
             _viewSize = view;
             _viewport = ViewportTransform.fit(_docSize, view);
           } else if (view != _viewSize) {
-            // 回転・リサイズで表示域が変わったら、歪めず中央フィットし直す。
+            final old = _viewSize;
             _viewSize = view;
-            _viewport = ViewportTransform.fit(_docSize, view);
+            // 中央フィットし直すのは「画面の向きが変わった」とき、または
+            // ユーザーがまだズーム/移動していない(基準フィットのまま)とき。
+            // 同じ向きの微小なインセット変化でユーザーのズームを失わないため。
+            final orientationChanged =
+                (old.width >= old.height) != (view.width >= view.height);
+            final untouched = _viewport == ViewportTransform.fit(_docSize, old);
+            if (orientationChanged || untouched) {
+              _viewport = ViewportTransform.fit(_docSize, view);
+            }
           }
           return Listener(
             behavior: HitTestBehavior.opaque,

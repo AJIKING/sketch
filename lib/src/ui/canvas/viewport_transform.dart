@@ -28,6 +28,16 @@ class ViewportTransform {
     offset: offset ?? this.offset,
   );
 
+  @override
+  bool operator ==(Object other) =>
+      other is ViewportTransform &&
+      other.scale == scale &&
+      other.rotation == rotation &&
+      other.offset == offset;
+
+  @override
+  int get hashCode => Object.hash(scale, rotation, offset);
+
   /// canvas 座標 → view 座標。
   Offset toView(Offset c) {
     final cosr = math.cos(rotation);

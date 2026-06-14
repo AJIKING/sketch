@@ -380,6 +380,50 @@ void main() {
     expect(v.offset.dy, closeTo(0, 1e-6));
   });
 
+  testWidgets('同じ向きの微小リサイズではユーザーのズームを保持する(回帰)', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final key = GlobalKey<DrawSurfaceState>();
+
+    Widget app(Size size) => MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: SizedBox(
+            width: size.width,
+            height: size.height,
+            child: DrawSurface(
+              key: key,
+              controller: controller,
+              surface: surface,
+              clock: FakeClock(),
+              transforming: ValueNotifier<bool>(false),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(app(const Size(200, 300))); // 縦
+    await tester.pump();
+
+    // 2 本指ピンチでズーム。
+    final c = tester.getCenter(find.byType(DrawSurface));
+    final g1 = await tester.startGesture(c + const Offset(-20, 0), pointer: 1);
+    final g2 = await tester.startGesture(c + const Offset(20, 0), pointer: 2);
+    await g1.moveBy(const Offset(-40, 0));
+    await g2.moveBy(const Offset(40, 0));
+    await g1.up();
+    await g2.up();
+    await tester.pump();
+    final zoomed = key.currentState!.viewport.scale;
+    expect(zoomed, greaterThan(1.2));
+
+    // 同じ縦向きのまま少しリサイズ → ズームは保持(中央フィットし直さない)。
+    await tester.pumpWidget(app(const Size(190, 300)));
+    await tester.pump();
+    expect(key.currentState!.viewport.scale, closeTo(zoomed, 1e-9));
+  });
+
   testWidgets('ベクターモード: ドラッグでベクターを追加し、ラスターは焼かれない', (tester) async {
     final surface = RasterLayerStore();
     final controller = CanvasController(surface: surface);
