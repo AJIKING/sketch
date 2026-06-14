@@ -10,6 +10,7 @@ import '../../domain/brush/brush_preset.dart';
 import '../../domain/canvas/filters.dart' as filters;
 import '../../domain/canvas/gradient_kind.dart';
 import '../../domain/canvas/layer_blend_mode.dart';
+import '../../domain/canvas/selection_kind.dart';
 import '../../domain/canvas/shape_kind.dart';
 import '../../domain/gallery/sketch.dart';
 import '../theme/atelier_theme.dart';
@@ -250,7 +251,58 @@ class _CanvasScreenState extends State<CanvasScreen> {
       _openGradientSheet(); // グラデ再タップ → 線形/円形
       return;
     }
+    if (tool == Tool.select && _c.tool == Tool.select) {
+      _openSelectionSheet(); // 選択再タップ → 種類・操作
+      return;
+    }
     _c.selectTool(tool);
+  }
+
+  void _openSelectionSheet() {
+    _openSheet(
+      (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final kind in SelectionKind.values)
+            ListTile(
+              leading: Icon(
+                kind == SelectionKind.lasso ? Icons.gesture : Icons.crop_din,
+              ),
+              title: Text(
+                kind.label,
+                style: const TextStyle(color: AtelierTokens.ink),
+              ),
+              trailing: _c.selectionKind == kind
+                  ? const Icon(Icons.check, color: AtelierTokens.vermilion)
+                  : null,
+              onTap: () => _c.setSelectionKind(kind),
+            ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.cleaning_services_outlined),
+            title: const Text(
+              '選択範囲を消去',
+              style: TextStyle(color: AtelierTokens.ink),
+            ),
+            onTap: () {
+              Navigator.of(context).pop();
+              _drawKey.currentState?.clearInsideSelection();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.deselect),
+            title: const Text(
+              '選択を解除',
+              style: TextStyle(color: AtelierTokens.ink),
+            ),
+            onTap: () {
+              Navigator.of(context).pop();
+              _drawKey.currentState?.deselect();
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   void _openShapeSheet() {
@@ -507,6 +559,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
                     _toolButton(Tool.gradient, Icons.gradient, 'グラデーション'),
                     _toolButton(Tool.shape, Icons.category_outlined, '図形'),
                     _toolButton(Tool.text, Icons.text_fields, 'テキスト'),
+                    _toolButton(Tool.select, Icons.highlight_alt, '選択'),
                     _toolButton(Tool.eyedropper, Icons.colorize, 'スポイト'),
                     IconButton(
                       icon: const Icon(Icons.transform),

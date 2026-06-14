@@ -60,6 +60,7 @@ void main() {
     expect(find.byTooltip('スポイト'), findsOneWidget);
     expect(find.byTooltip('図形'), findsOneWidget);
     expect(find.byTooltip('テキスト'), findsOneWidget);
+    expect(find.byTooltip('選択'), findsOneWidget);
   });
 
   testWidgets('図形ツール再タップで図形シートが開く', (tester) async {

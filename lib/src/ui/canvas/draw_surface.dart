@@ -8,6 +8,7 @@ import '../../application/canvas_controller.dart';
 import '../../core/clock.dart';
 import '../../domain/canvas/gradient_kind.dart';
 import '../../domain/canvas/pixel_ops.dart';
+import '../../domain/canvas/selection_kind.dart';
 import '../../domain/color/ink_color.dart';
 import 'painted_stroke.dart';
 import 'raster_layer_store.dart';
@@ -68,6 +69,14 @@ class DrawSurfaceState extends State<DrawSurface> {
   // 図形ツール(ドラッグで bounding box → 離上で焼込)。canvas 空間。
   Offset? _shapeStart, _shapeEnd;
   String? _shapeLayerId;
+
+  // 選択範囲(doc 空間の Path)。確定後は描画/焼込をこの範囲に制限する。
+  Path? _selection;
+  List<Offset>? _selDraft; // 作成中(canvas 空間の点列)
+
+  /// 現在の選択範囲(テスト/外部参照用)。
+  Path? get selection => _selection;
+  bool get hasSelection => _selection != null;
 
   // 長押しスポイト(どのツールでも、その場で長押し→色吸い取り)。
   Timer? _longPressTimer;
@@ -224,6 +233,12 @@ class DrawSurfaceState extends State<DrawSurface> {
       return;
     }
     _startLongPress(e.localPosition); // 1 本指長押しでスポイト
+    if (_c.tool == Tool.select) {
+      _cancelLongPress();
+      _selDraft = [_viewport.toCanvas(e.localPosition)];
+      setState(() {});
+      return;
+    }
     if (_c.tool == Tool.shape) {
       if (!_c.layers.active.visible) {
         _warnHidden();
@@ -291,6 +306,16 @@ class DrawSurfaceState extends State<DrawSurface> {
       setState(() {});
       return;
     }
+    if (_selDraft != null) {
+      final p = _viewport.toCanvas(e.localPosition);
+      if (_c.selectionKind == SelectionKind.rectangle) {
+        _selDraft = [_selDraft!.first, p];
+      } else {
+        _selDraft!.add(p);
+      }
+      setState(() {});
+      return;
+    }
     if (_shapeStart != null) {
       _shapeEnd = _viewport.toCanvas(e.localPosition);
       setState(() {});
@@ -343,6 +368,10 @@ class DrawSurfaceState extends State<DrawSurface> {
       setState(() {});
       return;
     }
+    if (_selDraft != null) {
+      _commitSelection();
+      return;
+    }
     if (_shapeStart != null) {
       _bakeShape();
       return;
@@ -365,6 +394,7 @@ class DrawSurfaceState extends State<DrawSurface> {
       case Tool.smudge:
       case Tool.erase:
       case Tool.shape:
+      case Tool.select:
         break;
     }
   }
@@ -381,6 +411,7 @@ class DrawSurfaceState extends State<DrawSurface> {
     _shapeStart = null;
     _shapeEnd = null;
     _shapeLayerId = null;
+    _selDraft = null;
     if (gesturing && (id == _idA || id == _idB)) {
       if (_pointers.length >= 2) {
         _startGesture();
@@ -441,12 +472,95 @@ class DrawSurfaceState extends State<DrawSurface> {
         width: w,
         height: h,
         alphaLocked: alphaLocked,
+        clip: _selection,
       ),
     );
   }
 
   Offset _snapEnd(Offset start, Offset end) =>
       snapShapeEnd(_c.shapeKind, start, end, snap: _c.shapeSnap);
+
+  // ---- selection ----
+  Path? _draftToPath(List<Offset> draft) {
+    if (_c.selectionKind == SelectionKind.rectangle) {
+      if (draft.length < 2) return null;
+      return Path()..addRect(Rect.fromPoints(draft.first, draft.last));
+    }
+    if (draft.isEmpty) return null;
+    final path = Path()..moveTo(draft.first.dx, draft.first.dy);
+    for (final p in draft.skip(1)) {
+      path.lineTo(p.dx, p.dy);
+    }
+    return path;
+  }
+
+  /// 表示用の選択パス(作成中は draft、無ければ確定済み)。
+  Path? _displaySelection() {
+    final draft = _selDraft;
+    if (draft != null) return _draftToPath(draft);
+    return _selection;
+  }
+
+  void _commitSelection() {
+    final draft = _selDraft;
+    _selDraft = null;
+    if (draft == null) {
+      setState(() {});
+      return;
+    }
+    if (_c.selectionKind == SelectionKind.rectangle) {
+      if (draft.length >= 2) {
+        final r = Rect.fromPoints(draft.first, draft.last);
+        // タップ程度の極小は「選択解除」とみなす。
+        _selection = (r.width.abs() > 3 && r.height.abs() > 3)
+            ? (Path()..addRect(r))
+            : null;
+      }
+    } else {
+      _selection = draft.length >= 3 ? (_draftToPath(draft)!..close()) : null;
+    }
+    setState(() {});
+  }
+
+  /// 選択を解除する。
+  void deselect() {
+    _selection = null;
+    _selDraft = null;
+    setState(() {});
+  }
+
+  /// 選択範囲内をアクティブレイヤーから消す(undo 可能)。
+  void clearInsideSelection() {
+    final sel = _selection;
+    final id = _c.layers.active.id;
+    final existing = widget.surface.imageOf(id);
+    if (sel == null || existing == null || _docSize.isEmpty) return;
+    final w = _docSize.width.round().clamp(1, 4096);
+    final h = _docSize.height.round().clamp(1, 4096);
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    canvas.drawImageRect(
+      existing,
+      Rect.fromLTWH(
+        0,
+        0,
+        existing.width.toDouble(),
+        existing.height.toDouble(),
+      ),
+      Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
+      Paint(),
+    );
+    canvas.save();
+    canvas.clipPath(sel);
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
+      Paint()..blendMode = BlendMode.clear,
+    );
+    canvas.restore();
+    _c.beginStroke(id);
+    widget.surface.set(id, recorder.endRecording().toImageSync(w, h));
+    setState(() {});
+  }
 
   void _bakeShape() {
     final id = _shapeLayerId;
@@ -476,6 +590,8 @@ class DrawSurfaceState extends State<DrawSurface> {
           Paint(),
         );
       }
+      canvas.save();
+      if (_selection != null) canvas.clipPath(_selection!);
       renderShape(
         canvas,
         kind: _c.shapeKind,
@@ -486,6 +602,7 @@ class DrawSurfaceState extends State<DrawSurface> {
         opacity: _c.opacity,
         filled: _c.shapeFilled,
       );
+      canvas.restore();
       _c.beginStroke(id);
       widget.surface.set(id, recorder.endRecording().toImageSync(w, h));
     }
@@ -540,7 +657,10 @@ class DrawSurfaceState extends State<DrawSurface> {
       ),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: w.toDouble());
+    canvas.save();
+    if (_selection != null) canvas.clipPath(_selection!);
     painter.paint(canvas, canvasPos);
+    canvas.restore();
     _c.beginStroke(id);
     widget.surface.set(id, recorder.endRecording().toImageSync(w, h));
     setState(() {});
@@ -727,10 +847,13 @@ class DrawSurfaceState extends State<DrawSurface> {
     final shader = _c.gradientKind == GradientKind.radial
         ? ui.Gradient.radial(a, (b - a).distance, colors)
         : ui.Gradient.linear(a, b, colors);
+    canvas.save();
+    if (_selection != null) canvas.clipPath(_selection!);
     canvas.drawRect(
       Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
       Paint()..shader = shader,
     );
+    canvas.restore();
     widget.surface.set(id, recorder.endRecording().toImageSync(w, h));
     setState(() {});
   }
@@ -815,6 +938,7 @@ class DrawSurfaceState extends State<DrawSurface> {
                 viewport: _viewport,
                 docSize: _docSize,
                 liveShape: _buildLiveShape(),
+                selection: _displaySelection(),
                 transformLayerId: _transformLayerId,
                 layerTransform: _layerTransform,
               ),

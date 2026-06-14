@@ -26,6 +26,7 @@ class RasterPainter extends CustomPainter {
     required this.viewport,
     required this.docSize,
     this.liveShape,
+    this.selection,
     this.transformLayerId,
     this.layerTransform = const ViewportTransform(),
     super.repaint,
@@ -38,6 +39,9 @@ class RasterPainter extends CustomPainter {
 
   /// 描画中の図形プレビュー(無ければ null)。
   final LiveShape? liveShape;
+
+  /// 選択範囲のパス(doc 空間、無ければ null)。アウトラインを表示する。
+  final Path? selection;
   final ViewportTransform viewport;
   final Size docSize;
 
@@ -68,6 +72,25 @@ class RasterPainter extends CustomPainter {
       }
       if (base.visible) _paintGroup(canvas, rect, base, clipped);
       i = j;
+    }
+
+    final sel = selection;
+    if (sel != null) {
+      // 黒+白の二重線で、どの背景でも視認できる選択アウトライン。
+      canvas.drawPath(
+        sel,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5
+          ..color = const Color(0xCC000000),
+      );
+      canvas.drawPath(
+        sel,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1
+          ..color = const Color(0xFFFFFFFF),
+      );
     }
     canvas.restore();
   }
@@ -154,6 +177,7 @@ ui.Image bakeStroke({
   required int width,
   required int height,
   bool alphaLocked = false,
+  Path? clip,
 }) {
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
@@ -164,6 +188,8 @@ ui.Image bakeStroke({
 
   if (alphaLocked && existing != null) {
     canvas.drawImageRect(existing, srcOf(existing), bounds, Paint());
+    canvas.save();
+    if (clip != null) canvas.clipPath(clip); // 選択範囲に制限
     canvas.saveLayer(bounds, Paint());
     renderStroke(canvas, stroke);
     // 既存の不透明部分でマスク(dstIn): ストロークを既存 alpha に閉じ込める。
@@ -174,11 +200,15 @@ ui.Image bakeStroke({
       Paint()..blendMode = BlendMode.dstIn,
     );
     canvas.restore();
+    canvas.restore();
   } else {
     if (existing != null) {
       canvas.drawImageRect(existing, srcOf(existing), bounds, Paint());
     }
+    canvas.save();
+    if (clip != null) canvas.clipPath(clip); // 選択範囲に制限
     renderStroke(canvas, stroke);
+    canvas.restore();
   }
   return recorder.endRecording().toImageSync(width, height);
 }

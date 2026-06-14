@@ -197,6 +197,36 @@ void main() {
     expect(controller.colorHex, '#EFE7D6'); // 紙の色
   });
 
+  testWidgets('選択: 矩形で選択→範囲消去(undo可)→解除', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final key = GlobalKey<DrawSurfaceState>();
+    await _pumpKeyed(tester, key, controller, surface);
+
+    // まず描画して画像を作る。
+    await tester.drag(find.byType(DrawSurface), const Offset(80, 60));
+    await tester.pump();
+    final id = controller.layers.active.id;
+    final before = surface.imageOf(id);
+    expect(before, isNotNull);
+
+    // 選択ツールで矩形選択。
+    controller.selectTool(Tool.select);
+    await tester.drag(find.byType(DrawSurface), const Offset(60, 50));
+    await tester.pump();
+    expect(key.currentState!.hasSelection, isTrue);
+
+    // 範囲消去 → 画像が変わり undo 可能。
+    key.currentState!.clearInsideSelection();
+    expect(surface.imageOf(id), isNot(same(before)));
+    expect(controller.canUndo, isTrue);
+    controller.undo();
+    expect(surface.imageOf(id), same(before));
+
+    key.currentState!.deselect();
+    expect(key.currentState!.hasSelection, isFalse);
+  });
+
   testWidgets('2 本指ピンチでビューが拡大する(Phase3)', (tester) async {
     final surface = RasterLayerStore();
     final controller = CanvasController(surface: surface);

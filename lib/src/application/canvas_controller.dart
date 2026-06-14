@@ -6,11 +6,22 @@ import '../domain/canvas/history.dart';
 import '../domain/canvas/layer_blend_mode.dart';
 import '../domain/canvas/gradient_kind.dart';
 import '../domain/canvas/layer_stack.dart';
+import '../domain/canvas/selection_kind.dart';
 import '../domain/canvas/shape_kind.dart';
 import '../domain/color/ink_color.dart';
 
 /// キャンバスのツール。
-enum Tool { brush, smudge, erase, fill, eyedropper, gradient, shape, text }
+enum Tool {
+  brush,
+  smudge,
+  erase,
+  fill,
+  eyedropper,
+  gradient,
+  shape,
+  text,
+  select,
+}
 
 /// undo/redo のスナップショット(対象レイヤー id + 不透明な画素トークン)。
 typedef LayerSnapshot = ({String layerId, Object pixels});
@@ -38,6 +49,7 @@ class CanvasController extends ChangeNotifier {
   bool _shapeFilled = false;
   bool _shapeSnap = false;
   GradientKind _gradientKind = GradientKind.linear;
+  SelectionKind _selectionKind = SelectionKind.rectangle;
 
   Tool get tool => _tool;
   BrushPreset get brush => _brush;
@@ -51,6 +63,7 @@ class CanvasController extends ChangeNotifier {
   bool get shapeFilled => _shapeFilled;
   bool get shapeSnap => _shapeSnap;
   GradientKind get gradientKind => _gradientKind;
+  SelectionKind get selectionKind => _selectionKind;
   LayerStack get layers => _layers;
   bool get canUndo => _history.canUndo;
   bool get canRedo => _history.canRedo;
@@ -131,6 +144,12 @@ class CanvasController extends ChangeNotifier {
   void setGradientKind(GradientKind kind) {
     if (kind == _gradientKind) return;
     _gradientKind = kind;
+    notifyListeners();
+  }
+
+  void setSelectionKind(SelectionKind kind) {
+    if (kind == _selectionKind) return;
+    _selectionKind = kind;
     notifyListeners();
   }
 
