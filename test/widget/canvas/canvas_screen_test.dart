@@ -77,6 +77,25 @@ void main() {
     expect(find.text('楕円'), findsOneWidget);
   });
 
+  testWidgets('ツール UI を隠す/戻すができる(キャンバス最大化)', (tester) async {
+    await tester.pumpWidget(_app());
+    await tester.pump();
+
+    expect(find.byTooltip('メニュー'), findsOneWidget); // ヘッダー
+    expect(find.byTooltip('ブラシ'), findsOneWidget); // フッター
+
+    await tester.tap(find.byTooltip('ツールを隠す(キャンバスを広く)'));
+    await tester.pump();
+    expect(find.byTooltip('メニュー'), findsNothing);
+    expect(find.byTooltip('ブラシ'), findsNothing);
+    expect(find.byTooltip('ツールを表示'), findsOneWidget); // 復帰ボタン
+
+    await tester.tap(find.byTooltip('ツールを表示'));
+    await tester.pump();
+    expect(find.byTooltip('メニュー'), findsOneWidget);
+    expect(find.byTooltip('ツールを表示'), findsNothing);
+  });
+
   testWidgets('変形モード中はツール UI が無効化される(Phase3b)', (tester) async {
     await tester.pumpWidget(_app());
     await tester.pump();

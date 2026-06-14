@@ -46,6 +46,7 @@ class CanvasScreen extends StatefulWidget {
 class _CanvasScreenState extends State<CanvasScreen> {
   final GlobalKey<DrawSurfaceState> _drawKey = GlobalKey<DrawSurfaceState>();
   final ValueNotifier<bool> _transforming = ValueNotifier<bool>(false);
+  bool _uiVisible = true; // ヘッダー/フッター等のツール UI を表示するか
   late final RasterLayerStore _surface = RasterLayerStore();
   late final CanvasController _c = CanvasController(surface: _surface);
 
@@ -394,9 +395,14 @@ class _CanvasScreenState extends State<CanvasScreen> {
               children: [
                 Positioned.fill(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 64, 8, 96),
+                    // UI 非表示時はキャンバスを全面に広げる。
+                    padding: _uiVisible
+                        ? const EdgeInsets.fromLTRB(8, 64, 8, 96)
+                        : EdgeInsets.zero,
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(AtelierTokens.rLg),
+                      borderRadius: BorderRadius.circular(
+                        _uiVisible ? AtelierTokens.rLg : 0,
+                      ),
                       child: DrawSurface(
                         key: _drawKey,
                         controller: _c,
@@ -407,22 +413,29 @@ class _CanvasScreenState extends State<CanvasScreen> {
                     ),
                   ),
                 ),
-                // 変形モード中はツール UI を無効化(誤操作・状態破壊を防ぐ)。
+                // ツール UI(ヘッダー/左レール/フッター)。非表示時は描画を遮らない。
                 Positioned.fill(
                   child: ValueListenableBuilder<bool>(
                     valueListenable: _transforming,
-                    builder: (context, transforming, _) => IgnorePointer(
-                      ignoring: transforming,
-                      child: Opacity(
-                        opacity: transforming ? 0.35 : 1,
-                        child: Stack(
-                          children: [_topBar(), _leftRail(), _dock()],
+                    builder: (context, transforming, _) {
+                      if (!_uiVisible) {
+                        return const IgnorePointer(child: SizedBox.shrink());
+                      }
+                      // 変形モード中はツール UI を無効化(誤操作・状態破壊を防ぐ)。
+                      return IgnorePointer(
+                        ignoring: transforming,
+                        child: Opacity(
+                          opacity: transforming ? 0.35 : 1,
+                          child: Stack(
+                            children: [_topBar(), _leftRail(), _dock()],
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ),
                 _transformBar(),
+                if (!_uiVisible) _showUiButton(),
               ],
             );
           },
@@ -458,6 +471,11 @@ class _CanvasScreenState extends State<CanvasScreen> {
             icon: const Icon(Icons.center_focus_strong),
             tooltip: '表示をリセット',
             onPressed: () => _drawKey.currentState?.resetView(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.unfold_less),
+            tooltip: 'ツールを隠す(キャンバスを広く)',
+            onPressed: () => setState(() => _uiVisible = false),
           ),
           IconButton(
             icon: const Icon(Icons.more_vert),
@@ -502,6 +520,23 @@ class _CanvasScreenState extends State<CanvasScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // UI 非表示中に表示する、小さな復帰ボタン(右上)。
+  Widget _showUiButton() {
+    return Positioned(
+      top: 4,
+      right: 4,
+      child: Material(
+        color: AtelierTokens.surface2.withValues(alpha: 0.7),
+        shape: const CircleBorder(),
+        child: IconButton(
+          icon: const Icon(Icons.unfold_more, color: AtelierTokens.ink),
+          tooltip: 'ツールを表示',
+          onPressed: () => setState(() => _uiVisible = true),
         ),
       ),
     );
