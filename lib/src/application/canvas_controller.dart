@@ -50,6 +50,8 @@ class CanvasController extends ChangeNotifier {
   bool _shapeSnap = false;
   GradientKind _gradientKind = GradientKind.linear;
   SelectionKind _selectionKind = SelectionKind.rectangle;
+  bool _gradientBrush = false;
+  String _secondColorHex = '#2C4A63'; // 既定の 2 色目は藍
 
   Tool get tool => _tool;
   BrushPreset get brush => _brush;
@@ -64,6 +66,12 @@ class CanvasController extends ChangeNotifier {
   bool get shapeSnap => _shapeSnap;
   GradientKind get gradientKind => _gradientKind;
   SelectionKind get selectionKind => _selectionKind;
+
+  /// 2 色グラデーションで描くか(始点色 → [secondColorHex] へ変化)。
+  bool get gradientBrush => _gradientBrush;
+
+  /// グラデブラシの 2 色目(終点色)の HEX。
+  String get secondColorHex => _secondColorHex;
   LayerStack get layers => _layers;
   bool get canUndo => _history.canUndo;
   bool get canRedo => _history.canRedo;
@@ -150,6 +158,18 @@ class CanvasController extends ChangeNotifier {
   void setSelectionKind(SelectionKind kind) {
     if (kind == _selectionKind) return;
     _selectionKind = kind;
+    notifyListeners();
+  }
+
+  void setGradientBrush(bool enabled) {
+    if (enabled == _gradientBrush) return;
+    _gradientBrush = enabled;
+    notifyListeners();
+  }
+
+  void setSecondColorHex(String hex) {
+    if (hex == _secondColorHex) return;
+    _secondColorHex = hex;
     notifyListeners();
   }
 

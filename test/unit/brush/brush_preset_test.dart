@@ -15,11 +15,17 @@ void main() {
     expect(brushPresets.map((b) => b.key).toList(), [
       'ink',
       'fude',
+      'gpen',
+      'maru',
+      'ballpen',
       'pencil',
       'marker',
       'air',
+      'watercolor',
+      'oil',
       'crayon',
       'chalk',
+      'bristle',
       'stipple',
       'softpen',
       'glow',
@@ -45,11 +51,17 @@ void main() {
     expect(crayonBrush.isStroked, isFalse);
   });
 
-  test('velocity は ink/筆のみ、flat は marker のみ', () {
+  test('velocity は速度依存ペン(ink/筆/Gペン)で true', () {
     expect(inkBrush.velocity, isTrue);
     expect(fudeBrush.velocity, isTrue);
+    expect(gPenBrush.velocity, isTrue);
+    expect(maruPenBrush.velocity, isFalse);
     expect(markerBrush.velocity, isFalse);
+  });
+
+  test('flat(平筆)は marker / 油彩のみ', () {
     expect(markerBrush.flat, isTrue);
+    expect(oilBrush.flat, isTrue);
     expect(inkBrush.flat, isFalse);
   });
 

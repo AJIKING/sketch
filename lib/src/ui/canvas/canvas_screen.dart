@@ -325,6 +325,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
               leading: Icon(switch (kind) {
                 ShapeKind.line => Icons.remove,
                 ShapeKind.rectangle => Icons.crop_square,
+                ShapeKind.triangle => Icons.change_history,
                 ShapeKind.ellipse => Icons.circle_outlined,
               }),
               title: Text(
@@ -774,6 +775,20 @@ class _BrushSheet extends StatelessWidget {
             ),
           ],
         ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text(
+            '2色グラデーション(始点→終点)',
+            style: TextStyle(color: AtelierTokens.ink),
+          ),
+          subtitle: const Text(
+            '現在色から2色目へ滑らかに変化',
+            style: TextStyle(color: AtelierTokens.inkDim),
+          ),
+          value: controller.gradientBrush,
+          onChanged: controller.setGradientBrush,
+        ),
+        if (controller.gradientBrush) _secondColorPicker(),
         _brushParam(
           '濃さ',
           controller.brush.flow,
@@ -826,6 +841,69 @@ class _BrushSheet extends StatelessWidget {
       ],
     );
   }
+
+  /// グラデブラシの 2 色目を選ぶ(1色目=現在色のプレビュー付き)。
+  Widget _secondColorPicker() {
+    final swatches = <String>{
+      ...controller.palette,
+      ...controller.recent,
+    }.toList();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const SizedBox(
+                width: 96,
+                child: Text(
+                  '2色目',
+                  style: TextStyle(color: AtelierTokens.inkDim, fontSize: 13),
+                ),
+              ),
+              _dot(controller.colorHex, false),
+              const Icon(
+                Icons.arrow_right_alt,
+                color: AtelierTokens.inkDim,
+                size: 20,
+              ),
+              _dot(controller.secondColorHex, true),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final hex in swatches)
+                GestureDetector(
+                  onTap: () => controller.setSecondColorHex(hex),
+                  child: Semantics(
+                    button: true,
+                    label: '2色目 $hex',
+                    child: _dot(hex, hex == controller.secondColorHex),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dot(String hex, bool selected) => Container(
+    width: 28,
+    height: 28,
+    decoration: BoxDecoration(
+      color: hexColor(hex),
+      shape: BoxShape.circle,
+      border: Border.all(
+        color: selected ? AtelierTokens.vermilion : AtelierTokens.hair,
+        width: selected ? 2 : 1,
+      ),
+    ),
+  );
 
   Widget _brushParam(
     String label,

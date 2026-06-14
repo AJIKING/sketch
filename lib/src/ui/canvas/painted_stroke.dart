@@ -19,12 +19,16 @@ class PaintedStroke {
     required this.size,
     required this.opacity,
     required this.seed,
+    this.secondColorHex,
   }) : points = <Offset>[],
        _times = <double>[];
 
   final Tool tool;
   final BrushPreset brush;
   final String colorHex;
+
+  /// 2 色グラデブラシの終点色(null なら単色)。始点は [colorHex]。
+  final String? secondColorHex;
   final double size;
   final double opacity;
   final int seed;

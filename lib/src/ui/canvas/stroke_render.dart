@@ -19,12 +19,17 @@ void renderStroke(Canvas canvas, PaintedStroke stroke) {
     return;
   }
 
-  final (r, g, b) = hexToRgb(stroke.colorHex);
+  final startRgb = hexToRgb(stroke.colorHex);
+  // 2 色グラデブラシなら終点色まで線形補間。単色なら始点色のまま。
+  final endRgb = stroke.secondColorHex == null
+      ? startRgb
+      : hexToRgb(stroke.secondColorHex!);
   final brush = stroke.brush;
   final rng = math.Random(stroke.seed);
 
   // 単独点(タップ)はその場に 1 区間を描く。
   final segmentPts = pts.length == 1 ? [pts.first, pts.first] : pts;
+  final lastIndex = math.max(1, segmentPts.length - 1);
   for (var i = 1; i < segmentPts.length; i++) {
     final plan = planStroke(
       from: _toPoint(segmentPts[i - 1]),
@@ -35,8 +40,16 @@ void renderStroke(Canvas canvas, PaintedStroke stroke) {
       opacity: stroke.opacity,
       random: rng,
     );
+    final (r, g, b) = _lerpRgb(startRgb, endRgb, i / lastIndex);
     _renderPlan(canvas, plan, r, g, b);
   }
+}
+
+/// rgb を t(0..1)で線形補間する。
+(int, int, int) _lerpRgb((int, int, int) a, (int, int, int) b, double t) {
+  final tt = t.clamp(0.0, 1.0);
+  int mix(int x, int y) => (x + (y - x) * tt).round();
+  return (mix(a.$1, b.$1), mix(a.$2, b.$2), mix(a.$3, b.$3));
 }
 
 void _renderPlan(Canvas canvas, StrokePlan plan, int r, int g, int b) {

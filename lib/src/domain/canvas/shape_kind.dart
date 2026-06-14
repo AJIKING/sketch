@@ -2,6 +2,7 @@
 enum ShapeKind {
   line('直線'),
   rectangle('四角'),
+  triangle('三角'),
   ellipse('楕円');
 
   const ShapeKind(this.label);

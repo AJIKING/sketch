@@ -181,15 +181,87 @@ const BrushPreset dryBrush = BrushPreset(
   spacing: 0.75,
 );
 
+const BrushPreset maruPenBrush = BrushPreset(
+  key: 'maru',
+  name: '丸ペン',
+  description: '細く均一なペン先。線幅が変わらず安定',
+  flow: 1,
+  soft: 0,
+  scatter: 0,
+  spacing: 0.18,
+  stroked: true,
+);
+
+const BrushPreset ballPenBrush = BrushPreset(
+  key: 'ballpen',
+  name: 'ボールペン',
+  description: 'わずかに掠れる均一な線。筆記向き',
+  flow: 0.9,
+  soft: 0,
+  scatter: 0.08,
+  spacing: 0.22,
+  stroked: true,
+);
+
+const BrushPreset gPenBrush = BrushPreset(
+  key: 'gpen',
+  name: 'Gペン',
+  description: '入り抜きの効いた漫画ペン。速度で鋭く強弱',
+  flow: 1,
+  soft: 0,
+  scatter: 0,
+  spacing: 0.14,
+  stroked: true,
+  velocity: true,
+);
+
+const BrushPreset watercolorBrush = BrushPreset(
+  key: 'watercolor',
+  name: '水彩',
+  description: 'にじむ淡い塗り。重ねるほど深く沈む',
+  flow: 0.2,
+  soft: 0.55,
+  scatter: 0.5,
+  spacing: 0.28,
+);
+
+const BrushPreset oilBrush = BrushPreset(
+  key: 'oil',
+  name: '油彩',
+  description: '厚く平らに置く絵具。重なりが質感を作る',
+  flow: 0.85,
+  soft: 0,
+  scatter: 0.35,
+  spacing: 0.45,
+  stroked: true,
+  flat: true,
+);
+
+const BrushPreset bristleBrush = BrushPreset(
+  key: 'bristle',
+  name: 'ブリストル',
+  description: '剛毛が割れる筆。筋の残る塗り',
+  flow: 0.6,
+  soft: 0,
+  scatter: 0.7,
+  spacing: 0.32,
+);
+
 /// ブラシシートの表示順。
 const List<BrushPreset> brushPresets = [
   inkBrush,
   fudeBrush,
+  gPenBrush,
+  maruPenBrush,
+  ballPenBrush,
   pencilBrush,
   markerBrush,
   airBrush,
+  watercolorBrush,
+  oilBrush,
   crayonBrush,
   chalkBrush,
+  bristleBrush,
   stippleBrush,
   softPenBrush,
   glowBrush,

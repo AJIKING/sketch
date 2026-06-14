@@ -313,6 +313,22 @@ void main() {
     expect(after, equals(before)); // ズームしても出力は同一
   });
 
+  testWidgets('グラデブラシ: 2色目を持つストロークが焼き込まれる', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface)
+      ..setColorHex('#CF4A2C')
+      ..setSecondColorHex('#2C4A63')
+      ..setGradientBrush(true);
+    await _pump(tester, controller, surface);
+    final id = controller.layers.active.id;
+
+    await tester.drag(find.byType(DrawSurface), const Offset(60, 0));
+    await tester.pump();
+
+    expect(surface.imageOf(id), isNotNull);
+    expect(controller.canUndo, isTrue);
+  });
+
   testWidgets('2 本指ダブルタップで onToggleUi が呼ばれ、ピンチでは呼ばれない', (tester) async {
     final surface = RasterLayerStore();
     final controller = CanvasController(surface: surface);

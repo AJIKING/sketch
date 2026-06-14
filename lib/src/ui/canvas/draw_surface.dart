@@ -311,6 +311,10 @@ class DrawSurfaceState extends State<DrawSurface> {
         size: _c.size,
         opacity: _c.opacity,
         seed: _seed++,
+        // 2 色グラデブラシ時のみ終点色を持たせる(消しゴムには無効)。
+        secondColorHex: _c.gradientBrush && _c.tool == Tool.brush
+            ? _c.secondColorHex
+            : null,
       );
       _stabilizer = StrokeStabilizer(_c.stabilization);
       stroke.addPoint(

@@ -72,10 +72,22 @@ void renderShape(
       );
     case ShapeKind.rectangle:
       canvas.drawRect(Rect.fromPoints(start, end), _paint(color, size, filled));
+    case ShapeKind.triangle:
+      canvas.drawPath(
+        _trianglePath(Rect.fromPoints(start, end)),
+        _paint(color, size, filled),
+      );
     case ShapeKind.ellipse:
       canvas.drawOval(Rect.fromPoints(start, end), _paint(color, size, filled));
   }
 }
+
+/// 外接矩形に内接する二等辺三角形(頂点は上辺中央、底辺は下辺両端)。
+Path _trianglePath(Rect r) => Path()
+  ..moveTo(r.center.dx, r.top)
+  ..lineTo(r.right, r.bottom)
+  ..lineTo(r.left, r.bottom)
+  ..close();
 
 Paint _paint(Color color, double size, bool filled) => filled
     ? (Paint()

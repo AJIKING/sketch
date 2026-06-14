@@ -45,4 +45,21 @@ void main() {
       const Offset(-10, -10),
     );
   });
+
+  test('三角スナップも外接正方形(等辺・符号保持)', () {
+    expect(
+      snapShapeEnd(
+        ShapeKind.triangle,
+        Offset.zero,
+        const Offset(10, 4),
+        snap: true,
+      ),
+      const Offset(10, 10),
+    );
+  });
+
+  test('ShapeKind に三角が含まれる', () {
+    expect(ShapeKind.values, contains(ShapeKind.triangle));
+    expect(ShapeKind.triangle.label, '三角');
+  });
 }
