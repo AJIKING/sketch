@@ -516,34 +516,46 @@ class _BrushSheet extends StatelessWidget {
             ),
           ],
         ),
-        for (final brush in brushPresets)
-          ListTile(
-            leading: DecoratedBox(
-              decoration: BoxDecoration(
-                color: AtelierTokens.paper,
-                borderRadius: BorderRadius.circular(AtelierTokens.rSm),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: BrushPreview(brushKey: brush.key, width: 72, height: 36),
-              ),
-            ),
-            title: Text(
-              brush.name,
-              style: const TextStyle(color: AtelierTokens.ink),
-            ),
-            subtitle: Text(
-              brush.description,
-              style: const TextStyle(color: AtelierTokens.inkDim),
-            ),
-            trailing: controller.brush.key == brush.key
-                ? const Icon(Icons.check, color: AtelierTokens.vermilion)
-                : null,
-            onTap: () {
-              controller.selectBrush(brush);
-              Navigator.of(context).pop();
-            },
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 360),
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              for (final brush in brushPresets)
+                ListTile(
+                  leading: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: AtelierTokens.paper,
+                      borderRadius: BorderRadius.circular(AtelierTokens.rSm),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: BrushPreview(
+                        brushKey: brush.key,
+                        width: 72,
+                        height: 36,
+                      ),
+                    ),
+                  ),
+                  title: Text(
+                    brush.name,
+                    style: const TextStyle(color: AtelierTokens.ink),
+                  ),
+                  subtitle: Text(
+                    brush.description,
+                    style: const TextStyle(color: AtelierTokens.inkDim),
+                  ),
+                  trailing: controller.brush.key == brush.key
+                      ? const Icon(Icons.check, color: AtelierTokens.vermilion)
+                      : null,
+                  onTap: () {
+                    controller.selectBrush(brush);
+                    Navigator.of(context).pop();
+                  },
+                ),
+            ],
           ),
+        ),
       ],
     );
   }

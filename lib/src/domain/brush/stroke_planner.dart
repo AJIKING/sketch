@@ -75,8 +75,8 @@ StrokePlan planStroke({
   final base = size;
 
   if (brush.isStroked) {
-    // ink は速度で細る。marker は base 固定。
-    final width = brush.key == 'ink'
+    // velocity ブラシ(ink/筆)は速度で細る。それ以外は base 固定。
+    final width = brush.velocity
         ? base * (1.15 - speed * 0.9).clamp(0.4, 1.0)
         : base;
     return StrokePlan(
@@ -86,8 +86,8 @@ StrokePlan planStroke({
           to: to,
           width: width,
           alpha: brush.flow * opacity,
-          round: brush.soft == 0, // ink: 丸 / marker: 平
-          flat: brush.key == 'marker',
+          round: !brush.flat,
+          flat: brush.flat,
         ),
       ],
     );

@@ -1,11 +1,14 @@
 /// ブラシプリセット(pure Dart)。
 ///
-/// プロトタイプ `docs/prototype/hatch-sketch-app.html` の `BRUSHES` を移植。
+/// プロトタイプ `docs/prototype/hatch-sketch-app.html` の `BRUSHES` を起点に拡張。
 /// 各値の意味:
 /// - [flow]: 基本の不透明度(α の係数)。
-/// - [soft]: ぼかし。> 0 で放射グラデーション(エアブラシ)になる。
+/// - [soft]: ぼかし。> 0 で放射グラデーション(エアブラシ系)になる。
 /// - [scatter]: ダブを散らす量(0 で散らさない)。
-/// - [spacing]: ダブ間隔(サイズに対する比)。線系(ink/marker)では線分描画。
+/// - [spacing]: ダブ間隔(サイズに対する比)。
+/// - [stroked]: 線分で描く(true)か、ダブを散らして描く(false)か。
+/// - [velocity]: 速度で筆幅を細らせる(ink/筆系)。
+/// - [flat]: 平筆(線端 butt)。マーカー系。
 class BrushPreset {
   const BrushPreset({
     required this.key,
@@ -15,6 +18,9 @@ class BrushPreset {
     required this.soft,
     required this.scatter,
     required this.spacing,
+    this.stroked = false,
+    this.velocity = false,
+    this.flat = false,
   });
 
   final String key;
@@ -24,9 +30,11 @@ class BrushPreset {
   final double soft;
   final double scatter;
   final double spacing;
+  final bool stroked;
+  final bool velocity;
+  final bool flat;
 
-  /// 線分で描く(ink / marker)か、ダブを散らして描く(pencil / air)か。
-  bool get isStroked => key == 'ink' || key == 'marker';
+  bool get isStroked => stroked;
 }
 
 const BrushPreset inkBrush = BrushPreset(
@@ -37,6 +45,8 @@ const BrushPreset inkBrush = BrushPreset(
   soft: 0,
   scatter: 0,
   spacing: 0.25,
+  stroked: true,
+  velocity: true,
 );
 
 const BrushPreset pencilBrush = BrushPreset(
@@ -57,6 +67,8 @@ const BrushPreset markerBrush = BrushPreset(
   soft: 0.1,
   scatter: 0,
   spacing: 0.2,
+  stroked: true,
+  flat: true,
 );
 
 const BrushPreset airBrush = BrushPreset(
@@ -69,12 +81,58 @@ const BrushPreset airBrush = BrushPreset(
   spacing: 0.18,
 );
 
-/// プロトタイプの並び順(ブラシシートの表示順)を保持する。
+const BrushPreset fudeBrush = BrushPreset(
+  key: 'fude',
+  name: '筆',
+  description: '入り抜きのある線。速度で強弱がつく',
+  flow: 1,
+  soft: 0,
+  scatter: 0,
+  spacing: 0.2,
+  stroked: true,
+  velocity: true,
+);
+
+const BrushPreset crayonBrush = BrushPreset(
+  key: 'crayon',
+  name: 'クレヨン',
+  description: '粗い粒で塗り込む。ざらついた質感',
+  flow: 0.65,
+  soft: 0,
+  scatter: 0.55,
+  spacing: 0.3,
+);
+
+const BrushPreset chalkBrush = BrushPreset(
+  key: 'chalk',
+  name: 'チョーク',
+  description: 'やわらかく粉っぽい。淡く重なる',
+  flow: 0.45,
+  soft: 0.3,
+  scatter: 0.7,
+  spacing: 0.45,
+);
+
+const BrushPreset stippleBrush = BrushPreset(
+  key: 'stipple',
+  name: '点描',
+  description: 'まばらな点を打つ。点描・テクスチャ向き',
+  flow: 0.9,
+  soft: 0,
+  scatter: 0.25,
+  spacing: 1.4,
+);
+
+/// ブラシシートの表示順。
 const List<BrushPreset> brushPresets = [
   inkBrush,
+  fudeBrush,
   pencilBrush,
   markerBrush,
   airBrush,
+  crayonBrush,
+  chalkBrush,
+  stippleBrush,
 ];
 
 /// key からプリセットを引く。未知の key は [inkBrush] にフォールバックする。
