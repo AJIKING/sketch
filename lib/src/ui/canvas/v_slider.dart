@@ -26,8 +26,8 @@ class VSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 高さは親(Expanded)から与えられた範囲いっぱいに伸びる。横画面でも収まる。
     return Column(
-      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           label,
@@ -37,8 +37,7 @@ class VSlider extends StatelessWidget {
             letterSpacing: 1.5,
           ),
         ),
-        SizedBox(
-          height: 160,
+        Expanded(
           child: RotatedBox(
             quarterTurns: 3,
             child: Slider(

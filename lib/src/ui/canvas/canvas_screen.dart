@@ -100,10 +100,19 @@ class _CanvasScreenState extends State<CanvasScreen> {
       backgroundColor: AtelierTokens.surface,
       showDragHandle: true,
       isScrollControlled: true,
+      // 横画面でも収まるよう高さを制限し、内容はスクロール可能にする。
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.92,
+      ),
       builder: (_) => ListenableBuilder(
         listenable: _c,
-        builder: (context, _) => Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+        builder: (context, _) => SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            0,
+            20,
+            28 + MediaQuery.viewInsetsOf(context).bottom,
+          ),
           child: build(context),
         ),
       ),
@@ -461,29 +470,39 @@ class _CanvasScreenState extends State<CanvasScreen> {
   }
 
   Widget _leftRail() {
+    // 上端(トップバー下)〜下端(ドック上)に収め、横画面でも溢れないよう
+    // 2 本のスライダで高さを分け合う(各 VSlider は Expanded で伸縮)。
     return Positioned(
-      left: 4,
-      top: 80,
-      child: Column(
-        children: [
-          VSlider(
-            label: 'SIZE',
-            value: _c.size,
-            min: 1,
-            max: 80,
-            format: (v) => v.round().toString(),
-            onChanged: _c.setSize,
-          ),
-          const SizedBox(height: 12),
-          VSlider(
-            label: 'OPAC',
-            value: _c.opacity * 100,
-            min: 0,
-            max: 100,
-            format: (v) => '${v.round()}%',
-            onChanged: (v) => _c.setOpacity(v / 100),
-          ),
-        ],
+      left: 2,
+      top: 72,
+      bottom: 104,
+      child: SizedBox(
+        width: 58,
+        child: Column(
+          children: [
+            Expanded(
+              child: VSlider(
+                label: 'SIZE',
+                value: _c.size,
+                min: 1,
+                max: 80,
+                format: (v) => v.round().toString(),
+                onChanged: _c.setSize,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: VSlider(
+                label: 'OPAC',
+                value: _c.opacity * 100,
+                min: 0,
+                max: 100,
+                format: (v) => '${v.round()}%',
+                onChanged: (v) => _c.setOpacity(v / 100),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -738,46 +757,34 @@ class _BrushSheet extends StatelessWidget {
           2,
           controller.setBrushSpacing,
         ),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 300),
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              for (final brush in brushPresets)
-                ListTile(
-                  leading: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: AtelierTokens.paper,
-                      borderRadius: BorderRadius.circular(AtelierTokens.rSm),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: BrushPreview(
-                        brushKey: brush.key,
-                        width: 72,
-                        height: 36,
-                      ),
-                    ),
-                  ),
-                  title: Text(
-                    brush.name,
-                    style: const TextStyle(color: AtelierTokens.ink),
-                  ),
-                  subtitle: Text(
-                    brush.description,
-                    style: const TextStyle(color: AtelierTokens.inkDim),
-                  ),
-                  trailing: controller.brush.key == brush.key
-                      ? const Icon(Icons.check, color: AtelierTokens.vermilion)
-                      : null,
-                  onTap: () {
-                    controller.selectBrush(brush);
-                    Navigator.of(context).pop();
-                  },
-                ),
-            ],
+        for (final brush in brushPresets)
+          ListTile(
+            leading: DecoratedBox(
+              decoration: BoxDecoration(
+                color: AtelierTokens.paper,
+                borderRadius: BorderRadius.circular(AtelierTokens.rSm),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: BrushPreview(brushKey: brush.key, width: 72, height: 36),
+              ),
+            ),
+            title: Text(
+              brush.name,
+              style: const TextStyle(color: AtelierTokens.ink),
+            ),
+            subtitle: Text(
+              brush.description,
+              style: const TextStyle(color: AtelierTokens.inkDim),
+            ),
+            trailing: controller.brush.key == brush.key
+                ? const Icon(Icons.check, color: AtelierTokens.vermilion)
+                : null,
+            onTap: () {
+              controller.selectBrush(brush);
+              Navigator.of(context).pop();
+            },
           ),
-        ),
       ],
     );
   }
@@ -835,17 +842,8 @@ class _LayerSheet extends StatelessWidget {
             ),
           ],
         ),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 380),
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              // 最前面を上に表示する。
-              for (var i = layers.length - 1; i >= 0; i--)
-                _layerRow(context, i),
-            ],
-          ),
-        ),
+        // 最前面を上に表示する。
+        for (var i = layers.length - 1; i >= 0; i--) _layerRow(context, i),
       ],
     );
   }

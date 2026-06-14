@@ -10,6 +10,7 @@ import '../../domain/canvas/gradient_kind.dart';
 import '../../domain/canvas/pixel_ops.dart';
 import '../../domain/canvas/selection_kind.dart';
 import '../../domain/color/ink_color.dart';
+import '../theme/atelier_theme.dart';
 import 'painted_stroke.dart';
 import 'raster_layer_store.dart';
 import 'raster_painter.dart';
@@ -649,7 +650,7 @@ class DrawSurfaceState extends State<DrawSurface> {
       return;
     }
     final id = _c.layers.active.id;
-    final (r, g, b) = _currentRgb();
+    final (r, g, b) = hexToRgb(result.colorHex);
     final painter = TextPainter(
       text: TextSpan(
         text: result.text,
@@ -666,11 +667,17 @@ class DrawSurfaceState extends State<DrawSurface> {
     setState(() {});
   }
 
-  Future<({String text, double fontSize, bool bold})?> _promptText() {
-    return showDialog<({String text, double fontSize, bool bold})>(
+  Future<({String text, double fontSize, bool bold, String colorHex})?>
+  _promptText() {
+    return showDialog<
+      ({String text, double fontSize, bool bold, String colorHex})
+    >(
       context: context,
-      builder: (_) =>
-          _TextInputDialog(initialSize: (_c.size * 2.2).clamp(12.0, 240.0)),
+      builder: (_) => _TextInputDialog(
+        initialSize: (_c.size * 2.2).clamp(12.0, 240.0),
+        initialColorHex: _c.colorHex,
+        palette: _c.palette,
+      ),
     );
   }
 
@@ -881,13 +888,19 @@ class DrawSurfaceState extends State<DrawSurface> {
   }
 }
 
-/// テキスト入力ダイアログ(文字 + サイズ + 太字)。
+/// テキスト入力ダイアログ(文字 + サイズ + 太字 + 色)。
 ///
 /// controller のライフサイクルを State で持ち、確実に dispose する。
 class _TextInputDialog extends StatefulWidget {
-  const _TextInputDialog({required this.initialSize});
+  const _TextInputDialog({
+    required this.initialSize,
+    required this.initialColorHex,
+    required this.palette,
+  });
 
   final double initialSize;
+  final String initialColorHex;
+  final List<String> palette;
 
   @override
   State<_TextInputDialog> createState() => _TextInputDialogState();
@@ -896,6 +909,7 @@ class _TextInputDialog extends StatefulWidget {
 class _TextInputDialogState extends State<_TextInputDialog> {
   final TextEditingController _controller = TextEditingController();
   late double _fontSize = widget.initialSize;
+  late String _colorHex = widget.initialColorHex;
   bool _bold = false;
 
   @override
@@ -903,6 +917,13 @@ class _TextInputDialogState extends State<_TextInputDialog> {
     _controller.dispose();
     super.dispose();
   }
+
+  Color _color(String hex) => Color.fromARGB(
+    255,
+    int.parse(hex.substring(1, 3), radix: 16),
+    int.parse(hex.substring(3, 5), radix: 16),
+    int.parse(hex.substring(5, 7), radix: 16),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -938,6 +959,37 @@ class _TextInputDialogState extends State<_TextInputDialog> {
               value: _bold,
               onChanged: (v) => setState(() => _bold = v),
             ),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: EdgeInsets.only(top: 8, bottom: 6),
+                child: Text('色'),
+              ),
+            ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final hex in {widget.initialColorHex, ...widget.palette})
+                  GestureDetector(
+                    onTap: () => setState(() => _colorHex = hex),
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: _color(hex),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: _colorHex == hex
+                              ? AtelierTokens.ink
+                              : AtelierTokens.hair,
+                          width: _colorHex == hex ? 3 : 1,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ],
         ),
       ),
@@ -947,9 +999,12 @@ class _TextInputDialogState extends State<_TextInputDialog> {
           child: const Text('キャンセル'),
         ),
         TextButton(
-          onPressed: () => Navigator.of(
-            context,
-          ).pop((text: _controller.text, fontSize: _fontSize, bold: _bold)),
+          onPressed: () => Navigator.of(context).pop((
+            text: _controller.text,
+            fontSize: _fontSize,
+            bold: _bold,
+            colorHex: _colorHex,
+          )),
           child: const Text('追加'),
         ),
       ],
