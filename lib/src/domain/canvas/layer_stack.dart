@@ -1,19 +1,33 @@
+import 'layer_blend_mode.dart';
+
 /// レイヤーのメタ情報(pure Dart)。
 ///
 /// ピクセル(`dart:ui.Image`)は持たない。画素は ui / application が
-/// レイヤー [id] をキーに別管理する(`docs/architecture.md`)。
+/// レイヤー [id] をキーに別管理する(`docs/architecture.md` / ADR 0004)。
 class LayerMeta {
   LayerMeta({
     required this.id,
     required this.name,
     this.visible = true,
     this.opacity = 1,
+    this.blendMode = LayerBlendMode.normal,
+    this.alphaLocked = false,
+    this.clipToLower = false,
   });
 
   final String id;
   String name;
   bool visible;
   double opacity;
+
+  /// 合成モード(乗算・スクリーン等)。
+  LayerBlendMode blendMode;
+
+  /// 不透明部分のみ描けるアルファロック。
+  bool alphaLocked;
+
+  /// 直下のレイヤーへのクリッピング(下の不透明部分にのみ表示)。
+  bool clipToLower;
 }
 
 /// レイヤーの並びとアクティブ位置を管理する(pure Dart)。
@@ -81,5 +95,17 @@ class LayerStack {
 
   void setOpacity(int index, double opacity) {
     _layers[index].opacity = opacity.clamp(0.0, 1.0);
+  }
+
+  void setBlendMode(int index, LayerBlendMode mode) {
+    _layers[index].blendMode = mode;
+  }
+
+  void toggleAlphaLock(int index) {
+    _layers[index].alphaLocked = !_layers[index].alphaLocked;
+  }
+
+  void toggleClip(int index) {
+    _layers[index].clipToLower = !_layers[index].clipToLower;
   }
 }

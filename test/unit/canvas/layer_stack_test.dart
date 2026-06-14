@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sketch/src/domain/canvas/layer_blend_mode.dart';
 import 'package:sketch/src/domain/canvas/layer_stack.dart';
 
 void main() {
@@ -72,5 +73,24 @@ void main() {
     expect(s.layers[0].opacity, 1);
     s.setOpacity(0, -0.2);
     expect(s.layers[0].opacity, 0);
+  });
+
+  test('既定の合成設定は通常・ロック無し・クリップ無し', () {
+    final l = LayerStack.initial().layers[0];
+    expect(l.blendMode, LayerBlendMode.normal);
+    expect(l.alphaLocked, isFalse);
+    expect(l.clipToLower, isFalse);
+  });
+
+  test('ブレンドモード・アルファロック・クリップを切り替える', () {
+    final s = LayerStack.initial();
+    s.setBlendMode(0, LayerBlendMode.multiply);
+    expect(s.layers[0].blendMode, LayerBlendMode.multiply);
+    s.toggleAlphaLock(0);
+    expect(s.layers[0].alphaLocked, isTrue);
+    s.toggleClip(0);
+    expect(s.layers[0].clipToLower, isTrue);
+    s.toggleAlphaLock(0);
+    expect(s.layers[0].alphaLocked, isFalse);
   });
 }
