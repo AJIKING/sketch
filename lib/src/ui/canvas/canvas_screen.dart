@@ -7,6 +7,7 @@ import '../../application/canvas_controller.dart';
 import '../../application/dependencies.dart';
 import '../../application/gallery_controller.dart';
 import '../../domain/brush/brush_preset.dart';
+import '../../domain/canvas/filters.dart' as filters;
 import '../../domain/canvas/layer_blend_mode.dart';
 import '../../domain/gallery/sketch.dart';
 import '../theme/atelier_theme.dart';
@@ -107,6 +108,74 @@ class _CanvasScreenState extends State<CanvasScreen> {
   void _openBrushSheet() => _openSheet((_) => _BrushSheet(controller: _c));
   void _openLayerSheet() => _openSheet((_) => _LayerSheet(controller: _c));
 
+  void _openFilterSheet() {
+    _openSheet(
+      (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _filterTile(
+            context,
+            '反転',
+            Icons.invert_colors,
+            (b, w, h) => filters.invert(b),
+          ),
+          _filterTile(
+            context,
+            'グレースケール',
+            Icons.tonality,
+            (b, w, h) => filters.grayscale(b),
+          ),
+          _filterTile(
+            context,
+            'ぼかし',
+            Icons.blur_on,
+            (b, w, h) => filters.boxBlur(b, w, h, 6),
+          ),
+          _filterTile(
+            context,
+            'モザイク',
+            Icons.grid_on,
+            (b, w, h) => filters.mosaic(b, w, h, 12),
+          ),
+          _filterTile(
+            context,
+            '明るく',
+            Icons.light_mode,
+            (b, w, h) => filters.adjustBrightnessContrast(b, brightness: 0.12),
+          ),
+          _filterTile(
+            context,
+            '暗く',
+            Icons.dark_mode,
+            (b, w, h) => filters.adjustBrightnessContrast(b, brightness: -0.12),
+          ),
+          _filterTile(
+            context,
+            'コントラスト+',
+            Icons.contrast,
+            (b, w, h) => filters.adjustBrightnessContrast(b, contrast: 0.3),
+          ),
+        ],
+      ),
+    );
+  }
+
+  ListTile _filterTile(
+    BuildContext context,
+    String label,
+    IconData icon,
+    Uint8List Function(Uint8List rgba, int width, int height) op,
+  ) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(label, style: const TextStyle(color: AtelierTokens.ink)),
+      onTap: () {
+        Navigator.of(context).pop();
+        _drawKey.currentState?.applyFilter(op);
+      },
+    );
+  }
+
   void _openMenuSheet() {
     _openSheet(
       (context) => Column(
@@ -126,6 +195,14 @@ class _CanvasScreenState extends State<CanvasScreen> {
               messenger.showSnackBar(
                 SnackBar(content: Text(ok ? '画像を書き出しました' : '書き出しをキャンセルしました')),
               );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.auto_awesome),
+            title: const Text('フィルタ'),
+            onTap: () {
+              Navigator.of(context).pop();
+              _openFilterSheet();
             },
           ),
           ListTile(

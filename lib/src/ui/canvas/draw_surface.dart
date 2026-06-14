@@ -351,6 +351,24 @@ class DrawSurfaceState extends State<DrawSurface> {
     _tick.value++;
   }
 
+  /// アクティブレイヤーにフィルタ([op] は RGBA バッファ変換)を適用する。
+  /// 空レイヤーには何もしない。undo 可能。
+  Future<void> applyFilter(
+    Uint8List Function(Uint8List rgba, int width, int height) op,
+  ) async {
+    final id = _c.layers.active.id;
+    final existing = widget.surface.imageOf(id);
+    if (existing == null) return;
+    final bd = await existing.toByteData(format: ui.ImageByteFormat.rawRgba);
+    if (!mounted || bd == null) return;
+    final out = op(bd.buffer.asUint8List(), existing.width, existing.height);
+    final img = await _decode(out, existing.width, existing.height);
+    if (!mounted) return;
+    _c.beginStroke();
+    widget.surface.set(id, img);
+    _tick.value++;
+  }
+
   /// 現在の合成を PNG バイト列に書き出す。
   Future<Uint8List?> exportPng({double pixelRatio = 3}) async {
     final boundary =

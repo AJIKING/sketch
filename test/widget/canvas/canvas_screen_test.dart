@@ -34,6 +34,21 @@ void main() {
     expect(find.text('インク'), findsOneWidget);
     expect(find.text('ペンシル'), findsOneWidget);
     expect(find.text('エアブラシ'), findsOneWidget);
+    expect(find.text('手ブレ補正'), findsOneWidget); // Phase4
+  });
+
+  testWidgets('メニュー→フィルタでフィルタ一覧が出る(Phase4)', (tester) async {
+    await tester.pumpWidget(_app());
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('メニュー'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('フィルタ'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('反転'), findsOneWidget);
+    expect(find.text('ぼかし'), findsOneWidget);
+    expect(find.text('モザイク'), findsOneWidget);
   });
 
   testWidgets('ドックに塗りつぶし/グラデ/スポイトがある(Phase2)', (tester) async {
