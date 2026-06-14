@@ -86,9 +86,32 @@ class DrawSurfaceState extends State<DrawSurface> {
   static const double _longPressSlop = 12;
 
   @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onControllerChanged);
+  }
+
+  @override
   void dispose() {
+    widget.controller.removeListener(_onControllerChanged);
     _longPressTimer?.cancel();
     super.dispose();
+  }
+
+  /// 外部からの状態変更(ツール変更・レイヤー操作・undo/redo 等)で、進行中の
+  /// 操作を無効化する。これらの変更中はコントローラが通知するが、通常の描画
+  /// 中(down/move)はコントローラを呼ばないため、ここで安全に破棄できる。
+  /// 古いレイヤーへの誤焼込や履歴の食い違いを防ぐ。
+  void _onControllerChanged() {
+    if (_current == null && _shapeStart == null && _selDraft == null) return;
+    _current = null;
+    _currentLayerId = null;
+    _shapeStart = null;
+    _shapeEnd = null;
+    _shapeLayerId = null;
+    _selDraft = null;
+    _cancelLongPress();
+    // ListenableBuilder(_c) が DrawSurface を再ビルドするので setState 不要。
   }
 
   CanvasController get _c => widget.controller;
@@ -194,6 +217,7 @@ class DrawSurfaceState extends State<DrawSurface> {
   }
 
   void _fireLongPress() {
+    _longPressTimer = null;
     final pos = _longPressPos;
     if (pos == null) return;
     _longPressFired = true;
@@ -223,6 +247,7 @@ class DrawSurfaceState extends State<DrawSurface> {
         _shapeStart = null;
         _shapeEnd = null;
         _shapeLayerId = null;
+        _selDraft = null;
         _startGesture();
       }
       setState(() {});
@@ -497,7 +522,14 @@ class DrawSurfaceState extends State<DrawSurface> {
   /// 表示用の選択パス(作成中は draft、無ければ確定済み)。
   Path? _displaySelection() {
     final draft = _selDraft;
-    if (draft != null) return _draftToPath(draft);
+    if (draft != null) {
+      final path = _draftToPath(draft);
+      // なげなわは確定形(閉パス)と一致させてプレビューする。
+      if (path != null && _c.selectionKind == SelectionKind.lasso) {
+        path.close();
+      }
+      return path;
+    }
     return _selection;
   }
 
@@ -667,59 +699,10 @@ class DrawSurfaceState extends State<DrawSurface> {
   }
 
   Future<({String text, double fontSize, bool bold})?> _promptText() {
-    final controller = TextEditingController();
-    var fontSize = (_c.size * 2.2).clamp(12.0, 240.0);
-    var bold = false;
     return showDialog<({String text, double fontSize, bool bold})>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) => AlertDialog(
-          title: const Text('テキスト'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: controller,
-                autofocus: true,
-                maxLines: null,
-                decoration: const InputDecoration(hintText: '文字を入力'),
-              ),
-              Row(
-                children: [
-                  const Text('サイズ'),
-                  Expanded(
-                    child: Slider(
-                      value: fontSize,
-                      min: 12,
-                      max: 240,
-                      label: fontSize.round().toString(),
-                      onChanged: (v) => setLocal(() => fontSize = v),
-                    ),
-                  ),
-                ],
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('太字'),
-                value: bold,
-                onChanged: (v) => setLocal(() => bold = v),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('キャンセル'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(
-                ctx,
-              ).pop((text: controller.text, fontSize: fontSize, bold: bold)),
-              child: const Text('追加'),
-            ),
-          ],
-        ),
-      ),
+      builder: (_) =>
+          _TextInputDialog(initialSize: (_c.size * 2.2).clamp(12.0, 240.0)),
     );
   }
 
@@ -947,6 +930,82 @@ class DrawSurfaceState extends State<DrawSurface> {
           );
         },
       ),
+    );
+  }
+}
+
+/// テキスト入力ダイアログ(文字 + サイズ + 太字)。
+///
+/// controller のライフサイクルを State で持ち、確実に dispose する。
+class _TextInputDialog extends StatefulWidget {
+  const _TextInputDialog({required this.initialSize});
+
+  final double initialSize;
+
+  @override
+  State<_TextInputDialog> createState() => _TextInputDialogState();
+}
+
+class _TextInputDialogState extends State<_TextInputDialog> {
+  final TextEditingController _controller = TextEditingController();
+  late double _fontSize = widget.initialSize;
+  bool _bold = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('テキスト'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              maxLines: null,
+              decoration: const InputDecoration(hintText: '文字を入力'),
+            ),
+            Row(
+              children: [
+                const Text('サイズ'),
+                Expanded(
+                  child: Slider(
+                    value: _fontSize,
+                    min: 12,
+                    max: 240,
+                    label: _fontSize.round().toString(),
+                    onChanged: (v) => setState(() => _fontSize = v),
+                  ),
+                ),
+              ],
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('太字'),
+              value: _bold,
+              onChanged: (v) => setState(() => _bold = v),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('キャンセル'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(
+            context,
+          ).pop((text: _controller.text, fontSize: _fontSize, bold: _bold)),
+          child: const Text('追加'),
+        ),
+      ],
     );
   }
 }

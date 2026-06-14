@@ -82,6 +82,30 @@ void main() {
     expect(surface.imageOf(activeId), isNotNull, reason: 'やり直しで画像が戻る');
   });
 
+  testWidgets('描画中に外部操作が入ると進行中ストロークは破棄される(回帰)', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    await _pump(tester, controller, surface);
+    final id = controller.layers.active.id;
+
+    final g = await tester.startGesture(
+      tester.getCenter(find.byType(DrawSurface)),
+    );
+    await g.moveBy(const Offset(20, 10));
+    await tester.pump();
+
+    // 別ポインタでのツール変更・undo 等に相当(コントローラ通知)。
+    controller.selectTool(Tool.erase);
+    await tester.pump();
+
+    await g.up();
+    await tester.pump();
+
+    // 進行中ストロークは無効化され、焼き込まれない。
+    expect(surface.imageOf(id), isNull);
+    expect(controller.canUndo, isFalse);
+  });
+
   testWidgets('非表示レイヤーには焼き込まれない', (tester) async {
     final surface = RasterLayerStore();
     final controller = CanvasController(surface: surface);
