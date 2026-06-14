@@ -313,6 +313,68 @@ void main() {
     expect(after, equals(before)); // ズームしても出力は同一
   });
 
+  testWidgets('2 本指ダブルタップで onToggleUi が呼ばれ、ピンチでは呼ばれない', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    var toggles = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 200,
+              height: 200,
+              child: DrawSurface(
+                controller: controller,
+                surface: surface,
+                clock: FakeClock(),
+                transforming: ValueNotifier<bool>(false),
+                onToggleUi: () => toggles++,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final center = tester.getCenter(find.byType(DrawSurface));
+    Future<void> twoFingerTap(int p1, int p2) async {
+      final g1 = await tester.startGesture(
+        center + const Offset(-15, 0),
+        pointer: p1,
+      );
+      final g2 = await tester.startGesture(
+        center + const Offset(15, 0),
+        pointer: p2,
+      );
+      await tester.pump();
+      await g1.up();
+      await g2.up();
+      await tester.pump();
+    }
+
+    await twoFingerTap(1, 2);
+    expect(toggles, 0, reason: '1 回タップではトグルしない');
+    await twoFingerTap(3, 4);
+    expect(toggles, 1, reason: 'ダブルタップでトグル');
+
+    // 動かす(ピンチ)とタップ扱いされない。
+    final g1 = await tester.startGesture(
+      center + const Offset(-15, 0),
+      pointer: 5,
+    );
+    final g2 = await tester.startGesture(
+      center + const Offset(15, 0),
+      pointer: 6,
+    );
+    await g1.moveBy(const Offset(-40, 0));
+    await g2.moveBy(const Offset(40, 0));
+    await g1.up();
+    await g2.up();
+    await tester.pump();
+    expect(toggles, 1, reason: 'ピンチはダブルタップとして数えない');
+  });
+
   testWidgets('変形モード: 移動して確定で焼き込み、undo で戻る(Phase3b)', (tester) async {
     final surface = RasterLayerStore();
     final controller = CanvasController(surface: surface);

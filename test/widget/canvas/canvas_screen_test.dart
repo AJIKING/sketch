@@ -84,16 +84,17 @@ void main() {
     expect(find.byTooltip('メニュー'), findsOneWidget); // ヘッダー
     expect(find.byTooltip('ブラシ'), findsOneWidget); // フッター
 
-    await tester.tap(find.byTooltip('ツールを隠す(キャンバスを広く)'));
+    await tester.tap(find.byTooltip('ツールを隠す(2本指ダブルタップでも切替)'));
     await tester.pump();
     expect(find.byTooltip('メニュー'), findsNothing);
     expect(find.byTooltip('ブラシ'), findsNothing);
-    expect(find.byTooltip('ツールを表示'), findsOneWidget); // 復帰ボタン
+    final showTip = find.byTooltip('ツールを表示(2本指ダブルタップでも切替)');
+    expect(showTip, findsOneWidget); // 復帰ボタン
 
-    await tester.tap(find.byTooltip('ツールを表示'));
+    await tester.tap(showTip);
     await tester.pump();
     expect(find.byTooltip('メニュー'), findsOneWidget);
-    expect(find.byTooltip('ツールを表示'), findsNothing);
+    expect(find.byTooltip('ツールを表示(2本指ダブルタップでも切替)'), findsNothing);
   });
 
   testWidgets('変形モード中はツール UI が無効化される(Phase3b)', (tester) async {

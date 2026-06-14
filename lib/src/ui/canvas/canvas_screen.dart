@@ -409,6 +409,9 @@ class _CanvasScreenState extends State<CanvasScreen> {
                         surface: _surface,
                         clock: widget.dependencies.clock,
                         transforming: _transforming,
+                        // 2 本指ダブルタップでツール UI を表示/非表示。
+                        onToggleUi: () =>
+                            setState(() => _uiVisible = !_uiVisible),
                       ),
                     ),
                   ),
@@ -474,7 +477,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.unfold_less),
-            tooltip: 'ツールを隠す(キャンバスを広く)',
+            tooltip: 'ツールを隠す(2本指ダブルタップでも切替)',
             onPressed: () => setState(() => _uiVisible = false),
           ),
           IconButton(
@@ -535,7 +538,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
         shape: const CircleBorder(),
         child: IconButton(
           icon: const Icon(Icons.unfold_more, color: AtelierTokens.ink),
-          tooltip: 'ツールを表示',
+          tooltip: 'ツールを表示(2本指ダブルタップでも切替)',
           onPressed: () => setState(() => _uiVisible = true),
         ),
       ),
