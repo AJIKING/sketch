@@ -27,8 +27,9 @@ void renderStroke(Canvas canvas, PaintedStroke stroke) {
   final brush = stroke.brush;
   final rng = math.Random(stroke.seed);
 
-  // 単独点(タップ)はその場に 1 区間を描く。
-  final segmentPts = pts.length == 1 ? [pts.first, pts.first] : pts;
+  // 単独点(タップ)はその場に 1 区間を描く。タップは始点色で塗る。
+  final isTap = pts.length == 1;
+  final segmentPts = isTap ? [pts.first, pts.first] : pts;
   final lastIndex = math.max(1, segmentPts.length - 1);
   for (var i = 1; i < segmentPts.length; i++) {
     final plan = planStroke(
@@ -40,7 +41,7 @@ void renderStroke(Canvas canvas, PaintedStroke stroke) {
       opacity: stroke.opacity,
       random: rng,
     );
-    final (r, g, b) = _lerpRgb(startRgb, endRgb, i / lastIndex);
+    final (r, g, b) = _lerpRgb(startRgb, endRgb, isTap ? 0.0 : i / lastIndex);
     _renderPlan(canvas, plan, r, g, b);
   }
 }

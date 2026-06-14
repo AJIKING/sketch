@@ -226,5 +226,17 @@ void main() {
       c.removeCustomColor('#123456');
       expect(c.customPalette, isEmpty);
     });
+
+    test('dispose 後に load 完了が来ても通知で落ちない(回帰)', () async {
+      final store = InMemoryPaletteStore(['#AABBCC']);
+      final cc = CanvasController(
+        surface: FakeCanvasSurface(),
+        paletteStore: store,
+      );
+      final pending = cc.loadCustomPalette(); // await store.load() で中断
+      cc.dispose(); // 完了前に破棄
+      await pending; // _disposed ガードで notifyListeners を回避 → 例外なし
+      expect(cc.customPalette, isEmpty); // 反映されない
+    });
   });
 }

@@ -74,4 +74,14 @@ void main() {
     expect(await c.duplicate('missing'), isNull);
     expect(c.count, 0);
   });
+
+  test('同一時刻で連続複製しても id が衝突しない(回帰)', () async {
+    await c.save(id: 'a', png: _png(1));
+    final c1 = await c.duplicate('a'); // clock は進めない
+    final c2 = await c.duplicate('a');
+    expect(c1, isNotNull);
+    expect(c2, isNotNull);
+    expect(c1!.id, isNot(c2!.id)); // 衝突しない
+    expect(c.count, 3); // 元 + コピー2枚
+  });
 }

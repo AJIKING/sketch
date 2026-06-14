@@ -61,7 +61,7 @@ class GalleryController extends ChangeNotifier {
     if (source == null || png == null) return null;
     final now = clock.now();
     final copy = Sketch(
-      id: 'sketch-${now.microsecondsSinceEpoch}',
+      id: _uniqueId(now),
       title: '${source.title ?? 'あなたのスケッチ'} のコピー',
       createdAt: now,
       updatedAt: now,
@@ -69,6 +69,18 @@ class GalleryController extends ChangeNotifier {
     await store.save(copy, png);
     await load();
     return copy;
+  }
+
+  /// 既存スケッチと衝突しない id を作る。同一時刻(fake clock や連打)でも
+  /// 重複しないよう、必要なら連番サフィックスを足す。
+  String _uniqueId(DateTime now) {
+    final base = 'sketch-${now.microsecondsSinceEpoch}';
+    if (_byId(base) == null) return base;
+    var n = 1;
+    while (_byId('$base-$n') != null) {
+      n++;
+    }
+    return '$base-$n';
   }
 
   Future<void> remove(String id) async {

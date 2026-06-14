@@ -47,6 +47,7 @@ class CanvasController extends ChangeNotifier {
   final History<LayerSnapshot> _history;
   final LayerStack _layers = LayerStack.initial();
   final List<String> _customPalette = [];
+  bool _disposed = false;
 
   Tool _tool = Tool.brush;
   BrushPreset _brush = inkBrush;
@@ -218,6 +219,7 @@ class CanvasController extends ChangeNotifier {
     final store = paletteStore;
     if (store == null) return;
     final loaded = await store.load();
+    if (_disposed) return; // 読み込み中に画面を離れていたら通知しない
     _customPalette
       ..clear()
       ..addAll(loaded);
@@ -247,7 +249,17 @@ class CanvasController extends ChangeNotifier {
 
   void _persistCustomPalette() {
     final store = paletteStore;
-    if (store != null) unawaited(store.save(List.of(_customPalette)));
+    // 保存はユーザー操作の度に発火する fire-and-forget。各回が全件スナップショット
+    // なので last-write-wins で壊れない。書き込み失敗はアプリを止めず握り潰す。
+    if (store != null) {
+      unawaited(store.save(List.of(_customPalette)).catchError((Object _) {}));
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 
   void addLayer() {

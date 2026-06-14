@@ -880,6 +880,7 @@ class _BrushSheet extends StatelessWidget {
   Widget _secondColorPicker() {
     final swatches = <String>{
       ...controller.palette,
+      ...controller.customPalette,
       ...controller.recent,
     }.toList();
     return Padding(
