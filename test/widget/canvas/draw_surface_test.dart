@@ -133,6 +133,26 @@ void main() {
     expect(surface.imageOf(id), isNull);
   });
 
+  testWidgets('長押しでスポイト(どのツールでも色を吸い取る)', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface); // 既定ブラシ
+    await _pump(tester, controller, surface);
+    controller.setColorHex('#2C4A63'); // 紙以外に設定
+    expect(controller.colorHex, '#2C4A63');
+
+    final g = await tester.startGesture(
+      tester.getCenter(find.byType(DrawSurface)),
+    );
+    await tester.pump(const Duration(milliseconds: 500)); // 長押しタイマー発火
+    await g.up();
+    await tester.pumpAndSettle();
+
+    // 空レイヤーを吸ったので紙の色になる。
+    expect(controller.colorHex, '#EFE7D6');
+    // 長押しなのでストロークは焼き込まれない。
+    expect(surface.imageOf(controller.layers.active.id), isNull);
+  });
+
   testWidgets('図形ツール: ドラッグで焼き込み、undo で戻る', (tester) async {
     final surface = RasterLayerStore();
     final controller = CanvasController(surface: surface)

@@ -69,6 +69,19 @@ class DrawSurfaceState extends State<DrawSurface> {
   Offset? _shapeStart, _shapeEnd;
   String? _shapeLayerId;
 
+  // 長押しスポイト(どのツールでも、その場で長押し→色吸い取り)。
+  Timer? _longPressTimer;
+  Offset? _longPressPos; // view 空間
+  bool _longPressFired = false;
+  static const int _longPressMs = 450;
+  static const double _longPressSlop = 12;
+
+  @override
+  void dispose() {
+    _longPressTimer?.cancel();
+    super.dispose();
+  }
+
   CanvasController get _c => widget.controller;
   double get _nowMs => widget.clock.now().millisecondsSinceEpoch.toDouble();
   bool get _strokeTool =>
@@ -155,10 +168,42 @@ class DrawSurfaceState extends State<DrawSurface> {
     context,
   )?.showSnackBar(const SnackBar(content: Text('非表示のレイヤーには描けません')));
 
+  // ---- long-press eyedropper ----
+  void _startLongPress(Offset viewPos) {
+    _longPressPos = viewPos;
+    _longPressFired = false;
+    _longPressTimer?.cancel();
+    _longPressTimer = Timer(
+      const Duration(milliseconds: _longPressMs),
+      _fireLongPress,
+    );
+  }
+
+  void _cancelLongPress() {
+    _longPressTimer?.cancel();
+    _longPressTimer = null;
+  }
+
+  void _fireLongPress() {
+    final pos = _longPressPos;
+    if (pos == null) return;
+    _longPressFired = true;
+    // 進行中のツール操作を破棄してスポイトに切り替える。
+    _current = null;
+    _currentLayerId = null;
+    _shapeStart = null;
+    _shapeEnd = null;
+    _shapeLayerId = null;
+    _startPos = null;
+    unawaited(_sampleAt(_viewport.toCanvas(pos)));
+    setState(() {});
+  }
+
   // ---- pointers ----
   void _onDown(PointerDownEvent e) {
     _pointers[e.pointer] = e.localPosition;
     if (_pointers.length >= 2) {
+      _cancelLongPress();
       // 2 本指で変形を開始。既に変形中(3 本目以降)はアンカーを変えない。
       if (_gestureStart == null) {
         // 進行中ストローク/図形は(未焼込なので)破棄し、非ストロークツールの
@@ -178,6 +223,7 @@ class DrawSurfaceState extends State<DrawSurface> {
       _lastPanPos = e.localPosition; // 1 本指で移動
       return;
     }
+    _startLongPress(e.localPosition); // 1 本指長押しでスポイト
     if (_c.tool == Tool.shape) {
       if (!_c.layers.active.visible) {
         _warnHidden();
@@ -219,6 +265,12 @@ class DrawSurfaceState extends State<DrawSurface> {
     if (_pointers.containsKey(e.pointer)) {
       _pointers[e.pointer] = e.localPosition;
     }
+    final lp = _longPressPos;
+    if (_longPressTimer != null &&
+        lp != null &&
+        (e.localPosition - lp).distance > _longPressSlop) {
+      _cancelLongPress(); // 動いたら長押し成立しない
+    }
     if (_gestureStart != null) {
       _updateGesture();
       return;
@@ -257,6 +309,12 @@ class DrawSurfaceState extends State<DrawSurface> {
     final id = e.pointer;
     final gesturing = _gestureStart != null;
     _pointers.remove(id);
+    _cancelLongPress();
+    if (_longPressFired) {
+      // 長押しスポイトで処理済み。通常のツール動作はしない。
+      _longPressFired = false;
+      return;
+    }
     if (gesturing) {
       // アンカーの指が離れたら、残りで再アンカー(2 本未満なら終了)。
       // アンカー以外(3 本目)が離れても継続。
@@ -315,6 +373,8 @@ class DrawSurfaceState extends State<DrawSurface> {
     final id = e.pointer;
     final gesturing = _gestureStart != null;
     _pointers.remove(id);
+    _cancelLongPress();
+    _longPressFired = false;
     _current = null; // 進行中ストロークを破棄
     _currentLayerId = null;
     _lastPanPos = null;
