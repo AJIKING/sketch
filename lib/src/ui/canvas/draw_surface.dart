@@ -562,35 +562,50 @@ class DrawSurfaceState extends State<DrawSurface> {
   }
 
   /// 選択範囲内をアクティブレイヤーから消す(undo 可能)。
-  void clearInsideSelection() {
-    final sel = _selection;
-    final id = _c.layers.active.id;
-    final existing = widget.surface.imageOf(id);
-    if (sel == null || existing == null || _docSize.isEmpty) return;
+  /// 既存画像の上に [draw] を描いてレイヤー [id] へ焼き込む共通処理(undo 可能)。
+  /// [clipToSelection] が true で選択範囲があれば、新規描画をその範囲へ制限する
+  /// (既存画素は範囲外も保持)。レイヤーが消えている / docSize 未確定なら何もしない。
+  void _bakeOnLayer(
+    String id,
+    void Function(Canvas canvas, int width, int height) draw, {
+    bool clipToSelection = true,
+  }) {
+    if (_docSize.isEmpty || _c.layers.byId(id) == null) return;
     final w = _docSize.width.round().clamp(1, 4096);
     final h = _docSize.height.round().clamp(1, 4096);
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    canvas.drawImageRect(
-      existing,
-      Rect.fromLTWH(
-        0,
-        0,
-        existing.width.toDouble(),
-        existing.height.toDouble(),
-      ),
-      Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
-      Paint(),
-    );
+    final existing = widget.surface.imageOf(id);
+    if (existing != null) {
+      canvas.drawImageRect(
+        existing,
+        Rect.fromLTWH(
+          0,
+          0,
+          existing.width.toDouble(),
+          existing.height.toDouble(),
+        ),
+        Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
+        Paint(),
+      );
+    }
     canvas.save();
-    canvas.clipPath(sel);
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
-      Paint()..blendMode = BlendMode.clear,
-    );
+    if (clipToSelection && _selection != null) canvas.clipPath(_selection!);
+    draw(canvas, w, h);
     canvas.restore();
     _c.beginStroke(id);
     widget.surface.set(id, recorder.endRecording().toImageSync(w, h));
+  }
+
+  void clearInsideSelection() {
+    final id = _c.layers.active.id;
+    if (_selection == null || widget.surface.imageOf(id) == null) return;
+    _bakeOnLayer(id, (canvas, w, h) {
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
+        Paint()..blendMode = BlendMode.clear,
+      );
+    });
     setState(() {});
   }
 
@@ -599,44 +614,20 @@ class DrawSurfaceState extends State<DrawSurface> {
     final a = _shapeStart;
     final rawEnd = _shapeEnd;
     final b = (a != null && rawEnd != null) ? _snapEnd(a, rawEnd) : rawEnd;
-    if (id != null &&
-        a != null &&
-        b != null &&
-        !_docSize.isEmpty &&
-        _c.layers.byId(id) != null) {
-      final w = _docSize.width.round().clamp(1, 4096);
-      final h = _docSize.height.round().clamp(1, 4096);
-      final recorder = ui.PictureRecorder();
-      final canvas = Canvas(recorder);
-      final existing = widget.surface.imageOf(id);
-      if (existing != null) {
-        canvas.drawImageRect(
-          existing,
-          Rect.fromLTWH(
-            0,
-            0,
-            existing.width.toDouble(),
-            existing.height.toDouble(),
-          ),
-          Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
-          Paint(),
-        );
-      }
-      canvas.save();
-      if (_selection != null) canvas.clipPath(_selection!);
-      renderShape(
-        canvas,
-        kind: _c.shapeKind,
-        start: a,
-        end: b,
-        rgb: _currentRgb(),
-        size: _c.size,
-        opacity: _c.opacity,
-        filled: _c.shapeFilled,
+    if (id != null && a != null && b != null) {
+      _bakeOnLayer(
+        id,
+        (canvas, w, h) => renderShape(
+          canvas,
+          kind: _c.shapeKind,
+          start: a,
+          end: b,
+          rgb: _currentRgb(),
+          size: _c.size,
+          opacity: _c.opacity,
+          filled: _c.shapeFilled,
+        ),
       );
-      canvas.restore();
-      _c.beginStroke(id);
-      widget.surface.set(id, recorder.endRecording().toImageSync(w, h));
     }
     _shapeStart = null;
     _shapeEnd = null;
@@ -658,24 +649,6 @@ class DrawSurfaceState extends State<DrawSurface> {
       return;
     }
     final id = _c.layers.active.id;
-    final w = _docSize.width.round().clamp(1, 4096);
-    final h = _docSize.height.round().clamp(1, 4096);
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    final existing = widget.surface.imageOf(id);
-    if (existing != null) {
-      canvas.drawImageRect(
-        existing,
-        Rect.fromLTWH(
-          0,
-          0,
-          existing.width.toDouble(),
-          existing.height.toDouble(),
-        ),
-        Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
-        Paint(),
-      );
-    }
     final (r, g, b) = _currentRgb();
     final painter = TextPainter(
       text: TextSpan(
@@ -688,13 +661,8 @@ class DrawSurfaceState extends State<DrawSurface> {
         ),
       ),
       textDirection: TextDirection.ltr,
-    )..layout(maxWidth: w.toDouble());
-    canvas.save();
-    if (_selection != null) canvas.clipPath(_selection!);
-    painter.paint(canvas, canvasPos);
-    canvas.restore();
-    _c.beginStroke(id);
-    widget.surface.set(id, recorder.endRecording().toImageSync(w, h));
+    )..layout(maxWidth: _docSize.width);
+    _bakeOnLayer(id, (canvas, w, h) => painter.paint(canvas, canvasPos));
     setState(() {});
   }
 
@@ -804,25 +772,6 @@ class DrawSurfaceState extends State<DrawSurface> {
     }
     final id = layer.id;
     final (r, g, bb) = _currentRgb();
-    final w = _docSize.width.round().clamp(1, 4096);
-    final h = _docSize.height.round().clamp(1, 4096);
-    _c.beginStroke(id);
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    final existing = widget.surface.imageOf(id);
-    if (existing != null) {
-      canvas.drawImageRect(
-        existing,
-        Rect.fromLTWH(
-          0,
-          0,
-          existing.width.toDouble(),
-          existing.height.toDouble(),
-        ),
-        Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
-        Paint(),
-      );
-    }
     final colors = [
       Color.fromARGB(_alpha, r, g, bb),
       Color.fromARGB(0, r, g, bb),
@@ -830,14 +779,12 @@ class DrawSurfaceState extends State<DrawSurface> {
     final shader = _c.gradientKind == GradientKind.radial
         ? ui.Gradient.radial(a, (b - a).distance, colors)
         : ui.Gradient.linear(a, b, colors);
-    canvas.save();
-    if (_selection != null) canvas.clipPath(_selection!);
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
-      Paint()..shader = shader,
-    );
-    canvas.restore();
-    widget.surface.set(id, recorder.endRecording().toImageSync(w, h));
+    _bakeOnLayer(id, (canvas, w, h) {
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
+        Paint()..shader = shader,
+      );
+    });
     setState(() {});
   }
 
