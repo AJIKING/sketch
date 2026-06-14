@@ -1,0 +1,51 @@
+/// undo / redo の汎用スタック(pure Dart)。
+///
+/// スナップショット型 [T] は不透明に扱う(レイヤー id + 画素など、呼び出し側の
+/// 都合で決める)。プロトタイプ準拠の挙動:
+/// - 変更操作の直前に [record] で現在状態を積む(上限 [limit]、超過は古いものを破棄)。
+/// - 新しい [record] で redo スタックをクリアする。
+/// - [undo] は現在状態を redo へ退避し、直前のスナップショットを返す。
+/// - [redo] はその逆。
+///
+/// `docs/test-plan.md`「undo/redo」/ ADR 0003。
+class History<T> {
+  History({this.limit = 16});
+
+  final int limit;
+  final List<T> _undo = [];
+  final List<T> _redo = [];
+
+  bool get canUndo => _undo.isNotEmpty;
+  bool get canRedo => _redo.isNotEmpty;
+  int get undoDepth => _undo.length;
+
+  /// 変更の直前に現在状態を記録する。redo はクリアされる。
+  void record(T snapshot) {
+    _undo.add(snapshot);
+    if (_undo.length > limit) _undo.removeAt(0);
+    _redo.clear();
+  }
+
+  /// 直前の状態へ戻す。[current] は現在状態(redo に退避される)。
+  /// 戻せない場合は null。
+  T? undo(T current) {
+    if (_undo.isEmpty) return null;
+    final snapshot = _undo.removeLast();
+    _redo.add(current);
+    return snapshot;
+  }
+
+  /// 取り消しを取り消す。[current] は現在状態(undo に退避される)。
+  /// やり直せない場合は null。
+  T? redo(T current) {
+    if (_redo.isEmpty) return null;
+    final snapshot = _redo.removeLast();
+    _undo.add(current);
+    return snapshot;
+  }
+
+  void clear() {
+    _undo.clear();
+    _redo.clear();
+  }
+}

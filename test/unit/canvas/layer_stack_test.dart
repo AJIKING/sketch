@@ -1,0 +1,76 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:sketch/src/domain/canvas/layer_stack.dart';
+
+void main() {
+  test('初期状態は 2 枚で最前面がアクティブ', () {
+    final s = LayerStack.initial();
+    expect(s.length, 2);
+    expect(s.activeIndex, 1);
+    expect(s.layers.map((l) => l.name), ['レイヤー 1', 'レイヤー 2']);
+    expect(s.layers.every((l) => l.visible && l.opacity == 1), isTrue);
+  });
+
+  test('レイヤー id は一意', () {
+    final s = LayerStack.initial();
+    s.add();
+    final ids = s.layers.map((l) => l.id).toSet();
+    expect(ids, hasLength(s.length));
+  });
+
+  test('追加は最前面に積みアクティブになる', () {
+    final s = LayerStack.initial();
+    final added = s.add();
+    expect(s.length, 3);
+    expect(s.activeIndex, 2);
+    expect(s.active.id, added.id);
+  });
+
+  group('削除', () {
+    test('最後の 1 枚は削除できない', () {
+      final s = LayerStack.initial();
+      expect(s.remove(0), isTrue);
+      expect(s.remove(0), isFalse);
+      expect(s.length, 1);
+    });
+
+    test('アクティブより下を消すと activeIndex が前へずれる', () {
+      final s = LayerStack.initial()..add(); // 3 枚, active=2
+      expect(s.activeIndex, 2);
+      expect(s.remove(0), isTrue); // 下を削除
+      expect(s.length, 2);
+      expect(s.activeIndex, 1); // 2 → 1 にずれる
+    });
+
+    test('アクティブを消すと範囲内へ補正される', () {
+      final s = LayerStack.initial()..add(); // active=2(末尾)
+      expect(s.remove(2), isTrue);
+      expect(s.activeIndex, 1); // 末尾へ補正
+    });
+  });
+
+  test('表示トグル', () {
+    final s = LayerStack.initial();
+    s.toggleVisible(0);
+    expect(s.layers[0].visible, isFalse);
+    s.toggleVisible(0);
+    expect(s.layers[0].visible, isTrue);
+  });
+
+  test('アクティブ切替は範囲外を無視する', () {
+    final s = LayerStack.initial();
+    s.setActive(0);
+    expect(s.activeIndex, 0);
+    s.setActive(5);
+    expect(s.activeIndex, 0);
+    s.setActive(-1);
+    expect(s.activeIndex, 0);
+  });
+
+  test('不透明度は 0..1 にクランプ', () {
+    final s = LayerStack.initial();
+    s.setOpacity(0, 1.5);
+    expect(s.layers[0].opacity, 1);
+    s.setOpacity(0, -0.2);
+    expect(s.layers[0].opacity, 0);
+  });
+}
