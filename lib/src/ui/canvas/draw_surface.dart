@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../../application/canvas_controller.dart';
 import '../../core/clock.dart';
+import '../../domain/canvas/gradient_kind.dart';
 import '../../domain/canvas/pixel_ops.dart';
 import '../../domain/color/ink_color.dart';
 import 'painted_stroke.dart';
@@ -384,10 +385,14 @@ class DrawSurfaceState extends State<DrawSurface> {
     );
   }
 
+  Offset _snapEnd(Offset start, Offset end) =>
+      snapShapeEnd(_c.shapeKind, start, end, snap: _c.shapeSnap);
+
   void _bakeShape() {
     final id = _shapeLayerId;
     final a = _shapeStart;
-    final b = _shapeEnd;
+    final rawEnd = _shapeEnd;
+    final b = (a != null && rawEnd != null) ? _snapEnd(a, rawEnd) : rawEnd;
     if (id != null &&
         a != null &&
         b != null &&
@@ -621,10 +626,13 @@ class DrawSurfaceState extends State<DrawSurface> {
         Paint(),
       );
     }
-    final shader = ui.Gradient.linear(a, b, [
+    final colors = [
       Color.fromARGB(_alpha, r, g, bb),
       Color.fromARGB(0, r, g, bb),
-    ]);
+    ];
+    final shader = _c.gradientKind == GradientKind.radial
+        ? ui.Gradient.radial(a, (b - a).distance, colors)
+        : ui.Gradient.linear(a, b, colors);
     canvas.drawRect(
       Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
       Paint()..shader = shader,
@@ -682,7 +690,7 @@ class DrawSurfaceState extends State<DrawSurface> {
     return LiveShape(
       kind: _c.shapeKind,
       start: a,
-      end: b,
+      end: _snapEnd(a, b),
       layerId: id,
       colorHex: _c.colorHex,
       size: _c.size,

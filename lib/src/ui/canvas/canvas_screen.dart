@@ -8,6 +8,7 @@ import '../../application/dependencies.dart';
 import '../../application/gallery_controller.dart';
 import '../../domain/brush/brush_preset.dart';
 import '../../domain/canvas/filters.dart' as filters;
+import '../../domain/canvas/gradient_kind.dart';
 import '../../domain/canvas/layer_blend_mode.dart';
 import '../../domain/canvas/shape_kind.dart';
 import '../../domain/gallery/sketch.dart';
@@ -245,6 +246,10 @@ class _CanvasScreenState extends State<CanvasScreen> {
       _openShapeSheet(); // 図形ツール再タップ → 図形の種類設定
       return;
     }
+    if (tool == Tool.gradient && _c.tool == Tool.gradient) {
+      _openGradientSheet(); // グラデ再タップ → 線形/円形
+      return;
+    }
     _c.selectTool(tool);
   }
 
@@ -277,6 +282,40 @@ class _CanvasScreenState extends State<CanvasScreen> {
             value: _c.shapeFilled,
             onChanged: _c.setShapeFilled,
           ),
+          SwitchListTile(
+            title: const Text(
+              'スナップ(直線45° / 正方形・正円)',
+              style: TextStyle(color: AtelierTokens.ink),
+            ),
+            value: _c.shapeSnap,
+            onChanged: _c.setShapeSnap,
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openGradientSheet() {
+    _openSheet(
+      (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final kind in GradientKind.values)
+            ListTile(
+              leading: Icon(
+                kind == GradientKind.radial
+                    ? Icons.blur_circular
+                    : Icons.gradient,
+              ),
+              title: Text(
+                kind.label,
+                style: const TextStyle(color: AtelierTokens.ink),
+              ),
+              trailing: _c.gradientKind == kind
+                  ? const Icon(Icons.check, color: AtelierTokens.vermilion)
+                  : null,
+              onTap: () => _c.setGradientKind(kind),
+            ),
         ],
       ),
     );

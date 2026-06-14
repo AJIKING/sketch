@@ -1,6 +1,27 @@
+import 'dart:math';
 import 'dart:ui';
 
 import '../../domain/canvas/shape_kind.dart';
+
+/// スナップ後の終点を返す。[snap] が false ならそのまま。
+/// 直線は 45° 刻み、四角→正方形 / 楕円→正円に整える。
+Offset snapShapeEnd(
+  ShapeKind kind,
+  Offset start,
+  Offset end, {
+  required bool snap,
+}) {
+  if (!snap) return end;
+  final d = end - start;
+  if (kind == ShapeKind.line) {
+    final len = d.distance;
+    const step = pi / 4;
+    final angle = (atan2(d.dy, d.dx) / step).round() * step;
+    return start + Offset(cos(angle) * len, sin(angle) * len);
+  }
+  final s = max(d.dx.abs(), d.dy.abs());
+  return start + Offset(d.dx < 0 ? -s : s, d.dy < 0 ? -s : s);
+}
 
 /// 描画中の図形プレビュー(座標は canvas/doc 空間)。
 class LiveShape {

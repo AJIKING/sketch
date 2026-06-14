@@ -4,6 +4,7 @@ import '../domain/brush/brush_preset.dart';
 import '../domain/canvas/canvas_surface.dart';
 import '../domain/canvas/history.dart';
 import '../domain/canvas/layer_blend_mode.dart';
+import '../domain/canvas/gradient_kind.dart';
 import '../domain/canvas/layer_stack.dart';
 import '../domain/canvas/shape_kind.dart';
 import '../domain/color/ink_color.dart';
@@ -35,6 +36,8 @@ class CanvasController extends ChangeNotifier {
   final List<String> _recent = [];
   ShapeKind _shapeKind = ShapeKind.line;
   bool _shapeFilled = false;
+  bool _shapeSnap = false;
+  GradientKind _gradientKind = GradientKind.linear;
 
   Tool get tool => _tool;
   BrushPreset get brush => _brush;
@@ -46,6 +49,8 @@ class CanvasController extends ChangeNotifier {
   List<String> get palette => studioPalette;
   ShapeKind get shapeKind => _shapeKind;
   bool get shapeFilled => _shapeFilled;
+  bool get shapeSnap => _shapeSnap;
+  GradientKind get gradientKind => _gradientKind;
   LayerStack get layers => _layers;
   bool get canUndo => _history.canUndo;
   bool get canRedo => _history.canRedo;
@@ -114,6 +119,18 @@ class CanvasController extends ChangeNotifier {
   void setShapeFilled(bool filled) {
     if (filled == _shapeFilled) return;
     _shapeFilled = filled;
+    notifyListeners();
+  }
+
+  void setShapeSnap(bool snap) {
+    if (snap == _shapeSnap) return;
+    _shapeSnap = snap;
+    notifyListeners();
+  }
+
+  void setGradientKind(GradientKind kind) {
+    if (kind == _gradientKind) return;
+    _gradientKind = kind;
     notifyListeners();
   }
 
