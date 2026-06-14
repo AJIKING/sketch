@@ -120,7 +120,7 @@ void main() {
 
     await tester.tap(find.byType(DrawSurface));
     await tester.pumpAndSettle();
-    expect(find.text('テキストを入力'), findsOneWidget);
+    expect(find.widgetWithText(AlertDialog, 'テキスト'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'ABC');
     await tester.tap(find.text('追加'));

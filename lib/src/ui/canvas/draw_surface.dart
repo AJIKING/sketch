@@ -441,8 +441,11 @@ class DrawSurfaceState extends State<DrawSurface> {
       _warnHidden();
       return;
     }
-    final text = await _promptText();
-    if (!mounted || text == null || text.trim().isEmpty || _docSize.isEmpty) {
+    final result = await _promptText();
+    if (!mounted ||
+        result == null ||
+        result.text.trim().isEmpty ||
+        _docSize.isEmpty) {
       return;
     }
     final id = _c.layers.active.id;
@@ -467,11 +470,11 @@ class DrawSurfaceState extends State<DrawSurface> {
     final (r, g, b) = _currentRgb();
     final painter = TextPainter(
       text: TextSpan(
-        text: text,
+        text: result.text,
         style: TextStyle(
           color: Color.fromARGB(_alpha, r, g, b),
-          fontSize: (_c.size * 2.2).clamp(12.0, 240.0),
-          fontWeight: FontWeight.w600,
+          fontSize: result.fontSize,
+          fontWeight: result.bold ? FontWeight.w800 : FontWeight.w600,
           height: 1.2,
         ),
       ),
@@ -483,28 +486,59 @@ class DrawSurfaceState extends State<DrawSurface> {
     setState(() {});
   }
 
-  Future<String?> _promptText() {
+  Future<({String text, double fontSize, bool bold})?> _promptText() {
     final controller = TextEditingController();
-    return showDialog<String>(
+    var fontSize = (_c.size * 2.2).clamp(12.0, 240.0);
+    var bold = false;
+    return showDialog<({String text, double fontSize, bool bold})>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('テキストを入力'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLines: null,
-          decoration: const InputDecoration(hintText: '文字を入力'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('テキスト'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                autofocus: true,
+                maxLines: null,
+                decoration: const InputDecoration(hintText: '文字を入力'),
+              ),
+              Row(
+                children: [
+                  const Text('サイズ'),
+                  Expanded(
+                    child: Slider(
+                      value: fontSize,
+                      min: 12,
+                      max: 240,
+                      label: fontSize.round().toString(),
+                      onChanged: (v) => setLocal(() => fontSize = v),
+                    ),
+                  ),
+                ],
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('太字'),
+                value: bold,
+                onChanged: (v) => setLocal(() => bold = v),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('キャンセル'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(
+                ctx,
+              ).pop((text: controller.text, fontSize: fontSize, bold: bold)),
+              child: const Text('追加'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('キャンセル'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text),
-            child: const Text('追加'),
-          ),
-        ],
       ),
     );
   }
