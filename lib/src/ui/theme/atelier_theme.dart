@@ -23,6 +23,17 @@ abstract final class AtelierTokens {
   static const double rXl = 32;
 }
 
+/// `#RRGGBB` 文字列を不透明な [Color] にする(UI 共通ヘルパ)。
+Color hexColor(String hex) {
+  final h = hex.replaceAll('#', '');
+  return Color.fromARGB(
+    255,
+    int.parse(h.substring(0, 2), radix: 16),
+    int.parse(h.substring(2, 4), radix: 16),
+    int.parse(h.substring(4, 6), radix: 16),
+  );
+}
+
 ThemeData atelierTheme() {
   final scheme = ColorScheme.fromSeed(
     seedColor: AtelierTokens.vermilion,

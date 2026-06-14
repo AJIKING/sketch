@@ -22,6 +22,11 @@ class HatchApp extends StatefulWidget {
 }
 
 class _HatchAppState extends State<HatchApp> {
+  // MaterialApp が内部に作る Navigator を、HatchApp(その祖先)の context からでも
+  // 操作するための key。`Navigator.of(context)` を HatchApp の context で呼ぶと
+  // 「Navigator を含まない context」エラーになるため、これを使う。
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+
   late final Dependencies _deps =
       widget.dependencies ?? Dependencies.production();
   late final GalleryController _gallery = GalleryController(
@@ -36,10 +41,12 @@ class _HatchAppState extends State<HatchApp> {
   }
 
   Future<void> _openCanvas({Sketch? existing}) async {
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null) return;
     Uint8List? background;
     if (existing != null) background = await _gallery.image(existing.id);
     if (!mounted) return;
-    await Navigator.of(context).push(
+    await navigator.push(
       MaterialPageRoute<void>(
         builder: (_) => CanvasScreen(
           dependencies: _deps,
@@ -49,6 +56,7 @@ class _HatchAppState extends State<HatchApp> {
         ),
       ),
     );
+    if (!mounted) return;
     await _gallery.load(); // 戻ったら一覧を更新
   }
 
@@ -56,6 +64,7 @@ class _HatchAppState extends State<HatchApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Hatch',
+      navigatorKey: _navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: atelierTheme(),
       home: GalleryScreen(

@@ -16,7 +16,7 @@
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
-      "deviceId": "emulator"
+      "deviceId": "Pixel 10"
     },
     {
       // integration test と同じ構成(固定 seed・fake clock・インメモリ store)。

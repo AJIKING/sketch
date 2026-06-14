@@ -71,14 +71,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
     super.dispose();
   }
 
-  Color get _currentColor {
-    final (r, g, b) = (
-      int.parse(_c.colorHex.substring(1, 3), radix: 16),
-      int.parse(_c.colorHex.substring(3, 5), radix: 16),
-      int.parse(_c.colorHex.substring(5, 7), radix: 16),
-    );
-    return Color.fromARGB(255, r, g, b);
-  }
+  Color get _currentColor => hexColor(_c.colorHex);
 
   Future<void> _saveToGallery() async {
     final png = await _drawKey.currentState?.exportPng();
@@ -402,12 +395,7 @@ class _ColorSheet extends StatelessWidget {
                 width: 30,
                 height: 30,
                 decoration: BoxDecoration(
-                  color: Color.fromARGB(
-                    255,
-                    int.parse(hex.substring(1, 3), radix: 16),
-                    int.parse(hex.substring(3, 5), radix: 16),
-                    int.parse(hex.substring(5, 7), radix: 16),
-                  ),
+                  color: hexColor(hex),
                   shape: BoxShape.circle,
                   border: Border.all(color: AtelierTokens.hair),
                 ),

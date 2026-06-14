@@ -143,6 +143,12 @@ class DrawSurfaceState extends State<DrawSurface> {
 
   int get _alpha => (_c.opacity * 255).round().clamp(0, 255);
 
+  /// 表示座標(論理px)を画像のピクセル座標へ変換する。
+  (int, int) _imageCoord(Offset local, ui.Image img) => (
+    (local.dx / _size.width * img.width).round(),
+    (local.dy / _size.height * img.height).round(),
+  );
+
   Future<ui.Image> _decode(Uint8List rgba, int w, int h) {
     final c = Completer<ui.Image>();
     ui.decodeImageFromPixels(rgba, w, h, ui.PixelFormat.rgba8888, c.complete);
@@ -172,16 +178,17 @@ class DrawSurfaceState extends State<DrawSurface> {
         buf[p * 4 + 2] = b;
         buf[p * 4 + 3] = _alpha;
       }
-      widget.surface.set(id, await _decode(buf, w, h));
+      final img = await _decode(buf, w, h);
+      if (!mounted) return;
+      widget.surface.set(id, img);
       _tick.value++;
       return;
     }
 
     final bd = await existing.toByteData(format: ui.ImageByteFormat.rawRgba);
-    if (bd == null) return;
+    if (!mounted || bd == null) return;
     final src = bd.buffer.asUint8List();
-    final ix = (local.dx / _size.width * existing.width).round();
-    final iy = (local.dy / _size.height * existing.height).round();
+    final (ix, iy) = _imageCoord(local, existing);
     final out = floodFill(
       src,
       existing.width,
@@ -191,7 +198,9 @@ class DrawSurfaceState extends State<DrawSurface> {
       fill,
       tolerance: _fillTolerance,
     );
-    widget.surface.set(id, await _decode(out, existing.width, existing.height));
+    final img = await _decode(out, existing.width, existing.height);
+    if (!mounted) return;
+    widget.surface.set(id, img);
     _tick.value++;
   }
 
@@ -202,10 +211,9 @@ class DrawSurfaceState extends State<DrawSurface> {
       return;
     }
     final bd = await existing.toByteData(format: ui.ImageByteFormat.rawRgba);
-    if (bd == null) return;
+    if (!mounted || bd == null) return;
     final src = bd.buffer.asUint8List();
-    final ix = (local.dx / _size.width * existing.width).round();
-    final iy = (local.dy / _size.height * existing.height).round();
+    final (ix, iy) = _imageCoord(local, existing);
     final (r, g, b, a) = samplePixel(
       src,
       existing.width,
