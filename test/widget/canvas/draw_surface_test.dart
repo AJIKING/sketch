@@ -6,6 +6,32 @@ import 'package:sketch/src/ui/canvas/raster_layer_store.dart';
 
 import '../../fixtures/fake_clock.dart';
 
+Future<void> _pumpKeyed(
+  WidgetTester tester,
+  GlobalKey<DrawSurfaceState> key,
+  CanvasController c,
+  RasterLayerStore s,
+) {
+  return tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: SizedBox(
+            width: 200,
+            height: 200,
+            child: DrawSurface(
+              key: key,
+              controller: c,
+              surface: s,
+              clock: FakeClock(),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 Future<void> _pump(
   WidgetTester tester,
   CanvasController c,
@@ -101,5 +127,34 @@ void main() {
     await tester.pump();
 
     expect(controller.colorHex, '#EFE7D6'); // 紙の色
+  });
+
+  testWidgets('2 本指ピンチでビューが拡大する(Phase3)', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final key = GlobalKey<DrawSurfaceState>();
+    await _pumpKeyed(tester, key, controller, surface);
+
+    expect(key.currentState!.viewport.scale, 1);
+
+    final center = tester.getCenter(find.byType(DrawSurface));
+    final g1 = await tester.startGesture(
+      center + const Offset(-20, 0),
+      pointer: 1,
+    );
+    final g2 = await tester.startGesture(
+      center + const Offset(20, 0),
+      pointer: 2,
+    );
+    await g1.moveBy(const Offset(-40, 0));
+    await g2.moveBy(const Offset(40, 0));
+    await g1.up();
+    await g2.up();
+    await tester.pump();
+
+    expect(key.currentState!.viewport.scale, greaterThan(1.5));
+
+    key.currentState!.resetView();
+    expect(key.currentState!.viewport.scale, 1);
   });
 }

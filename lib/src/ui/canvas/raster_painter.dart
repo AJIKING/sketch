@@ -8,6 +8,7 @@ import 'blend_mode_map.dart';
 import 'painted_stroke.dart';
 import 'raster_layer_store.dart';
 import 'stroke_render.dart';
+import 'viewport_transform.dart';
 
 /// レイヤー画像を紙の上に合成して描く(ADR 0004 / Phase1)。
 ///
@@ -20,6 +21,8 @@ class RasterPainter extends CustomPainter {
     required this.store,
     required this.liveStroke,
     required this.liveLayerId,
+    required this.viewport,
+    required this.docSize,
     super.repaint,
   });
 
@@ -27,10 +30,16 @@ class RasterPainter extends CustomPainter {
   final RasterLayerStore store;
   final PaintedStroke? liveStroke;
   final String? liveLayerId;
+  final ViewportTransform viewport;
+  final Size docSize;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
+    if (docSize.isEmpty) return;
+    canvas.save();
+    canvas.transform(viewport.toMatrix().storage);
+
+    final rect = Offset.zero & docSize;
     canvas.drawRect(rect, Paint()..color = AtelierTokens.paper);
 
     final ls = layers.layers;
@@ -46,6 +55,7 @@ class RasterPainter extends CustomPainter {
       if (base.visible) _paintGroup(canvas, rect, base, clipped);
       i = j;
     }
+    canvas.restore();
   }
 
   void _paintGroup(

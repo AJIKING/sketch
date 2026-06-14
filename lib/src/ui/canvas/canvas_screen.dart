@@ -222,6 +222,11 @@ class _CanvasScreenState extends State<CanvasScreen> {
             onPressed: _c.canRedo ? _c.redo : null,
           ),
           IconButton(
+            icon: const Icon(Icons.center_focus_strong),
+            tooltip: '表示をリセット',
+            onPressed: () => _drawKey.currentState?.resetView(),
+          ),
+          IconButton(
             icon: const Icon(Icons.more_vert),
             tooltip: 'メニュー',
             onPressed: _openMenuSheet,
