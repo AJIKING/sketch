@@ -421,6 +421,24 @@ class _BrushSheet extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        Row(
+          children: [
+            const SizedBox(
+              width: 96,
+              child: Text(
+                '手ブレ補正',
+                style: TextStyle(color: AtelierTokens.inkDim, fontSize: 13),
+              ),
+            ),
+            Expanded(
+              child: Slider(
+                value: controller.stabilization,
+                label: '${(controller.stabilization * 100).round()}%',
+                onChanged: controller.setStabilization,
+              ),
+            ),
+          ],
+        ),
         for (final brush in brushPresets)
           ListTile(
             leading: DecoratedBox(

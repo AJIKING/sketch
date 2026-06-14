@@ -29,6 +29,7 @@ class CanvasController extends ChangeNotifier {
   BrushPreset _brush = inkBrush;
   double _size = 14;
   double _opacity = 1;
+  double _stabilization = 0;
   Hsv _hsv = rgbToHsv(0xCF, 0x4A, 0x2C); // 既定は朱(#CF4A2C)
   final List<String> _recent = [];
 
@@ -36,6 +37,7 @@ class CanvasController extends ChangeNotifier {
   BrushPreset get brush => _brush;
   double get size => _size;
   double get opacity => _opacity;
+  double get stabilization => _stabilization;
   Hsv get hsv => _hsv;
   List<String> get recent => List.unmodifiable(_recent);
   List<String> get palette => studioPalette;
@@ -73,6 +75,13 @@ class CanvasController extends ChangeNotifier {
     final clamped = value.clamp(0.0, 1.0);
     if (clamped == _opacity) return;
     _opacity = clamped;
+    notifyListeners();
+  }
+
+  void setStabilization(double value) {
+    final clamped = value.clamp(0.0, 1.0);
+    if (clamped == _stabilization) return;
+    _stabilization = clamped;
     notifyListeners();
   }
 

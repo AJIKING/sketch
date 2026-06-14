@@ -12,6 +12,7 @@ import '../../domain/color/ink_color.dart';
 import 'painted_stroke.dart';
 import 'raster_layer_store.dart';
 import 'raster_painter.dart';
+import 'stroke_stabilizer.dart';
 import 'viewport_transform.dart';
 
 /// 塗りつぶしの許容値(0..255、各成分の差)。将来は設定 UI から変える。
@@ -48,6 +49,7 @@ class DrawSurfaceState extends State<DrawSurface> {
   Offset? _startPos; // 非ストロークツールの開始点(view 空間)
   int _seed = 0;
   Size _docSize = Size.zero;
+  StrokeStabilizer _stabilizer = StrokeStabilizer(0);
 
   // ビューポート(ズーム/回転/移動)。
   ViewportTransform _viewport = const ViewportTransform();
@@ -106,7 +108,11 @@ class DrawSurfaceState extends State<DrawSurface> {
         opacity: _c.opacity,
         seed: _seed++,
       );
-      stroke.addPoint(_viewport.toCanvas(e.localPosition), _nowMs);
+      _stabilizer = StrokeStabilizer(_c.stabilization);
+      stroke.addPoint(
+        _stabilizer.add(_viewport.toCanvas(e.localPosition)),
+        _nowMs,
+      );
       _current = stroke;
       _tick.value++;
     }
@@ -122,7 +128,10 @@ class DrawSurfaceState extends State<DrawSurface> {
     }
     final stroke = _current;
     if (stroke == null) return;
-    stroke.addPoint(_viewport.toCanvas(e.localPosition), _nowMs);
+    stroke.addPoint(
+      _stabilizer.add(_viewport.toCanvas(e.localPosition)),
+      _nowMs,
+    );
     _tick.value++;
   }
 
