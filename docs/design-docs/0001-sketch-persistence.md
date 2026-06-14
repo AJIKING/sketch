@@ -1,6 +1,6 @@
 # ADR 0001: スケッチの永続化方式
 
-- 状態: 採用(実装未着手)
+- 状態: 採用(実装済み: `lib/src/data/file_gallery_store.dart`)
 - 日付: 2026-06-14
 
 ## 決定
@@ -32,5 +32,6 @@
 
 - スキーマは **バージョン付きファイル名**(`index_v1.json`)で管理する。変更時は新バージョンへ移行コードを書く。
 - 壊れた / 読めないインデックスは例外にせず空ギャラリーとして扱い、アプリは必ず起動できるようにする。
-- テストでは `GalleryStore` のインメモリ fake(`test/fixtures/in_memory_gallery_store`)を使い、実ファイル I/O に依存しない。永続化の往復は contract test で守る(`docs/test-plan.md`)。
-- 端末の写真ライブラリへの書き出しはこの ADR の範囲外。`ImageExporter` 境界として分離する。
+- 実装: `FileGalleryStore` は保存先ディレクトリを `resolveDir`(関数)で受け取る。本番は path_provider の `getApplicationDocumentsDirectory()` 配下(`hatch_sketches/`)、テストは `Directory.systemTemp` の一時ディレクトリを注入する。これにより contract test を path_provider なしの実ファイル I/O で回せる(`test/unit/gallery/file_gallery_store_test.dart`)。
+- テストのロジック側は `GalleryStore` のインメモリ fake(`test/fixtures/in_memory_gallery_store`)も併用し、実ファイル I/O に依存させない。
+- 端末の写真ライブラリへの書き出しはこの ADR の範囲外。`ImageExporter` 境界として分離する(本番は未実装の `UnsupportedImageExporter`)。

@@ -10,15 +10,17 @@ environment:
   sdk: ^3.12.1
 
 # 依存はハーネス方針(docs/harness-engineering.md)に従い「必要になるまで増やさない」。
-# 立ち上げ scope では描画は Flutter 標準(CustomPainter / Canvas)のみで足りるため
-# 外部パッケージを持たない。永続化(ギャラリー保存)などの境界実装が必要になった
-# 段階で path_provider 等を追加する(docs/design-docs/0001-sketch-persistence.md を参照)。
+# 描画は Flutter 標準(CustomPainter / Canvas)のみ。
 dependencies:
   flutter:
     sdk: flutter
 
   # iOS 風アイコンを使う場合に備える Flutter 標準同梱パッケージ。
   cupertino_icons: ^1.0.8
+
+  # ギャラリーの永続化先(アプリ内ドキュメントディレクトリ)を得る。
+  # docs/design-docs/0001-sketch-persistence.md(FileGalleryStore)。
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:

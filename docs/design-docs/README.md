@@ -10,6 +10,6 @@
 
 | 番号 | タイトル | 状態 |
 | --- | --- | --- |
-| [0001](0001-sketch-persistence.md) | スケッチの永続化方式 | 採用(実装未着手) |
+| [0001](0001-sketch-persistence.md) | スケッチの永続化方式 | 採用(実装済み) |
 | [0002](0002-golden-test-operations.md) | golden test の基準 platform と baseline 運用 | 採用 |
 | [0003](0003-drawing-determinism.md) | 描画の決定性(乱数 seed と時間源の注入) | 採用 |
