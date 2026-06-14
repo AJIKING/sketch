@@ -6,30 +6,28 @@ import 'package:flutter/rendering.dart';
 
 import '../../application/canvas_controller.dart';
 import '../../core/clock.dart';
-import 'canvas_painter.dart';
 import 'painted_stroke.dart';
-import 'vector_canvas_surface.dart';
+import 'raster_layer_store.dart';
+import 'raster_painter.dart';
 
-/// 描画面。ポインタ入力をストロークへ変換し、合成結果を描く。
+/// 描画面(ADR 0004 ラスター)。
 ///
-/// [GlobalKey] 経由で [DrawSurfaceState.exportPng] を呼ぶと現在の合成を PNG に
-/// 書き出せる(保存・ギャラリー反映に使う)。
+/// 描画中のストロークはベクターで上に重ね、ポインタ離上時にレイヤー画像へ
+/// 同期で焼き込む(`toImageSync`)。[GlobalKey] 経由で [DrawSurfaceState.exportPng]
+/// を呼ぶと現在の合成を PNG に書き出せる。
 class DrawSurface extends StatefulWidget {
   const DrawSurface({
     super.key,
     required this.controller,
     required this.surface,
     required this.clock,
-    this.background,
   });
 
   final CanvasController controller;
-  final VectorCanvasSurface surface;
+  final RasterLayerStore surface;
 
   /// 速度(→ ink の筆幅)を実時間に縛られず測るための時間源(ADR 0003)。
   final Clock clock;
-
-  final ui.Image? background;
 
   @override
   State<DrawSurface> createState() => DrawSurfaceState();
@@ -39,7 +37,9 @@ class DrawSurfaceState extends State<DrawSurface> {
   final GlobalKey _boundaryKey = GlobalKey();
   final ValueNotifier<int> _tick = ValueNotifier<int>(0);
   PaintedStroke? _current;
+  String? _currentLayerId;
   int _seed = 0;
+  Size _size = Size.zero;
 
   CanvasController get _c => widget.controller;
 
@@ -59,6 +59,7 @@ class DrawSurfaceState extends State<DrawSurface> {
       return;
     }
     _c.beginStroke();
+    _currentLayerId = _c.layers.active.id;
     final stroke = PaintedStroke(
       tool: _c.tool,
       brushKey: _c.brush.key,
@@ -67,7 +68,6 @@ class DrawSurfaceState extends State<DrawSurface> {
       opacity: _c.opacity,
       seed: _seed++,
     );
-    widget.surface.add(_c.layers.active.id, stroke);
     stroke.addPoint(e.localPosition, _nowMs);
     _current = stroke;
     _tick.value++;
@@ -80,7 +80,28 @@ class DrawSurfaceState extends State<DrawSurface> {
     _tick.value++;
   }
 
-  void _onUp() => _current = null;
+  void _onUp() {
+    final stroke = _current;
+    final id = _currentLayerId;
+    if (stroke == null || id == null) return;
+    _bake(stroke, id);
+    _current = null;
+    _currentLayerId = null;
+    _tick.value++;
+  }
+
+  void _bake(PaintedStroke stroke, String layerId) {
+    if (_size.isEmpty) return;
+    final w = _size.width.round().clamp(1, 4096);
+    final h = _size.height.round().clamp(1, 4096);
+    final image = bakeStroke(
+      existing: widget.surface.imageOf(layerId),
+      stroke: stroke,
+      width: w,
+      height: h,
+    );
+    widget.surface.set(layerId, image);
+  }
 
   /// 現在の合成を PNG バイト列に書き出す。
   Future<Uint8List?> exportPng({double pixelRatio = 3}) async {
@@ -97,22 +118,28 @@ class DrawSurfaceState extends State<DrawSurface> {
   Widget build(BuildContext context) {
     return RepaintBoundary(
       key: _boundaryKey,
-      child: Listener(
-        behavior: HitTestBehavior.opaque,
-        onPointerDown: _onDown,
-        onPointerMove: _onMove,
-        onPointerUp: (_) => _onUp(),
-        onPointerCancel: (_) => _onUp(),
-        child: CustomPaint(
-          isComplex: true,
-          painter: CanvasPainter(
-            layers: _c.layers,
-            surface: widget.surface,
-            background: widget.background,
-            repaint: Listenable.merge([_c, _tick]),
-          ),
-          size: Size.infinite,
-        ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          _size = constraints.biggest;
+          return Listener(
+            behavior: HitTestBehavior.opaque,
+            onPointerDown: _onDown,
+            onPointerMove: _onMove,
+            onPointerUp: (_) => _onUp(),
+            onPointerCancel: (_) => _onUp(),
+            child: CustomPaint(
+              isComplex: true,
+              painter: RasterPainter(
+                layers: _c.layers,
+                store: widget.surface,
+                liveStroke: _current,
+                liveLayerId: _currentLayerId,
+                repaint: Listenable.merge([_c, _tick]),
+              ),
+              size: Size.infinite,
+            ),
+          );
+        },
       ),
     );
   }

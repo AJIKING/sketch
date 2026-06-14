@@ -12,8 +12,8 @@ import '../theme/atelier_theme.dart';
 import '../widgets/brush_preview.dart';
 import 'color_picker.dart';
 import 'draw_surface.dart';
+import 'raster_layer_store.dart';
 import 'v_slider.dart';
-import 'vector_canvas_surface.dart';
 
 /// キャンバス画面。描画面の上にツール UI を重ねる(`docs/product-spec.md`)。
 class CanvasScreen extends StatefulWidget {
@@ -40,10 +40,9 @@ class CanvasScreen extends StatefulWidget {
 
 class _CanvasScreenState extends State<CanvasScreen> {
   final GlobalKey<DrawSurfaceState> _drawKey = GlobalKey<DrawSurfaceState>();
-  late final VectorCanvasSurface _surface = VectorCanvasSurface();
+  late final RasterLayerStore _surface = RasterLayerStore();
   late final CanvasController _c = CanvasController(surface: _surface);
 
-  ui.Image? _background;
   late final String _id =
       widget.existing?.id ??
       'sketch-${widget.dependencies.clock.now().microsecondsSinceEpoch}';
@@ -55,10 +54,14 @@ class _CanvasScreenState extends State<CanvasScreen> {
     if (png != null) _decodeBackground(png);
   }
 
+  // 既存スケッチを開いたら、最下層レイヤーへ画像として読み込む(ADR 0004:
+  // PNG のみ保持のため、レイヤー構造は復元されない)。
   Future<void> _decodeBackground(Uint8List bytes) async {
     final codec = await ui.instantiateImageCodec(bytes);
     final frame = await codec.getNextFrame();
-    if (mounted) setState(() => _background = frame.image);
+    if (!mounted) return;
+    _surface.set(_c.layers.layers.first.id, frame.image);
+    setState(() {});
   }
 
   @override
@@ -186,7 +189,6 @@ class _CanvasScreenState extends State<CanvasScreen> {
                         controller: _c,
                         surface: _surface,
                         clock: widget.dependencies.clock,
-                        background: _background,
                       ),
                     ),
                   ),
