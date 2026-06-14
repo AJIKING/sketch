@@ -1,0 +1,63 @@
+# Codemagic(iOS の TestFlight 配布用)。
+# テストの正典は GitHub Actions(check.yml / integration.yml)で、
+# Codemagic は「Mac がなくても IPA をビルドして TestFlight へ上げる」ためだけに使う。
+#
+# 事前に Codemagic の UI 側で必要な設定:
+# 1. Team settings → Integrations → App Store Connect で API キー
+#    (App Store Connect → ユーザとアクセス → 統合 で発行した Issuer ID / Key ID / .p8)
+#    を登録し、名前を `app_store_connect_key` にする(下の integrations が参照)。
+# 2. 環境変数グループ `appstore_credentials` に CERTIFICATE_PRIVATE_KEY
+#    (配布証明書用の RSA 秘密鍵。Secure で登録)を入れる。
+# 3. App Store Connect に App(Bundle ID: jp.co.plaria.sketch)を登録しておく。
+# 4. アプリ設定で「Switch to codemagic.yaml configuration」を選ぶ。
+#
+# トリガーは設定しない = 手動起動のみ(Start new build → ios-testflight)。
+# push ごとのビルドはビルド時間(無料枠)を消費するだけなので行わない。
+
+workflows:
+  ios-testflight:
+    name: iOS TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 45
+    integrations:
+      app_store_connect: app_store_connect_key
+    environment:
+      # appstore_credentials グループには CERTIFICATE_PRIVATE_KEY
+      # (配布証明書用の RSA 秘密鍵。Codemagic UI で Secure 登録)を入れる。
+      groups:
+        - appstore_credentials
+      flutter: 3.44.1 # .fvmrc・GitHub Actions と同じバージョン(片方だけの更新は禁止)
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Flutter pub get
+        script: flutter pub get
+      - name: 解析とテスト(golden はローカル同様に除外。基準 platform が Linux のため)
+        script: |
+          flutter analyze
+          flutter test --exclude-tags golden
+      # ios_signing の自動署名はビルド前にサーバ側で失敗するとログが残らないため、
+      # 明示的に CLI で取得・作成する(--create: 証明書・プロファイルがなければ作る)。
+      # 認証情報(APP_STORE_CONNECT_*)は上の integrations から環境変数で渡される。
+      - name: 署名ファイルを取得・作成して適用
+        script: |
+          app-store-connect fetch-signing-files "jp.co.plaria.sketch" \
+            --type IOS_APP_STORE --platform IOS --create
+          keychain initialize
+          keychain add-certificates
+          xcode-project use-profiles
+      - name: IPA をビルド
+        # BUILD_NUMBER は Codemagic のビルド連番。TestFlight はビルド番号の
+        # 重複を拒否するため、pubspec の +1 ではなくこちらを使う。
+        script: |
+          flutter build ipa --release \
+            --build-number=$BUILD_NUMBER \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        # アップロード後に TestFlight の内部テスターへ自動公開する。
+        submit_to_testflight: true

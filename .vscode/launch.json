@@ -1,0 +1,46 @@
+{
+  // Flutter の起動構成。デバイス未指定の構成は実行時に VS Code が選択を促す。
+  // "deviceId": "emulator" は起動中の Android エミュレータ(emulator-5554 等)に
+  // 部分一致する。エミュレータの起動はコマンドパレット「Flutter: Launch Emulator」
+  // またはタスク「Android エミュレータを起動」を使う。
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "sketch (debug)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "sketch (debug / Android エミュレータ)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "emulator"
+    },
+    {
+      // integration test と同じ構成(固定 seed・fake clock・インメモリ store)。
+      // 毎回まっさらな状態で起動するので UI の手動確認に便利。
+      "name": "sketch (test 構成: main_test.dart)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main_test.dart"
+    },
+    {
+      "name": "sketch (profile / Android エミュレータ)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "flutterMode": "profile",
+      "deviceId": "emulator"
+    },
+    {
+      // CI(integration.yml)と同じ smoke journey をローカルのエミュレータで実行する。
+      "name": "integration smoke (Android エミュレータ)",
+      "request": "launch",
+      "type": "dart",
+      "program": "integration_test/smoke_test.dart",
+      "deviceId": "emulator"
+    }
+  ]
+}

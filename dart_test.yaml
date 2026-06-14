@@ -1,0 +1,6 @@
+# テストタグの宣言。
+# golden: 基準 platform(Linux / CI)で比較する golden test。
+#   非 Linux ではテスト内の skip で自動 skip され、CI の check.yml では
+#   golden job が --tags golden で比較する(docs/design-docs/0002-golden-test-operations.md)。
+tags:
+  golden:

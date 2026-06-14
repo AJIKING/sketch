@@ -1,0 +1,37 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      // AVD は事前に作成しておく(例: avdmanager create avd -n sketch_api34
+      // -k "system-images;android-34;google_apis;x86_64")。
+      "label": "Android エミュレータを起動",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["emulators", "--launch", "${input:emulatorId}"],
+      "problemMatcher": [],
+      "presentation": { "reveal": "silent" }
+    },
+    {
+      "label": "check: format + analyze + test(CI 相当)",
+      "type": "shell",
+      "command": "dart format --output=none --set-exit-if-changed . && flutter analyze && flutter test --exclude-tags golden --reporter expanded",
+      "problemMatcher": [],
+      "group": { "kind": "test", "isDefault": true }
+    },
+    {
+      "label": "integration smoke をエミュレータで実行",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["test", "integration_test", "-d", "emulator", "--reporter", "expanded"],
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "emulatorId",
+      "type": "promptString",
+      "description": "起動するエミュレータ ID(flutter emulators で確認)",
+      "default": "Pixel 10"
+    }
+  ]
+}

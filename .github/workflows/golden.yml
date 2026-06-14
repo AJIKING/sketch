@@ -1,0 +1,42 @@
+# golden baseline の生成・更新用 workflow(ADR 0002)。
+#
+# golden 画像は platform 依存のため、baseline は必ずこの workflow
+# (基準 platform = Linux)で生成する。運用手順:
+#   1. この workflow を手動実行(workflow_dispatch)する。
+#   2. 完了後、artifact `golden-baselines` をダウンロードする。
+#   3. 中身を test/golden/goldens/ に展開してコミットする。
+# ローカル(Windows / macOS)で `--update-goldens` した画像はコミットしない。
+name: Golden
+
+on:
+  workflow_dispatch:
+
+jobs:
+  generate:
+    name: Generate golden baselines
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.1"
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate golden baselines
+        run: flutter test --update-goldens test/golden
+
+      - name: Upload baselines
+        uses: actions/upload-artifact@v7
+        with:
+          name: golden-baselines
+          path: test/golden/goldens/
+          if-no-files-found: error

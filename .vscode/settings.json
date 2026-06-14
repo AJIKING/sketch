@@ -1,0 +1,9 @@
+{
+  "[dart]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "Dart-Code.dart-code",
+    "editor.rulers": [80]
+  },
+  // golden はタグ付き・Linux 基準(ADR 0002)。Windows ではテスト実行から除外する。
+  "dart.flutterTestAdditionalArgs": ["--exclude-tags", "golden"]
+}

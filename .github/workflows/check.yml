@@ -1,0 +1,86 @@
+name: Check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flutter:
+    name: Flutter checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.1"
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Analyze
+        run: flutter analyze
+
+      # golden(タグ golden)は下の golden job で比較する(ADR 0002)。
+      - name: Test
+        run: flutter test --exclude-tags golden --reporter expanded --file-reporter json:test-results/test-results.json
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: flutter-check-failure
+          path: |
+            test-results/
+            build/reports/
+          if-no-files-found: ignore
+
+  # golden 比較(ADR 0002)。baseline は golden.yml で生成した Linux 基準画像。
+  # 意図した UI 変更で落ちた場合は golden.yml を workflow_dispatch して
+  # baseline を再生成・コミットする。
+  golden:
+    name: Golden comparison
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.1"
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Compare goldens
+        run: flutter test --tags golden test/golden --reporter expanded
+
+      # 失敗時は flutter_test が test/golden/failures/ に
+      # 期待・実際・diff 画像を出力するので artifact として残す。
+      - name: Upload golden diffs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: golden-failure-diffs
+          path: test/golden/failures/
+          if-no-files-found: ignore

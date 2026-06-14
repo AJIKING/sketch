@@ -1,0 +1,71 @@
+# Integration smoke test(docs/harness-engineering.md「CI 設計」/ docs/test-plan.md「Integration smoke」)。
+# エミュレータ job は遅いため check.yml から分離し、PR では走らせない(main と手動実行のみ)。
+name: Integration
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-smoke:
+    name: Android integration smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # ubuntu-latest ランナーで HW アクセラレーション(KVM)を有効化する。
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          # .fvmrc と同一バージョン。更新時は必ず両方を同時に変更する。
+          flutter-version: "3.44.1"
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run integration smoke test on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: |
+            mkdir -p test-results
+            flutter test integration_test -d emulator-5554 --reporter expanded --file-reporter json:test-results/integration-results.json
+
+      # 失敗時の証跡。screenshot 等の artifact を撮る仕組みは未導入のため、
+      # 現状は machine-readable report とビルドログを残す。
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-smoke-failure
+          path: |
+            test-results/
+            build/**/*.log
+            build/**/outputs/logs/
+          if-no-files-found: ignore
