@@ -92,13 +92,20 @@ class DrawSurfaceState extends State<DrawSurface> {
 
   void _bake(PaintedStroke stroke, String layerId) {
     if (_size.isEmpty) return;
+    final existing = widget.surface.imageOf(layerId);
+    final alphaLocked = _c.layers.layers
+        .firstWhere((l) => l.id == layerId)
+        .alphaLocked;
+    // アルファロックで既存が空なら塗る対象が無いので何もしない。
+    if (alphaLocked && existing == null) return;
     final w = _size.width.round().clamp(1, 4096);
     final h = _size.height.round().clamp(1, 4096);
     final image = bakeStroke(
-      existing: widget.surface.imageOf(layerId),
+      existing: existing,
       stroke: stroke,
       width: w,
       height: h,
+      alphaLocked: alphaLocked,
     );
     widget.surface.set(layerId, image);
   }

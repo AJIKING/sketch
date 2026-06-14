@@ -50,6 +50,18 @@ void main() {
     expect(find.text('レイヤー 3'), findsOneWidget);
   });
 
+  testWidgets('レイヤーシートにブレンド/アルファロック/クリップが出る(Phase1)', (tester) async {
+    await tester.pumpWidget(_app());
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('レイヤー'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('通常'), findsWidgets); // ブレンドモード既定
+    expect(find.byTooltip('アルファロック'), findsWidgets);
+    expect(find.byTooltip('下のレイヤーでクリッピング'), findsWidgets);
+  });
+
   testWidgets('メニューシートに保存/完了/消去が並ぶ', (tester) async {
     await tester.pumpWidget(_app());
     await tester.pump();

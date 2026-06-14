@@ -7,6 +7,7 @@ import '../../application/canvas_controller.dart';
 import '../../application/dependencies.dart';
 import '../../application/gallery_controller.dart';
 import '../../domain/brush/brush_preset.dart';
+import '../../domain/canvas/layer_blend_mode.dart';
 import '../../domain/gallery/sketch.dart';
 import '../theme/atelier_theme.dart';
 import '../widgets/brush_preview.dart';
@@ -472,42 +473,108 @@ class _LayerSheet extends StatelessWidget {
             ),
           ],
         ),
-        // 最前面を上に表示する。
-        for (var i = layers.length - 1; i >= 0; i--)
-          ListTile(
-            selected: i == layers.activeIndex,
-            selectedTileColor: AtelierTokens.surface3,
-            title: Text(
-              layers.layers[i].name,
-              style: const TextStyle(color: AtelierTokens.ink),
-            ),
-            subtitle: Text(
-              '${(layers.layers[i].opacity * 100).round()}%',
-              style: const TextStyle(color: AtelierTokens.inkDim),
-            ),
-            onTap: () => controller.setActiveLayer(i),
-            leading: IconButton(
-              icon: Icon(
-                layers.layers[i].visible
-                    ? Icons.visibility
-                    : Icons.visibility_off,
-              ),
-              tooltip: '表示切替',
-              onPressed: () => controller.toggleLayerVisible(i),
-            ),
-            trailing: IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: '削除',
-              onPressed: () {
-                if (!controller.removeLayer(i)) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('最後のレイヤーは消せません')),
-                  );
-                }
-              },
-            ),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 380),
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              // 最前面を上に表示する。
+              for (var i = layers.length - 1; i >= 0; i--)
+                _layerRow(context, i),
+            ],
           ),
+        ),
       ],
+    );
+  }
+
+  Widget _layerRow(BuildContext context, int i) {
+    final layer = controller.layers.layers[i];
+    final active = i == controller.layers.activeIndex;
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      decoration: BoxDecoration(
+        color: active ? AtelierTokens.surface3 : AtelierTokens.surface2,
+        borderRadius: BorderRadius.circular(AtelierTokens.rSm),
+        border: active
+            ? Border.all(color: AtelierTokens.vermilion, width: 1.5)
+            : null,
+      ),
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              IconButton(
+                icon: Icon(
+                  layer.visible ? Icons.visibility : Icons.visibility_off,
+                ),
+                tooltip: '表示切替',
+                onPressed: () => controller.toggleLayerVisible(i),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => controller.setActiveLayer(i),
+                  child: Text(
+                    layer.name,
+                    style: const TextStyle(color: AtelierTokens.ink),
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.lock_outline),
+                tooltip: 'アルファロック',
+                isSelected: layer.alphaLocked,
+                color: layer.alphaLocked ? AtelierTokens.vermilion : null,
+                onPressed: () => controller.toggleLayerAlphaLock(i),
+              ),
+              IconButton(
+                icon: const Icon(Icons.south_east),
+                tooltip: '下のレイヤーでクリッピング',
+                isSelected: layer.clipToLower,
+                color: layer.clipToLower ? AtelierTokens.vermilion : null,
+                onPressed: () => controller.toggleLayerClip(i),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline),
+                tooltip: '削除',
+                onPressed: () {
+                  if (!controller.removeLayer(i)) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('最後のレイヤーは消せません')),
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              const SizedBox(width: 8),
+              DropdownButton<LayerBlendMode>(
+                value: layer.blendMode,
+                dropdownColor: AtelierTokens.surface3,
+                underline: const SizedBox.shrink(),
+                style: const TextStyle(color: AtelierTokens.ink, fontSize: 13),
+                items: [
+                  for (final mode in LayerBlendMode.values)
+                    DropdownMenuItem(value: mode, child: Text(mode.label)),
+                ],
+                onChanged: (mode) {
+                  if (mode != null) controller.setLayerBlendMode(i, mode);
+                },
+              ),
+              Expanded(
+                child: Slider(
+                  value: layer.opacity,
+                  label: '${(layer.opacity * 100).round()}%',
+                  onChanged: (v) => controller.setLayerOpacity(i, v),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

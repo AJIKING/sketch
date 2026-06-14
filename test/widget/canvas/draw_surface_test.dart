@@ -62,4 +62,18 @@ void main() {
     expect(surface.imageOf(activeId), isNull);
     expect(controller.canUndo, isFalse);
   });
+
+  testWidgets('アルファロック中の空レイヤーには焼き込まれない(Phase1)', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    await _pump(tester, controller, surface);
+
+    controller.toggleLayerAlphaLock(controller.layers.activeIndex);
+    final activeId = controller.layers.active.id;
+
+    await tester.drag(find.byType(DrawSurface), const Offset(40, 40));
+    await tester.pump();
+
+    expect(surface.imageOf(activeId), isNull, reason: '不透明部分が無いので塗れない');
+  });
 }

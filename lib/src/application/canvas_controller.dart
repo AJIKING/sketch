@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../domain/brush/brush_preset.dart';
 import '../domain/canvas/canvas_surface.dart';
 import '../domain/canvas/history.dart';
+import '../domain/canvas/layer_blend_mode.dart';
 import '../domain/canvas/layer_stack.dart';
 import '../domain/color/ink_color.dart';
 
@@ -125,6 +126,21 @@ class CanvasController extends ChangeNotifier {
 
   void setLayerOpacity(int index, double opacity) {
     _layers.setOpacity(index, opacity);
+    notifyListeners();
+  }
+
+  void setLayerBlendMode(int index, LayerBlendMode mode) {
+    _layers.setBlendMode(index, mode);
+    notifyListeners();
+  }
+
+  void toggleLayerAlphaLock(int index) {
+    _layers.toggleAlphaLock(index);
+    notifyListeners();
+  }
+
+  void toggleLayerClip(int index) {
+    _layers.toggleClip(index);
     notifyListeners();
   }
 

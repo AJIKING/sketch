@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sketch/src/application/canvas_controller.dart';
 import 'package:sketch/src/domain/brush/brush_preset.dart';
+import 'package:sketch/src/domain/canvas/layer_blend_mode.dart';
 
 import '../../fixtures/fake_canvas_surface.dart';
 
@@ -99,6 +100,15 @@ void main() {
       final n = notifications;
       expect(c.removeLayer(0), isFalse);
       expect(notifications, n);
+    });
+
+    test('ブレンド/アルファロック/クリップを切り替える', () {
+      c.setLayerBlendMode(0, LayerBlendMode.multiply);
+      expect(c.layers.layers[0].blendMode, LayerBlendMode.multiply);
+      c.toggleLayerAlphaLock(0);
+      expect(c.layers.layers[0].alphaLocked, isTrue);
+      c.toggleLayerClip(0);
+      expect(c.layers.layers[0].clipToLower, isTrue);
     });
   });
 
