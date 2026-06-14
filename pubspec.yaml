@@ -37,6 +37,20 @@ dev_dependencies:
   # 推奨 lint セット。analysis_options.yaml で有効化している。
   flutter_lints: ^6.0.0
 
+  # アプリアイコン生成(docs/prototype/hatch-pen-1024.svg → 各プラットフォーム）。
+  # `dart run flutter_launcher_icons` で android/ios のアイコンを更新する。
+  flutter_launcher_icons: ^0.14.1
+
+# アプリアイコン設定。元画像は SVG を 1024px PNG に書き出したもの。
+# iOS は透過不可のため remove_alpha_ios で背景を塗る(元から不透明だが保険)。
+flutter_launcher_icons:
+  image_path: "assets/icon/hatch-pen-1024.png"
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  background_color_ios: "#181209"
+  min_sdk_android: 21
+
 flutter:
   # Material Icons フォントを同梱する。
   uses-material-design: true
