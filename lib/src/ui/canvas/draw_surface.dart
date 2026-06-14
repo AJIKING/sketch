@@ -44,8 +44,6 @@ class DrawSurface extends StatefulWidget {
 }
 
 class DrawSurfaceState extends State<DrawSurface> {
-  final ValueNotifier<int> _tick = ValueNotifier<int>(0);
-
   PaintedStroke? _current;
   String? _currentLayerId;
   Offset? _startPos; // 非ストロークツールの開始点(view 空間)
@@ -91,7 +89,7 @@ class DrawSurfaceState extends State<DrawSurface> {
     _startPos = null;
     _lastPanPos = null;
     widget.transforming.value = true;
-    _tick.value++;
+    setState(() {});
   }
 
   /// 変形を確定してレイヤー画像へ焼き込む(undo 可能)。
@@ -131,7 +129,7 @@ class DrawSurfaceState extends State<DrawSurface> {
     _lastPanPos = null;
     _pointers.clear();
     _gestureStart = null;
-    _tick.value++;
+    setState(() {});
   }
 
   /// テスト/外部から現在のビューポートを読む。
@@ -140,13 +138,7 @@ class DrawSurfaceState extends State<DrawSurface> {
   /// ビューを初期状態(等倍・無回転・原点)へ戻す。
   void resetView() {
     _viewport = const ViewportTransform();
-    _tick.value++;
-  }
-
-  @override
-  void dispose() {
-    _tick.dispose();
-    super.dispose();
+    setState(() {});
   }
 
   void _warnHidden() => ScaffoldMessenger.maybeOf(
@@ -166,7 +158,7 @@ class DrawSurfaceState extends State<DrawSurface> {
         _startPos = null;
         _startGesture();
       }
-      _tick.value++;
+      setState(() {});
       return;
     }
     if (_inTransform) {
@@ -194,7 +186,7 @@ class DrawSurfaceState extends State<DrawSurface> {
         _nowMs,
       );
       _current = stroke;
-      _tick.value++;
+      setState(() {});
     }
   }
 
@@ -215,7 +207,7 @@ class DrawSurfaceState extends State<DrawSurface> {
           offset: _layerTransform.offset + delta,
         );
         _lastPanPos = e.localPosition;
-        _tick.value++;
+        setState(() {});
       }
       return;
     }
@@ -225,7 +217,7 @@ class DrawSurfaceState extends State<DrawSurface> {
       _stabilizer.add(_viewport.toCanvas(e.localPosition)),
       _nowMs,
     );
-    _tick.value++;
+    setState(() {});
   }
 
   void _onUp(PointerUpEvent e) {
@@ -244,7 +236,7 @@ class DrawSurfaceState extends State<DrawSurface> {
           _idB = null;
         }
       }
-      _tick.value++;
+      setState(() {});
       return;
     }
     if (_inTransform) {
@@ -255,7 +247,7 @@ class DrawSurfaceState extends State<DrawSurface> {
       _bake(_current!, _currentLayerId!);
       _current = null;
       _currentLayerId = null;
-      _tick.value++;
+      setState(() {});
       return;
     }
     final start = _startPos;
@@ -320,7 +312,7 @@ class DrawSurfaceState extends State<DrawSurface> {
     } else {
       _viewport = next;
     }
-    _tick.value++;
+    setState(() {});
   }
 
   // ---- baking / pixel ops (canvas 空間) ----
@@ -390,7 +382,7 @@ class DrawSurfaceState extends State<DrawSurface> {
       if (!mounted) return;
       _c.beginStroke(id);
       widget.surface.set(id, img);
-      _tick.value++;
+      setState(() {});
       return;
     }
 
@@ -411,7 +403,7 @@ class DrawSurfaceState extends State<DrawSurface> {
     if (!mounted) return;
     _c.beginStroke(id);
     widget.surface.set(id, img);
-    _tick.value++;
+    setState(() {});
   }
 
   Future<void> _sampleAt(Offset canvasPos) async {
@@ -471,7 +463,7 @@ class DrawSurfaceState extends State<DrawSurface> {
       Paint()..shader = shader,
     );
     widget.surface.set(id, recorder.endRecording().toImageSync(w, h));
-    _tick.value++;
+    setState(() {});
   }
 
   /// アクティブレイヤーにフィルタ([op] は RGBA バッファ変換)を適用する。
@@ -489,7 +481,7 @@ class DrawSurfaceState extends State<DrawSurface> {
     if (!mounted) return;
     _c.beginStroke(id);
     widget.surface.set(id, img);
-    _tick.value++;
+    setState(() {});
   }
 
   /// ドキュメントを等倍で合成して PNG バイト列に書き出す。
@@ -538,7 +530,6 @@ class DrawSurfaceState extends State<DrawSurface> {
                 docSize: _docSize,
                 transformLayerId: _transformLayerId,
                 layerTransform: _layerTransform,
-                repaint: Listenable.merge([_c, _tick]),
               ),
               size: Size.infinite,
             ),
