@@ -50,7 +50,7 @@ class DrawSurface extends StatefulWidget {
   /// 変形モードの ON/OFF(canvas_screen が確認/取消バーを出すために共有)。
   final ValueNotifier<bool> transforming;
 
-  /// 2 本指ダブルタップでツール UI の表示/非表示を切り替える(任意)。
+  /// キャンバス長押しでツール UI の表示/非表示を切り替える(任意)。
   final VoidCallback? onToggleUi;
 
   @override
@@ -97,20 +97,11 @@ class DrawSurfaceState extends State<DrawSurface> {
   static const int _longPressMs = 450;
   static const double _longPressSlop = 12;
 
-  // 2 本指ダブルタップ(→ ツール UI の表示/非表示トグル)。
-  double? _g2StartMs; // 2 本指接触の開始時刻
-  Map<int, Offset>? _g2Anchors; // 開始時の指位置(view 空間)
-  bool _g2Moved = false; // ピンチ/パン等で動いたか(動いたらタップ扱いしない)
-  double _lastG2TapMs = -1e9; // 直近の 2 本指タップ時刻
   // ベクターモードの進行中操作(canvas/doc 空間)。
   List<Offset>? _vecStrokePts; // 描画中のストローク点列
   Offset? _vecShapeStart, _vecShapeEnd; // 描画中の図形
   bool _vecMoving = false; // 選択オブジェクトの移動中
   Offset? _vecLastPos; // 移動の前回位置
-
-  static const int _g2TapMs = 320; // タップとみなす最大接触時間
-  static const int _g2DoubleMs = 450; // 2 タップ間の最大間隔(離上→離上)
-  static const double _g2Slop = 16; // タップとみなす最大移動量(view 空間)
 
   @override
   void initState() {
@@ -151,15 +142,21 @@ class DrawSurfaceState extends State<DrawSurface> {
         !_vecInProgress) {
       return;
     }
+    _cancelAllInProgress();
+    // ListenableBuilder(_c) が DrawSurface を再ビルドするので setState 不要。
+  }
+
+  /// 進行中のすべての操作(ストローク/図形/選択/ベクター/長押し)を破棄する。
+  void _cancelAllInProgress() {
     _current = null;
     _currentLayerId = null;
+    _startPos = null;
     _shapeStart = null;
     _shapeEnd = null;
     _shapeLayerId = null;
     _selDraft = null;
     _vecCancelInProgress();
     _cancelLongPress();
-    // ListenableBuilder(_c) が DrawSurface を再ビルドするので setState 不要。
   }
 
   CanvasController get _c => widget.controller;
@@ -238,9 +235,9 @@ class DrawSurfaceState extends State<DrawSurface> {
   /// テスト/外部から現在のビューポートを読む。
   ViewportTransform get viewport => _viewport;
 
-  /// ビューをアートボードの中央フィット(基準状態)へ戻す。
+  /// ビューを初期状態(等倍・全面表示)へ戻す。
   void resetView() {
-    _viewport = ViewportTransform.fit(_docSize, _viewSize);
+    _viewport = const ViewportTransform();
     setState(() {});
   }
 
@@ -248,7 +245,7 @@ class DrawSurfaceState extends State<DrawSurface> {
     context,
   )?.showSnackBar(const SnackBar(content: Text('非表示のレイヤーには描けません')));
 
-  // ---- long-press eyedropper ----
+  // ---- long-press: ツール UI の表示/非表示トグル ----
   void _startLongPress(Offset viewPos) {
     _longPressPos = viewPos;
     _longPressFired = false;
@@ -266,17 +263,11 @@ class DrawSurfaceState extends State<DrawSurface> {
 
   void _fireLongPress() {
     _longPressTimer = null;
-    final pos = _longPressPos;
-    if (pos == null) return;
+    if (_longPressPos == null) return;
     _longPressFired = true;
-    // 進行中のツール操作を破棄してスポイトに切り替える。
-    _current = null;
-    _currentLayerId = null;
-    _shapeStart = null;
-    _shapeEnd = null;
-    _shapeLayerId = null;
-    _startPos = null;
-    unawaited(_sampleAt(_viewport.toCanvas(pos)));
+    // 進行中の描画/選択は破棄して、ツール UI の表示/非表示を切り替える。
+    _cancelAllInProgress();
+    widget.onToggleUi?.call();
     setState(() {});
   }
 
@@ -297,14 +288,7 @@ class DrawSurfaceState extends State<DrawSurface> {
         _shapeLayerId = null;
         _selDraft = null;
         _vecCancelInProgress();
-        // 2 本指タップ検出の起点を記録(動かなければタップ扱い)。
-        _g2StartMs = _nowMs;
-        _g2Anchors = Map<int, Offset>.from(_pointers);
-        _g2Moved = false;
         _startGesture();
-      } else {
-        // 3 本目以降が増えたらタップではない。
-        _g2Moved = true;
       }
       setState(() {});
       return;
@@ -313,14 +297,14 @@ class DrawSurfaceState extends State<DrawSurface> {
       _lastPanPos = e.localPosition; // 1 本指で移動
       return;
     }
+    // 1 本指長押しでツール UI をトグル(全ツール/ベクター共通)。動いたら成立しない。
+    _startLongPress(e.localPosition);
     if (_vectorMode) {
       _vecDown(e.localPosition);
       setState(() {});
       return;
     }
-    _startLongPress(e.localPosition); // 1 本指長押しでスポイト
     if (_c.tool == Tool.select) {
-      _cancelLongPress();
       _selDraft = [_viewport.toCanvas(e.localPosition)];
       setState(() {});
       return;
@@ -377,10 +361,6 @@ class DrawSurfaceState extends State<DrawSurface> {
       _cancelLongPress(); // 動いたら長押し成立しない
     }
     if (_gestureStart != null) {
-      final anchor = _g2Anchors?[e.pointer];
-      if (anchor != null && (e.localPosition - anchor).distance > _g2Slop) {
-        _g2Moved = true; // ピンチ/パンなのでタップではない
-      }
       _updateGesture();
       return;
     }
@@ -435,7 +415,7 @@ class DrawSurfaceState extends State<DrawSurface> {
     _pointers.remove(id);
     _cancelLongPress();
     if (_longPressFired) {
-      // 長押しスポイトで処理済み。通常のツール動作はしない。
+      // 長押しトグルで処理済み。通常のツール動作はしない。
       _longPressFired = false;
       return;
     }
@@ -451,7 +431,6 @@ class DrawSurfaceState extends State<DrawSurface> {
           _idB = null;
           // 1 本指移動へ戻る際、残る指で再アンカーさせる(ジャンプ防止)。
           _lastPanPos = null;
-          _maybeTwoFingerTap();
         }
       }
       setState(() {});
@@ -525,31 +504,9 @@ class DrawSurfaceState extends State<DrawSurface> {
         _gestureStart = null;
         _idA = null;
         _idB = null;
-        _g2Anchors = null;
-        _g2StartMs = null;
-        _g2Moved = false;
       }
     }
     setState(() {}); // キャンセルしたストローク/状態を画面へ反映
-  }
-
-  /// 2 本指の短いタップ(動かさず素早く離した)を検出し、ダブルで UI を切替。
-  /// ピンチ/パン・変形中・3 本目接触・長い接触はタップ扱いしない。
-  void _maybeTwoFingerTap() {
-    final start = _g2StartMs;
-    final moved = _g2Moved;
-    _g2Anchors = null;
-    _g2StartMs = null;
-    _g2Moved = false;
-    if (start == null || moved || _inTransform) return;
-    final now = _nowMs;
-    if (now - start > _g2TapMs) return; // 長い接触はタップではない
-    if (now - _lastG2TapMs <= _g2DoubleMs) {
-      _lastG2TapMs = -1e9; // 3 連打での連続発火を防ぐ
-      widget.onToggleUi?.call();
-    } else {
-      _lastG2TapMs = now;
-    }
   }
 
   void _startGesture() {
@@ -1072,21 +1029,21 @@ class DrawSurfaceState extends State<DrawSurface> {
         builder: (context, constraints) {
           final view = constraints.biggest;
           if (_docSize.isEmpty) {
-            // 初回レイアウトでアートボード寸法を確定(以後は固定解像度)。
+            // 初回レイアウト: キャンバスは画面いっぱい(等倍)。
             _docSize = view;
             _viewSize = view;
-            _viewport = ViewportTransform.fit(_docSize, view);
           } else if (view != _viewSize) {
             final old = _viewSize;
             _viewSize = view;
-            // 中央フィットし直すのは「画面の向きが変わった」とき、または
-            // ユーザーがまだズーム/移動していない(基準フィットのまま)とき。
-            // 同じ向きの微小なインセット変化でユーザーのズームを失わないため。
+            // 画面の向きが変わったらキャンバスを新しい向きいっぱいに作り直す
+            // (横にしたら横全面)。既存の絵は新サイズへ引き伸ばして引き継ぐ。
+            // 同じ向きの微小なインセット変化ではズーム/位置を保持する。
             final orientationChanged =
                 (old.width >= old.height) != (view.width >= view.height);
-            final untouched = _viewport == ViewportTransform.fit(_docSize, old);
-            if (orientationChanged || untouched) {
-              _viewport = ViewportTransform.fit(_docSize, view);
+            if (orientationChanged) {
+              _docSize = view;
+              _viewport = const ViewportTransform(); // 等倍で全面表示に戻す
+              _cancelAllInProgress();
             }
           }
           return Listener(

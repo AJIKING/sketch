@@ -77,24 +77,24 @@ void main() {
     expect(find.text('楕円'), findsOneWidget);
   });
 
-  testWidgets('ツール UI を隠す/戻すができる(キャンバス最大化)', (tester) async {
+  testWidgets('スケッチ長押しでツール UI を隠す/戻すできる(復帰ボタン不要)', (tester) async {
     await tester.pumpWidget(_app());
     await tester.pump();
 
     expect(find.byTooltip('メニュー'), findsOneWidget); // ヘッダー
     expect(find.byTooltip('ブラシ'), findsOneWidget); // フッター
 
-    await tester.tap(find.byTooltip('ツールを隠す(2本指ダブルタップでも切替)'));
+    // キャンバスを長押し → UI が隠れる(復帰ボタンは出さない)。
+    await tester.longPress(find.byType(DrawSurface));
     await tester.pump();
     expect(find.byTooltip('メニュー'), findsNothing);
     expect(find.byTooltip('ブラシ'), findsNothing);
-    final showTip = find.byTooltip('ツールを表示(2本指ダブルタップでも切替)');
-    expect(showTip, findsOneWidget); // 復帰ボタン
 
-    await tester.tap(showTip);
+    // もう一度長押し → UI が戻る。
+    await tester.longPress(find.byType(DrawSurface));
     await tester.pump();
     expect(find.byTooltip('メニュー'), findsOneWidget);
-    expect(find.byTooltip('ツールを表示(2本指ダブルタップでも切替)'), findsNothing);
+    expect(find.byTooltip('ブラシ'), findsOneWidget);
   });
 
   testWidgets('ベクターをONにすると編集バーが出て、描画→取り消しできる', (tester) async {

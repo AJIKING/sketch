@@ -28,16 +28,6 @@ class ViewportTransform {
     offset: offset ?? this.offset,
   );
 
-  @override
-  bool operator ==(Object other) =>
-      other is ViewportTransform &&
-      other.scale == scale &&
-      other.rotation == rotation &&
-      other.offset == offset;
-
-  @override
-  int get hashCode => Object.hash(scale, rotation, offset);
-
   /// canvas 座標 → view 座標。
   Offset toView(Offset c) {
     final cosr = math.cos(rotation);
@@ -78,22 +68,6 @@ class ViewportTransform {
       offset.dy,
       0,
       1, // col3
-    );
-  }
-
-  /// アートボード [doc] を表示域 [view] に歪みなく収める変換(中央寄せ・無回転)。
-  ///
-  /// アスペクト比を保ったまま「縦横どちらか」が収まる倍率にし、余白を均等に振る。
-  /// 端末回転やリサイズで表示域が変わったときの基準ビューポートに使う。
-  static ViewportTransform fit(Size doc, Size view) {
-    if (doc.isEmpty || view.isEmpty) return const ViewportTransform();
-    final scale = math.min(view.width / doc.width, view.height / doc.height);
-    return ViewportTransform(
-      scale: scale,
-      offset: Offset(
-        (view.width - doc.width * scale) / 2,
-        (view.height - doc.height * scale) / 2,
-      ),
     );
   }
 

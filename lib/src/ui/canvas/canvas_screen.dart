@@ -442,7 +442,6 @@ class _CanvasScreenState extends State<CanvasScreen> {
                 ),
                 _transformBar(),
                 if (_uiVisible && _vec.enabled) _vectorBar(),
-                if (!_uiVisible) _showUiButton(),
               ],
             );
           },
@@ -478,11 +477,6 @@ class _CanvasScreenState extends State<CanvasScreen> {
             icon: const Icon(Icons.center_focus_strong),
             tooltip: '表示をリセット',
             onPressed: () => _drawKey.currentState?.resetView(),
-          ),
-          IconButton(
-            icon: const Icon(Icons.unfold_less),
-            tooltip: 'ツールを隠す(2本指ダブルタップでも切替)',
-            onPressed: () => setState(() => _uiVisible = false),
           ),
           IconButton(
             icon: const Icon(Icons.more_vert),
@@ -527,23 +521,6 @@ class _CanvasScreenState extends State<CanvasScreen> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  // UI 非表示中に表示する、小さな復帰ボタン(右上)。
-  Widget _showUiButton() {
-    return Positioned(
-      top: 4,
-      right: 4,
-      child: Material(
-        color: AtelierTokens.surface2.withValues(alpha: 0.7),
-        shape: const CircleBorder(),
-        child: IconButton(
-          icon: const Icon(Icons.unfold_more, color: AtelierTokens.ink),
-          tooltip: 'ツールを表示(2本指ダブルタップでも切替)',
-          onPressed: () => setState(() => _uiVisible = true),
         ),
       ),
     );

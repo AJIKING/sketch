@@ -159,24 +159,63 @@ void main() {
     expect(surface.imageOf(id), isNull);
   });
 
-  testWidgets('長押しでスポイト(どのツールでも色を吸い取る)', (tester) async {
+  Future<void> pumpToggle(
+    WidgetTester tester,
+    CanvasController c,
+    RasterLayerStore s,
+    void Function() onToggle,
+  ) {
+    return tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 200,
+              height: 200,
+              child: DrawSurface(
+                controller: c,
+                surface: s,
+                clock: FakeClock(),
+                transforming: ValueNotifier<bool>(false),
+                onToggleUi: onToggle,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  testWidgets('長押し(動かさない)でツール UI トグルが呼ばれ、描画されない', (tester) async {
     final surface = RasterLayerStore();
-    final controller = CanvasController(surface: surface); // 既定ブラシ
-    await _pump(tester, controller, surface);
-    controller.setColorHex('#2C4A63'); // 紙以外に設定
-    expect(controller.colorHex, '#2C4A63');
+    final controller = CanvasController(surface: surface);
+    var toggles = 0;
+    await pumpToggle(tester, controller, surface, () => toggles++);
 
     final g = await tester.startGesture(
       tester.getCenter(find.byType(DrawSurface)),
     );
     await tester.pump(const Duration(milliseconds: 500)); // 長押しタイマー発火
     await g.up();
-    await tester.pumpAndSettle();
+    await tester.pump();
 
-    // 空レイヤーを吸ったので紙の色になる。
-    expect(controller.colorHex, '#EFE7D6');
-    // 長押しなのでストロークは焼き込まれない。
+    expect(toggles, 1);
+    // 長押しなので焼き込まれない。
     expect(surface.imageOf(controller.layers.active.id), isNull);
+    expect(controller.canUndo, isFalse);
+  });
+
+  testWidgets('動かしたら描画になり、トグルは呼ばれない', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    var toggles = 0;
+    await pumpToggle(tester, controller, surface, () => toggles++);
+
+    await tester.drag(find.byType(DrawSurface), const Offset(40, 40));
+    await tester.pump();
+
+    expect(toggles, 0);
+    expect(surface.imageOf(controller.layers.active.id), isNotNull);
   });
 
   testWidgets('図形ツール: ドラッグで焼き込み、undo で戻る', (tester) async {
@@ -342,7 +381,7 @@ void main() {
     );
   }
 
-  testWidgets('表示域が変わると中央フィットし直す(縦→横 回帰)', (tester) async {
+  testWidgets('回転すると新しい向きいっぱいに表示し直す(等倍・全面)', (tester) async {
     final surface = RasterLayerStore();
     final controller = CanvasController(surface: surface);
     final key = GlobalKey<DrawSurfaceState>();
@@ -365,19 +404,18 @@ void main() {
       ),
     );
 
-    // 縦長で起動 → アートボード = 100x200、等倍・原点。
+    // 縦長で起動 → 等倍・原点(全面)。
     await tester.pumpWidget(app(const Size(100, 200)));
     await tester.pump();
     expect(key.currentState!.viewport.scale, closeTo(1, 1e-9));
     expect(key.currentState!.viewport.offset, Offset.zero);
 
-    // 横長へ回転(300x100)→ 固定アートボードを歪めず中央フィット。
+    // 横長へ回転 → レターボックスにせず、横全面(等倍・原点)へ。
     await tester.pumpWidget(app(const Size(300, 100)));
     await tester.pump();
     final v = key.currentState!.viewport;
-    expect(v.scale, closeTo(0.5, 1e-9)); // min(300/100, 100/200)
-    expect(v.offset.dx, closeTo(125, 1e-6));
-    expect(v.offset.dy, closeTo(0, 1e-6));
+    expect(v.scale, closeTo(1, 1e-9)); // 縮小フィットしない
+    expect(v.offset, Offset.zero);
   });
 
   testWidgets('同じ向きの微小リサイズではユーザーのズームを保持する(回帰)', (tester) async {
@@ -483,68 +521,6 @@ void main() {
 
     expect(surface.imageOf(id), isNotNull);
     expect(controller.canUndo, isTrue);
-  });
-
-  testWidgets('2 本指ダブルタップで onToggleUi が呼ばれ、ピンチでは呼ばれない', (tester) async {
-    final surface = RasterLayerStore();
-    final controller = CanvasController(surface: surface);
-    var toggles = 0;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: SizedBox(
-              width: 200,
-              height: 200,
-              child: DrawSurface(
-                controller: controller,
-                surface: surface,
-                clock: FakeClock(),
-                transforming: ValueNotifier<bool>(false),
-                onToggleUi: () => toggles++,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    final center = tester.getCenter(find.byType(DrawSurface));
-    Future<void> twoFingerTap(int p1, int p2) async {
-      final g1 = await tester.startGesture(
-        center + const Offset(-15, 0),
-        pointer: p1,
-      );
-      final g2 = await tester.startGesture(
-        center + const Offset(15, 0),
-        pointer: p2,
-      );
-      await tester.pump();
-      await g1.up();
-      await g2.up();
-      await tester.pump();
-    }
-
-    await twoFingerTap(1, 2);
-    expect(toggles, 0, reason: '1 回タップではトグルしない');
-    await twoFingerTap(3, 4);
-    expect(toggles, 1, reason: 'ダブルタップでトグル');
-
-    // 動かす(ピンチ)とタップ扱いされない。
-    final g1 = await tester.startGesture(
-      center + const Offset(-15, 0),
-      pointer: 5,
-    );
-    final g2 = await tester.startGesture(
-      center + const Offset(15, 0),
-      pointer: 6,
-    );
-    await g1.moveBy(const Offset(-40, 0));
-    await g2.moveBy(const Offset(40, 0));
-    await g1.up();
-    await g2.up();
-    await tester.pump();
-    expect(toggles, 1, reason: 'ピンチはダブルタップとして数えない');
   });
 
   testWidgets('変形モード: 移動して確定で焼き込み、undo で戻る(Phase3b)', (tester) async {
