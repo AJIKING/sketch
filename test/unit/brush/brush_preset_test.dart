@@ -21,7 +21,19 @@ void main() {
       'crayon',
       'chalk',
       'stipple',
+      'softpen',
+      'glow',
+      'sponge',
+      'dry',
     ]);
+  });
+
+  test('key は一意で brushByKey が引ける', () {
+    final keys = brushPresets.map((b) => b.key).toList();
+    expect(keys.toSet().length, keys.length); // 重複なし
+    for (final b in brushPresets) {
+      expect(brushByKey(b.key), same(b));
+    }
   });
 
   test('isStroked は線系(ink/筆/marker)のみ true', () {

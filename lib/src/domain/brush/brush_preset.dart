@@ -123,6 +123,46 @@ const BrushPreset stippleBrush = BrushPreset(
   spacing: 1.4,
 );
 
+const BrushPreset softPenBrush = BrushPreset(
+  key: 'softpen',
+  name: 'ソフトペン',
+  description: 'やわらかい縁。さらりと均一に乗る',
+  flow: 0.6,
+  soft: 0.6,
+  scatter: 0.05,
+  spacing: 0.12,
+);
+
+const BrushPreset glowBrush = BrushPreset(
+  key: 'glow',
+  name: 'グロー',
+  description: 'ふんわり淡く積もる光。重ねて明るく',
+  flow: 0.12,
+  soft: 1,
+  scatter: 0,
+  spacing: 0.1,
+);
+
+const BrushPreset spongeBrush = BrushPreset(
+  key: 'sponge',
+  name: 'スポンジ',
+  description: '大きく散る粒。ざらついた塗り',
+  flow: 0.4,
+  soft: 0,
+  scatter: 1,
+  spacing: 0.6,
+);
+
+const BrushPreset dryBrush = BrushPreset(
+  key: 'dry',
+  name: 'ドライ',
+  description: 'かすれた擦れ。粗い質感の線',
+  flow: 0.7,
+  soft: 0,
+  scatter: 0.4,
+  spacing: 0.75,
+);
+
 /// ブラシシートの表示順。
 const List<BrushPreset> brushPresets = [
   inkBrush,
@@ -133,6 +173,10 @@ const List<BrushPreset> brushPresets = [
   crayonBrush,
   chalkBrush,
   stippleBrush,
+  softPenBrush,
+  glowBrush,
+  spongeBrush,
+  dryBrush,
 ];
 
 /// key からプリセットを引く。未知の key は [inkBrush] にフォールバックする。
