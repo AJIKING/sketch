@@ -55,6 +55,14 @@ class LayerStack {
   int get activeIndex => _activeIndex;
   LayerMeta get active => _layers[_activeIndex];
 
+  /// id でレイヤーを引く(無ければ null)。
+  LayerMeta? byId(String id) {
+    for (final l in _layers) {
+      if (l.id == id) return l;
+    }
+    return null;
+  }
+
   LayerMeta _append() {
     _counter++;
     final layer = LayerMeta(

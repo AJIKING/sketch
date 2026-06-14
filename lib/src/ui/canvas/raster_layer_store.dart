@@ -27,4 +27,16 @@ class RasterLayerStore implements CanvasSurface {
 
   @override
   void clear(String layerId) => _images[layerId] = null;
+
+  /// 保持中のレイヤー画像をすべて解放する(画面破棄時に呼ぶ)。
+  ///
+  /// ライブのレイヤー画像と undo 履歴のスナップショット画像は常に別オブジェクト
+  /// (履歴は「変更前」の置換済み画像を持つ)なので、ここでの解放と履歴側の
+  /// 解放が二重にならない。
+  void disposeAll() {
+    for (final image in _images.values) {
+      image?.dispose();
+    }
+    _images.clear();
+  }
 }

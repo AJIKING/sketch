@@ -154,5 +154,18 @@ void main() {
       expect(c.canUndo, isFalse);
       expect(c.canRedo, isFalse);
     });
+
+    test('beginStroke(layerId) はアクティブでなく指定レイヤーを記録する', () {
+      final a = c.layers.layers[0].id;
+      final b = c.layers.layers[1].id; // 既定アクティブ
+      surface.draw(a, 'A0');
+      surface.draw(b, 'B0');
+      // アクティブは b のまま、a を対象に履歴記録(非同期で捕捉した id 相当)
+      c.beginStroke(a);
+      surface.draw(a, 'A1');
+      c.undo();
+      expect(surface.state[a], 'A0'); // a が戻る
+      expect(surface.state[b], 'B0'); // b は不変
+    });
   });
 }

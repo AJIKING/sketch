@@ -75,6 +75,12 @@ void main() {
     expect(s.layers[0].opacity, 0);
   });
 
+  test('byId はレイヤーを引き、無ければ null', () {
+    final s = LayerStack.initial();
+    expect(s.byId(s.layers[0].id), same(s.layers[0]));
+    expect(s.byId('nope'), isNull);
+  });
+
   test('既定の合成設定は通常・ロック無し・クリップ無し', () {
     final l = LayerStack.initial().layers[0];
     expect(l.blendMode, LayerBlendMode.normal);

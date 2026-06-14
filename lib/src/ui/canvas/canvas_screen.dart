@@ -69,6 +69,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
   @override
   void dispose() {
     _c.dispose();
+    _surface.disposeAll(); // ライブのレイヤー画像を解放(履歴画像とは別オブジェクト)
     super.dispose();
   }
 

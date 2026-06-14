@@ -84,12 +84,15 @@ class DrawSurfaceState extends State<DrawSurface> {
   void _onDown(PointerDownEvent e) {
     _pointers[e.pointer] = e.localPosition;
     if (_pointers.length >= 2) {
-      // 2 本指: 変形へ。進行中ストロークは(未焼込なので)破棄し、
-      // 非ストロークツールの開始点も捨てる(離上時の誤発火を防ぐ)。
-      _current = null;
-      _currentLayerId = null;
-      _startPos = null;
-      _startGesture();
+      // 2 本指で変形を開始。既に変形中(3 本目以降)はアンカーを変えない。
+      if (_gestureStart == null) {
+        // 進行中ストロークは(未焼込なので)破棄し、非ストロークツールの
+        // 開始点も捨てる(離上時の誤発火を防ぐ)。
+        _current = null;
+        _currentLayerId = null;
+        _startPos = null;
+        _startGesture();
+      }
       _tick.value++;
       return;
     }
@@ -122,7 +125,7 @@ class DrawSurfaceState extends State<DrawSurface> {
     if (_pointers.containsKey(e.pointer)) {
       _pointers[e.pointer] = e.localPosition;
     }
-    if (_pointers.length >= 2) {
+    if (_gestureStart != null) {
       _updateGesture();
       return;
     }
@@ -136,13 +139,20 @@ class DrawSurfaceState extends State<DrawSurface> {
   }
 
   void _onUp(PointerUpEvent e) {
-    final wasTransform = _pointers.length >= 2;
-    _pointers.remove(e.pointer);
-    if (wasTransform) {
-      if (_pointers.length >= 2) {
-        _startGesture(); // 残りの指で継続
-      } else {
-        _gestureStart = null;
+    final id = e.pointer;
+    final gesturing = _gestureStart != null;
+    _pointers.remove(id);
+    if (gesturing) {
+      // アンカーの指が離れたら、残りで再アンカー(2 本未満なら終了)。
+      // アンカー以外(3 本目)が離れても継続。
+      if (id == _idA || id == _idB) {
+        if (_pointers.length >= 2) {
+          _startGesture();
+        } else {
+          _gestureStart = null;
+          _idA = null;
+          _idB = null;
+        }
       }
       _tick.value++;
       return;
@@ -174,10 +184,20 @@ class DrawSurfaceState extends State<DrawSurface> {
   }
 
   void _onCancel(PointerCancelEvent e) {
-    _pointers.remove(e.pointer);
+    final id = e.pointer;
+    final gesturing = _gestureStart != null;
+    _pointers.remove(id);
     _current = null;
     _currentLayerId = null;
-    if (_pointers.length < 2) _gestureStart = null;
+    if (gesturing && (id == _idA || id == _idB)) {
+      if (_pointers.length >= 2) {
+        _startGesture();
+      } else {
+        _gestureStart = null;
+        _idA = null;
+        _idB = null;
+      }
+    }
   }
 
   void _startGesture() {
@@ -207,14 +227,14 @@ class DrawSurfaceState extends State<DrawSurface> {
   // ---- baking / pixel ops (canvas 空間) ----
   void _bake(PaintedStroke stroke, String layerId) {
     if (_docSize.isEmpty) return;
+    final layer = _c.layers.byId(layerId);
+    if (layer == null) return; // 焼込前にレイヤーが消えた
     final existing = widget.surface.imageOf(layerId);
-    final alphaLocked = _c.layers.layers
-        .firstWhere((l) => l.id == layerId)
-        .alphaLocked;
+    final alphaLocked = layer.alphaLocked;
     if (alphaLocked && existing == null) return;
     final w = _docSize.width.round().clamp(1, 4096);
     final h = _docSize.height.round().clamp(1, 4096);
-    _c.beginStroke(); // 変更直前に pre-stroke を履歴へ
+    _c.beginStroke(layerId); // 変更直前に pre-stroke を履歴へ
     widget.surface.set(
       layerId,
       bakeStroke(
@@ -230,10 +250,13 @@ class DrawSurfaceState extends State<DrawSurface> {
   (int, int, int) _currentRgb() => hexToRgb(_c.colorHex);
   int get _alpha => (_c.opacity * 255).round().clamp(0, 255);
 
-  /// canvas(doc)座標を画像のピクセル座標へ変換する。
+  /// canvas(doc)座標を画像のピクセル座標へ変換する(範囲内にクランプ)。
   (int, int) _imageCoord(Offset canvasPos, ui.Image img) => (
-    (canvasPos.dx / _docSize.width * img.width).round(),
-    (canvasPos.dy / _docSize.height * img.height).round(),
+    (canvasPos.dx / _docSize.width * img.width).floor().clamp(0, img.width - 1),
+    (canvasPos.dy / _docSize.height * img.height).floor().clamp(
+      0,
+      img.height - 1,
+    ),
   );
 
   Future<ui.Image> _decode(Uint8List rgba, int w, int h) {
@@ -253,7 +276,6 @@ class DrawSurfaceState extends State<DrawSurface> {
     final (r, g, b) = _currentRgb();
     final fill = (r, g, b, _alpha);
     final existing = widget.surface.imageOf(id);
-    _c.beginStroke();
 
     if (existing == null) {
       final w = _docSize.width.round().clamp(1, 4096);
@@ -267,6 +289,7 @@ class DrawSurfaceState extends State<DrawSurface> {
       }
       final img = await _decode(buf, w, h);
       if (!mounted) return;
+      _c.beginStroke(id);
       widget.surface.set(id, img);
       _tick.value++;
       return;
@@ -287,6 +310,7 @@ class DrawSurfaceState extends State<DrawSurface> {
     );
     final img = await _decode(out, existing.width, existing.height);
     if (!mounted) return;
+    _c.beginStroke(id);
     widget.surface.set(id, img);
     _tick.value++;
   }
@@ -322,7 +346,7 @@ class DrawSurfaceState extends State<DrawSurface> {
     final (r, g, bb) = _currentRgb();
     final w = _docSize.width.round().clamp(1, 4096);
     final h = _docSize.height.round().clamp(1, 4096);
-    _c.beginStroke();
+    _c.beginStroke(id);
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     final existing = widget.surface.imageOf(id);
@@ -364,7 +388,7 @@ class DrawSurfaceState extends State<DrawSurface> {
     final out = op(bd.buffer.asUint8List(), existing.width, existing.height);
     final img = await _decode(out, existing.width, existing.height);
     if (!mounted) return;
-    _c.beginStroke();
+    _c.beginStroke(id);
     widget.surface.set(id, img);
     _tick.value++;
   }

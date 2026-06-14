@@ -156,9 +156,11 @@ class CanvasController extends ChangeNotifier {
   LayerSnapshot _snapshot(String layerId) =>
       (layerId: layerId, pixels: surface.snapshot(layerId));
 
-  /// ストローク開始時に呼ぶ。アクティブレイヤーの画素を履歴へ積む。
-  void beginStroke() {
-    _history.record(_snapshot(_layers.active.id));
+  /// 変更の直前に呼ぶ。対象レイヤー([layerId] 省略時はアクティブ)の画素を
+  /// 履歴へ積む。非同期処理では開始時に捕捉した id を渡すこと(await 中に
+  /// アクティブが変わっても正しいレイヤーを記録するため)。
+  void beginStroke([String? layerId]) {
+    _history.record(_snapshot(layerId ?? _layers.active.id));
     notifyListeners();
   }
 
