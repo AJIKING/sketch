@@ -9,8 +9,11 @@ import '../domain/gallery/image_exporter.dart';
 /// `ImageExporter` の本番実装。PNG を一時ファイルに書き出し、OS の共有シート
 /// 経由でエクスポートする(写真への保存・他アプリ送信などはユーザーが選ぶ)。
 ///
-/// 共有のキャンセルや未対応 platform は false を返す。失敗で例外は投げない
-/// (UI は false を受けて案内するだけ)。
+/// 共有結果のステータスはプラットフォームで信頼性が低い:
+/// - Android は成功でも結果を返せず `unavailable` になることが多い。
+/// - iOS でも一部アクティビティ(写真へ保存等)は `success` を返さない。
+/// そのため、ユーザーが明示的に取り消した [ShareResultStatus.dismissed] のときだけ
+/// false(キャンセル)とみなす。失敗で例外は投げない(UI は結果を案内するだけ)。
 class ShareImageExporter implements ImageExporter {
   const ShareImageExporter();
 
@@ -23,7 +26,7 @@ class ShareImageExporter implements ImageExporter {
       final result = await SharePlus.instance.share(
         ShareParams(files: [XFile(file.path, mimeType: 'image/png')]),
       );
-      return result.status == ShareResultStatus.success;
+      return result.status != ShareResultStatus.dismissed;
     } catch (_) {
       return false;
     }
