@@ -168,6 +168,14 @@ class DrawSurfaceState extends State<DrawSurface> {
 
   CanvasController get _c => widget.controller;
   double get _nowMs => widget.clock.now().millisecondsSinceEpoch.toDouble();
+
+  /// ポインタの筆圧を 0..1 へ正規化。圧力非対応(指など)は 1.0。
+  double _pressureOf(PointerEvent e) {
+    final range = e.pressureMax - e.pressureMin;
+    if (range <= 0) return 1.0;
+    return ((e.pressure - e.pressureMin) / range).clamp(0.0, 1.0);
+  }
+
   bool get _strokeTool =>
       _c.tool == Tool.brush || _c.tool == Tool.smudge || _c.tool == Tool.erase;
   bool get _inTransform => widget.transforming.value;
@@ -456,6 +464,7 @@ class DrawSurfaceState extends State<DrawSurface> {
       stroke.addPoint(
         _stabilizer.add(_viewport.toCanvas(e.localPosition)),
         _nowMs,
+        pressure: _pressureOf(e),
       );
       _current = stroke;
       setState(() {});
@@ -525,6 +534,7 @@ class DrawSurfaceState extends State<DrawSurface> {
     stroke.addPoint(
       _stabilizer.add(_viewport.toCanvas(e.localPosition)),
       _nowMs,
+      pressure: _pressureOf(e),
     );
     setState(() {});
   }

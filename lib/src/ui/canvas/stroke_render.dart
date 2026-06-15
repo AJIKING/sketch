@@ -61,12 +61,14 @@ void renderStroke(Canvas canvas, PaintedStroke stroke) {
   final segmentPts = isTap ? [pts.first, pts.first] : pts;
   final lastIndex = math.max(1, segmentPts.length - 1);
   for (var i = 1; i < segmentPts.length; i++) {
+    // 筆圧で太さを変える(非対応端末は pressure=1.0 で従来どおり)。
+    final eff = stroke.size * (0.2 + 0.8 * stroke.pressureAt(i));
     final plan = planStroke(
       from: _toPoint(segmentPts[i - 1]),
       to: _toPoint(segmentPts[i]),
       speed: stroke.speedAt(i),
       brush: brush,
-      size: stroke.size,
+      size: eff,
       opacity: stroke.opacity,
       random: rng,
     );

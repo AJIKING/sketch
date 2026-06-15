@@ -21,7 +21,8 @@ class PaintedStroke {
     required this.seed,
     this.secondColorHex,
   }) : points = <Offset>[],
-       _times = <double>[];
+       _times = <double>[],
+       _pressures = <double>[];
 
   final Tool tool;
   final BrushPreset brush;
@@ -34,11 +35,20 @@ class PaintedStroke {
   final int seed;
   final List<Offset> points;
   final List<double> _times;
+  final List<double> _pressures; // 0..1。非対応端末は 1.0。
 
-  /// 点とそのタイムスタンプ(ms)を追加する。
-  void addPoint(Offset point, double timeMs) {
+  /// 点・タイムスタンプ(ms)・筆圧(0..1、既定 1.0)を追加する。
+  void addPoint(Offset point, double timeMs, {double pressure = 1.0}) {
     points.add(point);
     _times.add(timeMs);
+    _pressures.add(pressure.clamp(0.0, 1.0));
+  }
+
+  /// 点 [i] の筆圧(0..1)。範囲外は端の値、空なら 1.0。
+  double pressureAt(int i) {
+    if (_pressures.isEmpty) return 1.0;
+    if (i < 0) return _pressures.first;
+    return i < _pressures.length ? _pressures[i] : _pressures.last;
   }
 
   /// 点 [i-1] → [i] 区間の速度(距離 / 経過 ms)。時刻が無い / dt<=0 なら 0。
