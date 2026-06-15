@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sketch/src/application/canvas_controller.dart';
 import 'package:sketch/src/application/vector_controller.dart';
+import 'package:sketch/src/domain/canvas/layer_stack.dart';
 import 'package:sketch/src/domain/canvas/selection_kind.dart';
 import 'package:sketch/src/domain/canvas/shape_kind.dart';
 import 'package:sketch/src/domain/timelapse/timelapse_frame.dart';
@@ -528,6 +529,59 @@ void main() {
     expect(key.currentState!.mergeActiveDown(), isFalse);
     expect(controller.layers.length, 2);
     expect(controller.canUndo, isFalse);
+  });
+
+  testWidgets('マスク: 追加→マスク編集の描画はマスク画素へ向き、undo で戻る', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final key = GlobalKey<DrawSurfaceState>();
+    await _pumpKeyed(tester, key, controller, surface);
+
+    final id = controller.layers.active.id;
+    final maskId = maskLayerId(id);
+
+    // マスク追加 → hasMask + 白マスク画像 + 編集モード。
+    key.currentState!.addMaskToActive();
+    await tester.pump();
+    expect(controller.layers.active.hasMask, isTrue);
+    expect(controller.maskEditing, isTrue);
+    expect(surface.imageOf(maskId), isNotNull);
+    expect(surface.imageOf(id), isNull); // 本体はまだ空
+    final maskBefore = surface.imageOf(maskId);
+
+    // マスク編集中に描く → 本体ではなくマスク画素が変わる。
+    await tester.drag(find.byType(DrawSurface), const Offset(60, 40));
+    await tester.pump();
+    expect(surface.imageOf(id), isNull); // 本体は不変
+    expect(surface.imageOf(maskId), isNot(same(maskBefore)));
+    expect(controller.canUndo, isTrue);
+
+    // undo → マスク画素が描画前へ戻る。
+    controller.undo();
+    expect(surface.imageOf(maskId), same(maskBefore));
+  });
+
+  testWidgets('マスク: 解除でフラグと画素が消え、undo で戻る', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final key = GlobalKey<DrawSurfaceState>();
+    await _pumpKeyed(tester, key, controller, surface);
+
+    final id = controller.layers.active.id;
+    key.currentState!.addMaskToActive();
+    await tester.pump();
+    expect(surface.imageOf(maskLayerId(id)), isNotNull);
+
+    key.currentState!.removeMaskFromActive();
+    await tester.pump();
+    expect(controller.layers.active.hasMask, isFalse);
+    expect(controller.maskEditing, isFalse);
+    expect(surface.imageOf(maskLayerId(id)), isNull);
+
+    // undo → マスクが戻る。
+    controller.undo();
+    expect(controller.layers.active.hasMask, isTrue);
+    expect(surface.imageOf(maskLayerId(id)), isNotNull);
   });
 
   testWidgets('2 本指ピンチでビューが拡大する(Phase3)', (tester) async {

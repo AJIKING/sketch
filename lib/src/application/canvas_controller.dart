@@ -63,6 +63,7 @@ class CanvasController extends ChangeNotifier {
   SymmetryMode _symmetry = SymmetryMode.none;
   bool _gradientBrush = false;
   bool _gradientToTransparent = false; // グラデツール: 終点を透明にするか
+  bool _maskEditing = false; // アクティブレイヤーのマスクを編集対象にするか
   String _secondColorHex = '#2C4A63'; // 既定の 2 色目は藍
 
   Tool get tool => _tool;
@@ -91,6 +92,15 @@ class CanvasController extends ChangeNotifier {
 
   /// グラデーションツールの終点を透明にするか(false なら 2 色目の色へ)。
   bool get gradientToTransparent => _gradientToTransparent;
+
+  /// マスク編集モード(アクティブレイヤーにマスクがあれば描画対象をマスクへ向ける)。
+  bool get maskEditing => _maskEditing;
+
+  /// 実際に描画(ストローク・塗り等)を焼き込む対象レイヤー id。マスク編集中で
+  /// アクティブにマスクがあればマスク id、そうでなければアクティブレイヤー id。
+  String get drawTargetId => (_maskEditing && _layers.active.hasMask)
+      ? maskLayerId(_layers.active.id)
+      : _layers.active.id;
   LayerStack get layers => _layers;
   bool get canUndo => _history.canUndo;
   bool get canRedo => _history.canRedo;
@@ -325,6 +335,21 @@ class CanvasController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// マスク編集モードを切り替える(描画対象をマスクへ向ける)。
+  void setMaskEditing(bool editing) {
+    if (editing == _maskEditing) return;
+    _maskEditing = editing;
+    notifyListeners();
+  }
+
+  /// レイヤー [index] のマスク有無フラグを設定する。マスク画素の生成/破棄は ui が
+  /// 行う(白塗り初期化など `dart:ui` 依存のため)。削除時は編集モードを解除する。
+  void setLayerMask(int index, bool hasMask) {
+    _layers.setMask(index, hasMask);
+    if (!hasMask) _maskEditing = false;
+    notifyListeners();
+  }
+
   PixelEdit _snapshot(String layerId) =>
       PixelEdit(layerId, surface.snapshot(layerId));
 
@@ -333,6 +358,9 @@ class CanvasController extends ChangeNotifier {
     final pixels = <String, Object>{};
     for (final l in _layers.layers) {
       pixels[l.id] = surface.snapshot(l.id);
+      // マスク画素も併せて巻き戻せるよう取り込む(無ければ透明トークン)。
+      final m = maskLayerId(l.id);
+      pixels[m] = surface.snapshot(m);
     }
     return StackEdit(_layers.snapshot(), pixels);
   }

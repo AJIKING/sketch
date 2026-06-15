@@ -8,6 +8,7 @@ import '../../application/canvas_controller.dart';
 import '../../application/vector_controller.dart';
 import '../../core/clock.dart';
 import '../../domain/canvas/gradient_kind.dart';
+import '../../domain/canvas/layer_stack.dart';
 import '../../domain/canvas/pixel_ops.dart';
 import '../../domain/canvas/selection_kind.dart';
 import '../../domain/color/ink_color.dart';
@@ -702,14 +703,17 @@ class DrawSurfaceState extends State<DrawSurface> {
     if (_docSize.isEmpty) return;
     final layer = _c.layers.byId(layerId);
     if (layer == null) return; // 焼込前にレイヤーが消えた
-    final existing = widget.surface.imageOf(layerId);
-    final alphaLocked = layer.alphaLocked;
+    final target = _targetFor(layerId);
+    final maskMode = target != layerId;
+    final existing = widget.surface.imageOf(target);
+    // マスクはアルファロック対象外(本体のみ尊重)。
+    final alphaLocked = !maskMode && layer.alphaLocked;
     if (alphaLocked && existing == null) return;
     final w = _docSize.width.round().clamp(1, 4096);
     final h = _docSize.height.round().clamp(1, 4096);
-    _c.beginStroke(layerId); // 変更直前に pre-stroke を履歴へ
+    _c.beginStroke(target); // 変更直前に pre-stroke を履歴へ
     widget.surface.set(
-      layerId,
+      target,
       bakeStroke(
         existing: existing,
         stroke: stroke,
@@ -821,17 +825,23 @@ class DrawSurfaceState extends State<DrawSurface> {
   /// 既存画像の上に [draw] を描いてレイヤー [id] へ焼き込む共通処理(undo 可能)。
   /// [clipToSelection] が true で選択範囲があれば、新規描画をその範囲へ制限する
   /// (既存画素は範囲外も保持)。レイヤーが消えている / docSize 未確定なら何もしない。
+  /// [ownerId] のレイヤーへの描画が、マスク編集中はそのマスク画素へ向く。
+  /// アクティブレイヤー以外を指定したときは常に本体へ向ける。
+  String _targetFor(String ownerId) =>
+      ownerId == _c.layers.active.id ? _c.drawTargetId : ownerId;
+
   void _bakeOnLayer(
     String id,
     void Function(Canvas canvas, int width, int height) draw, {
     bool clipToSelection = true,
   }) {
     if (_docSize.isEmpty || _c.layers.byId(id) == null) return;
+    final target = _targetFor(id);
     final w = _docSize.width.round().clamp(1, 4096);
     final h = _docSize.height.round().clamp(1, 4096);
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    final existing = widget.surface.imageOf(id);
+    final existing = widget.surface.imageOf(target);
     if (existing != null) {
       canvas.drawImageRect(
         existing,
@@ -849,8 +859,8 @@ class DrawSurfaceState extends State<DrawSurface> {
     if (clipToSelection && _selection != null) canvas.clipPath(_selection!);
     draw(canvas, w, h);
     canvas.restore();
-    _c.beginStroke(id);
-    widget.surface.set(id, recorder.endRecording().toImageSync(w, h));
+    _c.beginStroke(target);
+    widget.surface.set(target, recorder.endRecording().toImageSync(w, h));
     widget.onCommitted?.call();
   }
 
@@ -900,6 +910,45 @@ class DrawSurfaceState extends State<DrawSurface> {
 
   Rect _imageRect(ui.Image img) =>
       Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble());
+
+  /// アクティブレイヤーにマスクを追加する(全面不透明=初期状態は見た目そのまま)。
+  /// 追加後はそのままマスク編集モードに入る。undo 可能。
+  void addMaskToActive() {
+    if (_docSize.isEmpty) return;
+    final i = _c.layers.activeIndex;
+    final layer = _c.layers.active;
+    if (layer.hasMask) return; // 既にある
+    final w = _docSize.width.round().clamp(1, 4096);
+    final h = _docSize.height.round().clamp(1, 4096);
+
+    _c.beginStructural(); // マスク有無 + 画素をまとめて履歴へ
+
+    // 全面白(不透明)= どこも隠さない初期マスク。消すほど隠れる。
+    final recorder = ui.PictureRecorder();
+    Canvas(recorder).drawRect(
+      Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
+      Paint()..color = const Color(0xFFFFFFFF),
+    );
+    widget.surface.set(
+      maskLayerId(layer.id),
+      recorder.endRecording().toImageSync(w, h),
+    );
+    _c.setLayerMask(i, true);
+    _c.setMaskEditing(true);
+    setState(() {});
+  }
+
+  /// アクティブレイヤーのマスクを解除する(画素は破棄、レイヤー本体はそのまま)。
+  /// undo 可能。
+  void removeMaskFromActive() {
+    final i = _c.layers.activeIndex;
+    final layer = _c.layers.active;
+    if (!layer.hasMask) return;
+    _c.beginStructural();
+    widget.surface.set(maskLayerId(layer.id), null);
+    _c.setLayerMask(i, false);
+    setState(() {});
+  }
 
   void clearInsideSelection() {
     final id = _c.layers.active.id;

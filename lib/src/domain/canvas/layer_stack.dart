@@ -1,5 +1,11 @@
 import 'layer_blend_mode.dart';
 
+/// レイヤー [layerId] のマスク画像を格納するための派生 id。
+///
+/// マスクの画素はレイヤー画素と同じ surface に、この id をキーに保持する。マスクは
+/// アルファでレイヤーの可視範囲を制御する(alpha=0 で隠す)非破壊の仕組み。
+String maskLayerId(String layerId) => '$layerId#mask';
+
 /// レイヤーのメタ情報(pure Dart)。
 ///
 /// ピクセル(`dart:ui.Image`)は持たない。画素は ui / application が
@@ -13,6 +19,7 @@ class LayerMeta {
     this.blendMode = LayerBlendMode.normal,
     this.alphaLocked = false,
     this.clipToLower = false,
+    this.hasMask = false,
   });
 
   final String id;
@@ -29,6 +36,9 @@ class LayerMeta {
   /// 直下のレイヤーへのクリッピング(下の不透明部分にのみ表示)。
   bool clipToLower;
 
+  /// レイヤーマスクを持つか(画素は [maskLayerId] をキーに別管理)。
+  bool hasMask;
+
   /// メタ情報の複製(undo スナップショットが後続の変更で書き換わらないよう独立化)。
   LayerMeta copy() => LayerMeta(
     id: id,
@@ -38,6 +48,7 @@ class LayerMeta {
     blendMode: blendMode,
     alphaLocked: alphaLocked,
     clipToLower: clipToLower,
+    hasMask: hasMask,
   );
 }
 
@@ -152,6 +163,10 @@ class LayerStack {
 
   void toggleClip(int index) {
     _layers[index].clipToLower = !_layers[index].clipToLower;
+  }
+
+  void setMask(int index, bool hasMask) {
+    _layers[index].hasMask = hasMask;
   }
 
   /// [index] のレイヤーを直下([index]-1)へ結合する。構成上は [index] を取り除き

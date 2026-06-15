@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sketch/src/application/canvas_controller.dart';
 import 'package:sketch/src/domain/brush/brush_preset.dart';
 import 'package:sketch/src/domain/canvas/layer_blend_mode.dart';
+import 'package:sketch/src/domain/canvas/layer_stack.dart';
 import 'package:sketch/src/domain/canvas/symmetry_mode.dart';
 
 import '../../fixtures/fake_canvas_surface.dart';
@@ -232,6 +233,54 @@ void main() {
       c.undo();
       expect(surface.state[a], 'A0'); // a が戻る
       expect(surface.state[b], 'B0'); // b は不変
+    });
+  });
+
+  group('マスク', () {
+    test('drawTargetId はマスク編集中のみマスク id を返す', () {
+      final activeId = c.layers.active.id;
+      expect(c.drawTargetId, activeId); // 既定は本体
+
+      c.setMaskEditing(true); // マスクが無ければ本体のまま
+      expect(c.drawTargetId, activeId);
+
+      c.setLayerMask(c.layers.activeIndex, true);
+      c.setMaskEditing(true);
+      expect(c.drawTargetId, maskLayerId(activeId)); // マスクへ
+
+      c.setMaskEditing(false);
+      expect(c.drawTargetId, activeId); // 終了で本体へ
+    });
+
+    test('マスク解除で編集モードも解除される', () {
+      c.setLayerMask(0, true);
+      c.setActiveLayer(0);
+      c.setMaskEditing(true);
+      expect(c.maskEditing, isTrue);
+      c.setLayerMask(0, false);
+      expect(c.maskEditing, isFalse);
+      expect(c.layers.layers[0].hasMask, isFalse);
+    });
+
+    test('マスク追加/解除を undo/redo で構成ごと巻き戻す', () {
+      final i = c.layers.activeIndex;
+      final id = c.layers.active.id;
+
+      // ui 相当: 構成スナップショット → マスク画素生成 → フラグ ON。
+      c.beginStructural();
+      surface.draw(maskLayerId(id), 'white');
+      c.setLayerMask(i, true);
+      expect(c.layers.active.hasMask, isTrue);
+
+      // undo → マスク無し & 画素も消える(透明トークンへ)。
+      c.undo();
+      expect(c.layers.layers[i].hasMask, isFalse);
+      expect(surface.state[maskLayerId(id)], 'empty');
+
+      // redo → マスク復活 & 画素も戻る。
+      c.redo();
+      expect(c.layers.layers[i].hasMask, isTrue);
+      expect(surface.state[maskLayerId(id)], 'white');
     });
   });
 

@@ -147,12 +147,14 @@ void main() {
     test('構成を丸ごと巻き戻せる(メタは独立な複製)', () {
       final s = LayerStack.initial()..add(); // 3 枚
       s.setBlendMode(0, LayerBlendMode.multiply);
+      s.setMask(0, true);
       s.setActive(1);
       final snap = s.snapshot();
 
       // 破壊的に変更。
       s.mergeDown(2);
       s.setBlendMode(0, LayerBlendMode.screen);
+      s.setMask(0, false);
       s.setActive(0);
       expect(s.length, 2);
 
@@ -161,6 +163,7 @@ void main() {
       expect(s.length, 3);
       expect(s.activeIndex, 1);
       expect(s.layers[0].blendMode, LayerBlendMode.multiply);
+      expect(s.layers[0].hasMask, isTrue);
 
       // スナップショットは独立(復元後の変更が漏れない)。
       s.setBlendMode(0, LayerBlendMode.screen);

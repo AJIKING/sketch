@@ -260,6 +260,18 @@ class _CanvasScreenState extends State<CanvasScreen> {
         _c.setActiveLayer(i);
         _drawKey.currentState?.mergeActiveDown();
       },
+      onAddMask: (i) {
+        _c.setActiveLayer(i);
+        _drawKey.currentState?.addMaskToActive();
+      },
+      onRemoveMask: (i) {
+        _c.setActiveLayer(i);
+        _drawKey.currentState?.removeMaskFromActive();
+      },
+      onToggleMaskEdit: (i) {
+        _c.setActiveLayer(i);
+        _c.setMaskEditing(!_c.maskEditing);
+      },
     ),
   );
 
@@ -677,6 +689,8 @@ class _CanvasScreenState extends State<CanvasScreen> {
                   _objectAdjustBar()
                 else if (_uiVisible && _vec.enabled)
                   _vectorBar(),
+                if (_uiVisible && _c.maskEditing && _c.layers.active.hasMask)
+                  _maskEditingBanner(),
               ],
             );
           },
@@ -864,6 +878,38 @@ class _CanvasScreenState extends State<CanvasScreen> {
   }
 
   // 変形モード中の確定/取消バー(画面上部中央)。
+  /// マスク編集中であることを示すバナー(描画はマスクへ向く)。
+  Widget _maskEditingBanner() {
+    return Positioned(
+      top: 56,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: GestureDetector(
+          onTap: () => _c.setMaskEditing(false),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AtelierTokens.vermilion,
+              borderRadius: BorderRadius.circular(AtelierTokens.rLg),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.masks, size: 16, color: Colors.white),
+                SizedBox(width: 6),
+                Text(
+                  'マスク編集中(タップで終了)',
+                  style: TextStyle(color: Colors.white, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _transformBar() {
     return Positioned(
       top: 56,
@@ -1322,11 +1368,22 @@ class _BrushSheet extends StatelessWidget {
 }
 
 class _LayerSheet extends StatelessWidget {
-  const _LayerSheet({required this.controller, required this.onMergeDown});
+  const _LayerSheet({
+    required this.controller,
+    required this.onMergeDown,
+    required this.onAddMask,
+    required this.onRemoveMask,
+    required this.onToggleMaskEdit,
+  });
   final CanvasController controller;
 
   /// レイヤー [index] を直下へ結合する(ui の DrawSurface が画素を合成する)。
   final void Function(int index) onMergeDown;
+
+  /// レイヤー [index] にマスクを追加 / 解除 / 編集モード切替する。
+  final void Function(int index) onAddMask;
+  final void Function(int index) onRemoveMask;
+  final void Function(int index) onToggleMaskEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -1401,6 +1458,44 @@ class _LayerSheet extends StatelessWidget {
                 color: layer.clipToLower ? AtelierTokens.vermilion : null,
                 onPressed: () => controller.toggleLayerClip(i),
               ),
+              if (!layer.hasMask)
+                IconButton(
+                  icon: const Icon(Icons.masks_outlined),
+                  tooltip: 'マスクを追加',
+                  onPressed: () => onAddMask(i),
+                )
+              else
+                PopupMenuButton<String>(
+                  tooltip: 'マスク',
+                  icon: Icon(
+                    Icons.masks,
+                    color:
+                        (controller.maskEditing &&
+                            i == controller.layers.activeIndex)
+                        ? AtelierTokens.vermilion
+                        : null,
+                  ),
+                  color: AtelierTokens.surface3,
+                  onSelected: (v) {
+                    if (v == 'edit') {
+                      onToggleMaskEdit(i);
+                    } else if (v == 'remove') {
+                      onRemoveMask(i);
+                    }
+                  },
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Text(
+                        (controller.maskEditing &&
+                                i == controller.layers.activeIndex)
+                            ? 'マスク編集を終了'
+                            : 'マスクを編集',
+                      ),
+                    ),
+                    const PopupMenuItem(value: 'remove', child: Text('マスクを解除')),
+                  ],
+                ),
               IconButton(
                 icon: const Icon(Icons.merge_type),
                 tooltip: '下のレイヤーと結合',
