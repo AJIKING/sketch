@@ -9,11 +9,12 @@ import '../domain/gallery/image_exporter.dart';
 /// `ImageExporter` の本番実装。PNG を一時ファイルに書き出し、OS の共有シート
 /// 経由でエクスポートする(写真への保存・他アプリ送信などはユーザーが選ぶ)。
 ///
-/// 共有結果のステータスはプラットフォームで信頼性が低い:
+/// 共有結果のステータス([ShareResult.status])はプラットフォームで信頼できない:
 /// - Android は成功でも結果を返せず `unavailable` になることが多い。
-/// - iOS でも一部アクティビティ(写真へ保存等)は `success` を返さない。
-/// そのため、ユーザーが明示的に取り消した [ShareResultStatus.dismissed] のときだけ
-/// false(キャンセル)とみなす。失敗で例外は投げない(UI は結果を案内するだけ)。
+/// - iOS は「写真に保存」「ファイルに保存」等のアクティビティで、成功しても
+///   `dismissed` を返す端末がある(誤って「キャンセル」と表示される原因)。
+/// そのため**ステータスでは成否を判定しない**。共有シートを提示できた(例外が
+/// 出なかった)時点で成功扱いにし、提示自体に失敗したときだけ false を返す。
 class ShareImageExporter implements ImageExporter {
   const ShareImageExporter();
 
@@ -28,13 +29,13 @@ class ShareImageExporter implements ImageExporter {
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/${suggestedName ?? 'hatch-sketch.png'}');
       await file.writeAsBytes(bytes);
-      final result = await SharePlus.instance.share(
+      await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path, mimeType: mimeType)],
           text: (text != null && text.isNotEmpty) ? text : null,
         ),
       );
-      return result.status != ShareResultStatus.dismissed;
+      return true;
     } catch (_) {
       return false;
     }
