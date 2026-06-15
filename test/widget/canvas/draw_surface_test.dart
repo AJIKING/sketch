@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -591,6 +592,32 @@ void main() {
       (vector.layer.byId(id)! as VectorStroke).points.first.x,
       closeTo(100, 1),
     );
+  });
+
+  testWidgets('写真読み込み: 新規レイヤーへ画像が焼き込まれ undo できる', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final key = GlobalKey<DrawSurfaceState>();
+    await _pumpKeyed(tester, key, controller, surface);
+    final before = controller.layers.length;
+
+    // 画像デコードはテスト環境で不可のため、合成画像を作って配置経路を検証する。
+    late ui.Image image;
+    await tester.runAsync(() async {
+      final rec = ui.PictureRecorder();
+      ui.Canvas(rec).drawRect(
+        const Rect.fromLTWH(0, 0, 10, 10),
+        ui.Paint()..color = const Color(0xFFFF0000),
+      );
+      image = await rec.endRecording().toImage(10, 10);
+    });
+
+    key.currentState!.placeImageLayer(image);
+    await tester.pump();
+
+    expect(controller.layers.length, before + 1); // 新規レイヤーへ
+    expect(surface.imageOf(controller.layers.active.id), isNotNull);
+    expect(controller.canUndo, isTrue); // 取り込み前へ戻せる
   });
 
   testWidgets('長押しでオブジェクト調整: ドラッグで移動する', (tester) async {

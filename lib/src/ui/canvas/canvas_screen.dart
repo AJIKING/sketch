@@ -96,6 +96,18 @@ class _CanvasScreenState extends State<CanvasScreen> {
     }
   }
 
+  /// 写真をピッカーで選び、新規レイヤーとして取り込む。
+  Future<void> _importPhoto() async {
+    final source = widget.dependencies.photoSource;
+    if (source == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final bytes = await source.pickImage();
+    if (!mounted || bytes == null) return;
+    await _drawKey.currentState?.importImage(bytes);
+    if (!mounted) return;
+    messenger.showSnackBar(const SnackBar(content: Text('写真をレイヤーとして読み込みました')));
+  }
+
   /// SNS 等への共有。キャプションを添えて OS の共有シートを開く。
   Future<void> _shareSketch() async {
     final caption = await _promptCaption();
@@ -248,6 +260,15 @@ class _CanvasScreenState extends State<CanvasScreen> {
               );
             },
           ),
+          if (widget.dependencies.photoSource != null)
+            ListTile(
+              leading: const Icon(Icons.add_photo_alternate_outlined),
+              title: const Text('写真を読み込む'),
+              onTap: () async {
+                Navigator.of(context).pop();
+                await _importPhoto();
+              },
+            ),
           ListTile(
             leading: const Icon(Icons.ios_share),
             title: const Text('共有(SNS など)'),

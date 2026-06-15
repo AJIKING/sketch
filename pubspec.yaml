@@ -25,6 +25,9 @@ dependencies:
   # 「画像として保存」= 端末の共有シート経由でエクスポート(ImageExporter)。
   share_plus: ^11.0.0
 
+  # 写真をレイヤーとして読み込む(ImagePickerPort 経由で注入・差し替え可能)。
+  image_picker: ^1.1.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

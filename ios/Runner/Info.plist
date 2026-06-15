@@ -30,6 +30,8 @@
 	<true/>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>スケッチした画像を写真ライブラリへ保存するために使用します。</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>写真をレイヤーとして読み込むために使用します。</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

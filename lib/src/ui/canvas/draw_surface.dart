@@ -1055,6 +1055,56 @@ class DrawSurfaceState extends State<DrawSurface> {
     return data?.buffer.asUint8List();
   }
 
+  /// 写真(エンコード済みバイト列)を新規レイヤーへ中央フィットで取り込む(undo 可)。
+  /// デコードに失敗したら何もしない。
+  Future<void> importImage(Uint8List bytes) async {
+    if (_docSize.isEmpty) return;
+    final ui.Image image;
+    try {
+      final codec = await ui.instantiateImageCodec(bytes);
+      image = (await codec.getNextFrame()).image;
+    } catch (_) {
+      return; // 壊れた/未対応画像
+    }
+    if (!mounted) return;
+    placeImageLayer(image);
+  }
+
+  /// デコード済み画像を新規レイヤーへ中央フィットで焼き込む(undo 可)。
+  /// テスト/外部からも使えるよう、デコードと分離している。
+  void placeImageLayer(ui.Image image) {
+    if (_docSize.isEmpty) return;
+    _c.addLayer(); // 既存の絵を壊さないよう新規レイヤーへ
+    final id = _c.layers.active.id;
+    final w = _docSize.width.round().clamp(1, 4096);
+    final h = _docSize.height.round().clamp(1, 4096);
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    final src = Rect.fromLTWH(
+      0,
+      0,
+      image.width.toDouble(),
+      image.height.toDouble(),
+    );
+    final dst = _fitCentered(
+      Size(image.width.toDouble(), image.height.toDouble()),
+      Size(w.toDouble(), h.toDouble()),
+    );
+    canvas.drawImageRect(image, src, dst, Paint());
+    _c.beginStroke(id); // 取り込み前(空)を履歴へ → undo で戻せる
+    widget.surface.set(id, recorder.endRecording().toImageSync(w, h));
+    setState(() {});
+  }
+
+  /// [src] を [dst] にアスペクト比保持で内接させ、中央寄せした矩形。
+  Rect _fitCentered(Size src, Size dst) {
+    if (src.isEmpty || dst.isEmpty) return Offset.zero & dst;
+    final sx = dst.width / src.width, sy = dst.height / src.height;
+    final scale = sx < sy ? sx : sy;
+    final w = src.width * scale, h = src.height * scale;
+    return Rect.fromLTWH((dst.width - w) / 2, (dst.height - h) / 2, w, h);
+  }
+
   // ---- vector mode pointer handlers (canvas/doc 空間) ----
   VecPoint _vp(Offset c) => VecPoint(c.dx, c.dy);
 

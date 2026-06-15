@@ -6,6 +6,7 @@ import 'package:sketch/src/ui/canvas/canvas_screen.dart';
 import 'package:sketch/src/ui/canvas/draw_surface.dart';
 
 import '../../fixtures/fake_clock.dart';
+import '../../fixtures/fake_photo_source.dart';
 import '../../fixtures/in_memory_gallery_store.dart';
 import '../../fixtures/recording_image_exporter.dart';
 
@@ -197,6 +198,38 @@ void main() {
     expect(find.text('共有(SNS など)'), findsOneWidget);
     expect(find.text('完了してギャラリーへ'), findsOneWidget);
     expect(find.text('このレイヤーを消去'), findsOneWidget);
+    // photoSource 未注入の _app() では「写真を読み込む」は出ない。
+    expect(find.text('写真を読み込む'), findsNothing);
+  });
+
+  testWidgets('photoSource 注入時はメニューから写真を読み込む(ピッカー起動)', (tester) async {
+    final fake = FakePhotoSource(); // bytes=null(キャンセル相当)
+    final deps = Dependencies(
+      clock: FakeClock(),
+      galleryStore: InMemoryGalleryStore(),
+      imageExporter: RecordingImageExporter(),
+      photoSource: fake,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CanvasScreen(
+          dependencies: deps,
+          gallery: GalleryController(
+            store: deps.galleryStore,
+            clock: deps.clock,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('メニュー'));
+    await tester.pumpAndSettle();
+    expect(find.text('写真を読み込む'), findsOneWidget);
+
+    await tester.tap(find.text('写真を読み込む'));
+    await tester.pumpAndSettle();
+    expect(fake.calls, 1); // ピッカーが呼ばれる
   });
 
   testWidgets('共有メニューで既定キャプション付きのダイアログが出る', (tester) async {
