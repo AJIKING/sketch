@@ -130,9 +130,9 @@ void main() {
 
     test('フォント / グラデーションは既定なし、copyWith で設定でき装飾を保つ', () {
       final base = make();
-      expect(base.fontFamily, isNull);
+      expect(base.fontFamily, ''); // 未指定は空文字
       expect(base.gradient, isFalse);
-      expect(base.secondColorHex, isNull);
+      expect(base.secondColorHex, '');
 
       final styled = base.copyWith(
         fontFamily: 'Noto Sans JP',

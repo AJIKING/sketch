@@ -1040,6 +1040,12 @@ class DrawSurfaceState extends State<DrawSurface> {
       if (existing != null) vec.deleteById(existing.id);
       return;
     }
+    // 実フォントのロードを待ってから box を測る。未ロードのフォールバック寸法で
+    // 確定すると、後で実フォントが届いたとき当たり判定/選択枠が字形とずれるため。
+    if (result.fontFamily.isNotEmpty) {
+      await ensureFontLoaded(result.fontFamily);
+      if (!mounted) return;
+    }
     final painter = buildVectorTextPainter(
       text: trimmed,
       colorHex: result.colorHex,
@@ -1725,6 +1731,7 @@ class _TextInputDialogState extends State<_TextInputDialog> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: DropdownButton<String>(
+                      key: const Key('text-font-dropdown'),
                       isExpanded: true,
                       value: _fontFamily,
                       items: [
@@ -1740,6 +1747,7 @@ class _TextInputDialogState extends State<_TextInputDialog> {
                 ],
               ),
               SwitchListTile(
+                key: const Key('text-gradient-switch'),
                 contentPadding: EdgeInsets.zero,
                 title: const Text('2色グラデーション'),
                 subtitle: const Text('文字色 → 2色目へ横方向に変化'),

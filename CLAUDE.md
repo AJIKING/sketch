@@ -1,6 +1,6 @@
 # sketch(Hatch — ポケットのアトリエ)
 
-スマホ向けの軽量スケッチ/お絵描き Flutter アプリ。オフライン完結・バックエンドなし。
+スマホ向けの軽量スケッチ/お絵描き Flutter アプリ。オフライン完結・バックエンドなし(例外: テキストの多書体は google_fonts で初回のみ通信→以降キャッシュ。ADR 0008)。
 
 - プロダクト仕様: `docs/product-spec.md`(プロトタイプ `docs/prototype/hatch-sketch-app.html` 準拠)
 - アーキテクチャ: `docs/architecture.md`(レイヤー構成・フォルダ構成・依存ルール。コードを置く場所はここに従う)

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/painting.dart';
@@ -7,6 +8,40 @@ import '../../domain/color/ink_color.dart';
 import '../../domain/vector/vector_layer.dart';
 import '../../domain/vector/vector_object.dart';
 import 'shape_render.dart';
+
+/// 解決済みフォントファミリ名のキャッシュ(family → 実フォント名)。
+///
+/// 描画は毎フレーム走るため、google_fonts の `getFont`(ロード future を毎回
+/// 生成する)を都度呼ばず、初回に登録名だけ控えて以降は素の `fontFamily` 指定で
+/// 描く。ロード失敗(オフライン初回など)は握り潰し、未処理例外を残さない。
+final Map<String, String> _resolvedFontFamily = {};
+
+/// [family] を google_fonts で解決して登録名を返す(初回のみロードを起動)。
+/// 取得できない/失敗時は空(= 既定フォントへフォールバック)。
+String _resolveFontFamily(String family) {
+  if (family.isEmpty) return '';
+  return _resolvedFontFamily.putIfAbsent(family, () {
+    final resolved = GoogleFonts.getFont(family).fontFamily ?? '';
+    // ロード future の失敗を握り潰す(未処理例外・ログ汚染を避ける)。
+    unawaited(GoogleFonts.pendingFonts().catchError((Object _) => <void>[]));
+    return resolved;
+  });
+}
+
+/// テスト/プリロード用: [family] の実フォントのロード完了を待つ。失敗は無視。
+Future<void> ensureFontLoaded(String family) async {
+  if (family.isEmpty) return;
+  GoogleFonts.getFont(family); // 未開始ならロードを起動
+  try {
+    await GoogleFonts.pendingFonts();
+  } catch (_) {
+    // オフライン等。フォールバックで続行する。
+  }
+  _resolvedFontFamily.putIfAbsent(
+    family,
+    () => GoogleFonts.getFont(family).fontFamily ?? '',
+  );
+}
 
 /// ベクターレイヤー(ADR 0005)を `Canvas` へ描く(ui 層)。
 ///
@@ -103,9 +138,10 @@ TextPainter buildVectorTextPainter({
     decorationThickness: 2,
     height: 1.2,
   );
-  // フォント指定があれば google_fonts で解決(初回のみ取得、以降キャッシュ)。
+  // フォント指定があれば解決名を適用(初回のみ取得、以降は名前指定で描く)。
   if (fontFamily != null && fontFamily.isNotEmpty) {
-    style = GoogleFonts.getFont(fontFamily, textStyle: style);
+    final resolved = _resolveFontFamily(fontFamily);
+    if (resolved.isNotEmpty) style = style.copyWith(fontFamily: resolved);
   }
 
   final painter = TextPainter(

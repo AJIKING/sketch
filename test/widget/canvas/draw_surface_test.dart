@@ -231,7 +231,34 @@ void main() {
     expect((vector.layer.byId(id)! as VectorText).text, 'World');
   });
 
-  testWidgets('テキスト: フォントと2色グラデーションを設定できる', (tester) async {
+  testWidgets('テキスト: フォント選択がドロップダウンへ反映される', (tester) async {
+    _useTallSurface(tester);
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface)
+      ..selectTool(Tool.text);
+    final vector = VectorController();
+    await pumpVector(tester, controller, surface, vector);
+
+    await tester.tap(find.byType(DrawSurface));
+    await tester.pumpAndSettle();
+
+    // 初期は「標準」。フォントを「明朝」に切り替えると表示が変わる。
+    final dropdown = find.byKey(const Key('text-font-dropdown'));
+    expect(
+      find.descendant(of: dropdown, matching: find.text('標準')),
+      findsOneWidget,
+    );
+    await tester.tap(dropdown);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('明朝').last);
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: dropdown, matching: find.text('明朝')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('テキスト: 2色グラデーションを有効にして確定できる', (tester) async {
     _useTallSurface(tester);
     final surface = RasterLayerStore();
     final controller = CanvasController(surface: surface)
@@ -243,23 +270,16 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, 'グラデ');
 
-    // 2色グラデーションを ON。
-    await tester.tap(find.byType(SwitchListTile));
+    // 2色グラデーションを ON(フォントは標準のまま=確定時に取得を起こさない)。
+    await tester.tap(find.byKey(const Key('text-gradient-switch')));
     await tester.pumpAndSettle();
-
-    // フォントを「明朝」(Noto Serif JP)に。
-    await tester.tap(find.byType(DropdownButton<String>));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('明朝').last);
-    await tester.pumpAndSettle();
-
     await tester.tap(find.text('追加'));
     await tester.pumpAndSettle();
 
     final t = vector.selected! as VectorText;
     expect(t.text, 'グラデ');
     expect(t.gradient, isTrue);
-    expect(t.fontFamily, 'Noto Serif JP');
+    expect(t.fontFamily, ''); // 標準のまま
   });
 
   testWidgets('テキスト: カラーコード入力で色を設定できる', (tester) async {
