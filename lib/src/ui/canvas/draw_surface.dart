@@ -1723,11 +1723,12 @@ class _TextSheetState extends State<_TextSheet> {
             widget.isEditing ? 'テキストを編集' : 'テキスト',
             style: const TextStyle(color: AtelierTokens.ink, fontSize: 18),
           ),
+          // autofocus しない: 開いた直後はキーボードを出さず設定を見渡せるように
+          // する。文字を打つときはテキスト欄をタップする。
           TextField(
             controller: _controller,
-            autofocus: true,
             maxLines: null,
-            decoration: const InputDecoration(hintText: '文字を入力'),
+            decoration: const InputDecoration(hintText: '文字を入力(タップで開始)'),
           ),
           // テキスト欄以外に触れたらキーボード(フォーカス)を解除する。Listener は
           // ジェスチャを奪わない受動監視なので、各設定の操作はそのまま効く。
