@@ -450,12 +450,11 @@ void main() {
     controller.selectTool(Tool.select);
     controller.setSelectionKind(SelectionKind.magicWand);
 
-    // 透明な左上隅をタップ → 連結する透明領域が選択される(toByteData は実 async)。
-    final topLeft = tester.getTopLeft(find.byType(DrawSurface));
-    await tester.runAsync(() async {
-      await tester.tapAt(topLeft + const Offset(6, 6));
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-    });
+    // 透明な左上隅(doc 座標 6,6)を自動選択 → 連結する透明領域が選択される。
+    // toByteData は実 async なので runAsync 内で完了まで await(固定 sleep しない)。
+    await tester.runAsync(
+      () => key.currentState!.magicWandAt(const Offset(6, 6)),
+    );
     await tester.pump();
     expect(key.currentState!.hasSelection, isTrue);
   });
@@ -518,6 +517,63 @@ void main() {
     controller.redo();
     expect(controller.layers.length, 1);
     expect(surface.imageOf(bottomId), isNotNull);
+  });
+
+  testWidgets('レイヤー結合: 上のマスクは焼き込み、孤立画素を解放、undo で戻る', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final key = GlobalKey<DrawSurfaceState>();
+    await _pumpKeyed(tester, key, controller, surface);
+
+    await tester.drag(find.byType(DrawSurface), const Offset(70, 50));
+    await tester.pump();
+    final topId = controller.layers.layers[1].id;
+
+    // 上(アクティブ)にマスクを付ける。
+    key.currentState!.addMaskToActive();
+    await tester.pump();
+    expect(controller.layers.active.hasMask, isTrue);
+    expect(surface.imageOf(maskLayerId(topId)), isNotNull);
+
+    // 結合 → 上のマスク画素のライブ参照は解放される。
+    expect(key.currentState!.mergeActiveDown(), isTrue);
+    expect(controller.layers.length, 1);
+    expect(surface.imageOf(maskLayerId(topId)), isNull);
+
+    // undo → 構成・マスクが戻る。
+    controller.undo();
+    expect(controller.layers.length, 2);
+    expect(controller.layers.layers[1].hasMask, isTrue);
+    expect(surface.imageOf(maskLayerId(topId)), isNotNull);
+  });
+
+  testWidgets('レイヤー結合: 下のマスクは焼き込んで解除、undo で戻る', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final key = GlobalKey<DrawSurfaceState>();
+    await _pumpKeyed(tester, key, controller, surface);
+
+    await tester.drag(find.byType(DrawSurface), const Offset(70, 50));
+    await tester.pump();
+    final bottomId = controller.layers.layers[0].id;
+
+    // 下(index0)にマスクを付ける。
+    controller.setActiveLayer(0);
+    key.currentState!.addMaskToActive();
+    await tester.pump();
+    expect(controller.layers.layers[0].hasMask, isTrue);
+
+    // 上を下へ結合 → 下のマスクは焼き込み済みなので解除される。
+    controller.setActiveLayer(1);
+    expect(key.currentState!.mergeActiveDown(), isTrue);
+    expect(controller.layers.length, 1);
+    expect(controller.layers.layers[0].hasMask, isFalse);
+    expect(surface.imageOf(maskLayerId(bottomId)), isNull);
+
+    // undo → 下のマスクが戻る。
+    controller.undo();
+    expect(controller.layers.layers[0].hasMask, isTrue);
+    expect(surface.imageOf(maskLayerId(bottomId)), isNotNull);
   });
 
   testWidgets('レイヤー結合: 最下層は結合できず false', (tester) async {

@@ -866,8 +866,10 @@ class DrawSurfaceState extends State<DrawSurface> {
 
   /// アクティブレイヤーを直下のレイヤーへ結合する(undo 可能)。最下層なら false。
   ///
-  /// 見た目を保つため、上レイヤーをそのブレンド+不透明度で下レイヤーへ焼き込んで
-  /// から上を取り除く。下レイヤー自身のブレンド/不透明度はそのまま残す。
+  /// 見た目を保つため、上下それぞれの**マスクを適用した**結果を、上のブレンド+
+  /// 不透明度で下へ焼き込んでから上を取り除く。下のマスクは焼き込み済みになるため
+  /// 解除する(下自身のブレンド/不透明度はメタとして残す)。結合で不要になった
+  /// 上レイヤー・下マスクの画素は解放する。
   bool mergeActiveDown() {
     if (_docSize.isEmpty) return false;
     final i = _c.layers.activeIndex;
@@ -877,17 +879,14 @@ class DrawSurfaceState extends State<DrawSurface> {
     final w = _docSize.width.round().clamp(1, 4096);
     final h = _docSize.height.round().clamp(1, 4096);
     final rect = Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble());
-    final belowImg = widget.surface.imageOf(below.id);
-    final aboveImg = widget.surface.imageOf(above.id);
 
-    _c.beginStructural(); // 結合前の構成 + 全画素を履歴へ積む
+    _c.beginStructural(); // 結合前の構成 + 全画素を履歴へ積む(undo 用)
 
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    if (belowImg != null) {
-      canvas.drawImageRect(belowImg, _imageRect(belowImg), rect, Paint());
-    }
-    if (aboveImg != null && above.visible) {
+    _paintMaskedLayer(canvas, below, rect); // 下: マスク適用済みを下地に
+    if (above.visible) {
+      // 上: マスク適用後にブレンド+不透明度で重ねる。
       canvas.saveLayer(
         rect,
         Paint()
@@ -899,13 +898,43 @@ class DrawSurfaceState extends State<DrawSurface> {
             255,
           ),
       );
-      canvas.drawImageRect(aboveImg, _imageRect(aboveImg), rect, Paint());
+      _paintMaskedLayer(canvas, above, rect);
       canvas.restore();
     }
     widget.surface.set(below.id, recorder.endRecording().toImageSync(w, h));
+
+    final belowHadMask = below.hasMask;
     _c.mergeDown(i); // 上レイヤーのメタを取り除き、アクティブを下へ
+    // 結合で不要になった画素のライブ参照を外す(履歴 snapshot が保持するので
+    // dispose はしない=undo で復元できる)。
+    widget.surface.set(maskLayerId(above.id), null); // 上のマスク
+    if (belowHadMask) {
+      widget.surface.set(maskLayerId(below.id), null); // 焼き込み済みの下マスク
+      _c.setLayerMask(_c.layers.activeIndex, false);
+    }
     setState(() {});
     return true;
+  }
+
+  /// レイヤーの本体画像を、マスクがあれば dstIn で切り抜いて [canvas] に描く。
+  /// 表示(`RasterPainter._drawContent`)と同じ合成で、見た目を保って焼き込む。
+  void _paintMaskedLayer(Canvas canvas, LayerMeta layer, Rect rect) {
+    final img = widget.surface.imageOf(layer.id);
+    if (img == null) return;
+    final mask = layer.hasMask
+        ? widget.surface.imageOf(maskLayerId(layer.id))
+        : null;
+    if (mask != null) canvas.saveLayer(rect, Paint());
+    canvas.drawImageRect(img, _imageRect(img), rect, Paint());
+    if (mask != null) {
+      canvas.drawImageRect(
+        mask,
+        _imageRect(mask),
+        rect,
+        Paint()..blendMode = BlendMode.dstIn,
+      );
+      canvas.restore();
+    }
   }
 
   Rect _imageRect(ui.Image img) =>
@@ -952,7 +981,10 @@ class DrawSurfaceState extends State<DrawSurface> {
 
   void clearInsideSelection() {
     final id = _c.layers.active.id;
-    if (_selection == null || widget.surface.imageOf(id) == null) return;
+    // 焼き込み先(マスク編集中はマスク)に画素が無ければ消す対象が無い。
+    if (_selection == null || widget.surface.imageOf(_targetFor(id)) == null) {
+      return;
+    }
     _bakeOnLayer(id, (canvas, w, h) {
       canvas.drawRect(
         Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
@@ -1147,6 +1179,11 @@ class DrawSurfaceState extends State<DrawSurface> {
     );
     _c.setColorHex(a == 0 ? '#EFE7D6' : rgbToHex(r, g, b));
   }
+
+  /// テスト用: 自動選択を doc 座標で直接実行し、完了を待てるようにする
+  /// (ポインタ経由の `unawaited` を固定 sleep で待たずに同期するため)。
+  @visibleForTesting
+  Future<void> magicWandAt(Offset canvasPos) => _magicWandAt(canvasPos);
 
   /// 自動選択(マジックワンド)。タップ点の色に連結する領域を選択パスにする。
   /// 領域はピクセル精度の走査線ラン(矩形集合)として `_selection` に載せるため、

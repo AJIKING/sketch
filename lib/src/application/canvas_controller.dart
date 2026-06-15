@@ -295,8 +295,14 @@ class CanvasController extends ChangeNotifier {
   }
 
   bool removeLayer(int index) {
+    final id = _layers.layers[index].id;
     final removed = _layers.remove(index);
-    if (removed) notifyListeners();
+    if (removed) {
+      // 削除はやり直し不可なので、本体・マスク画素のライブ参照を解放する。
+      surface.clear(id);
+      surface.clear(maskLayerId(id));
+      notifyListeners();
+    }
     return removed;
   }
 
