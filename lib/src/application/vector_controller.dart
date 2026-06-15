@@ -265,7 +265,7 @@ class VectorController extends ChangeNotifier {
   /// 縮みすぎ(外接矩形の短辺が ~6px 未満)になる縮小は無視する。
   void scaleSelectedBy(double factor, VecPoint anchor) {
     final id = _selectedId;
-    if (id == null || factor == 1.0) return;
+    if (id == null || (factor - 1.0).abs() < 1e-3) return;
     final current = _layer.byId(id);
     if (current == null) return;
     final b = current.bounds;

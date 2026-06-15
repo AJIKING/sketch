@@ -281,6 +281,15 @@ class DrawSurfaceState extends State<DrawSurface> {
       final hit = vec.layer.hitTest(VecPoint(c.dx, c.dy), tolerance: 10);
       if (hit != null) {
         vec.startAdjust(hit.id);
+        // 押している指をそのまま調整ドラッグの起点にする(長押し→そのまま移動)。
+        // この指の up は _adjUp で正しく後始末するため _longPressFired は下げる。
+        _longPressFired = false;
+        _gestureStart = null; // 単指長押しなので通常 null だが念のため
+        _idA = null;
+        _idB = null;
+        _adjLastPos = c;
+        _adjMoved = false;
+        vec.beginEdit(); // 動いたら undo を積む
         setState(() {});
         return;
       }
@@ -337,7 +346,12 @@ class DrawSurfaceState extends State<DrawSurface> {
     final vec = widget.vector!;
     final wasPinch = _pointers.length >= 2;
     _pointers.remove(e.pointer);
-    if (_pointers.length >= 2) return; // まだピンチ中
+    if (_pointers.length >= 2) {
+      // 指の組が変わっても拡縮が飛ばないよう、残り 2 指で基準を取り直す。
+      final ids = _pointers.keys.toList();
+      _adjPinchPrevDist = (_pointers[ids[0]]! - _pointers[ids[1]]!).distance;
+      return;
+    }
     if (wasPinch) {
       // ピンチ終了。残り 1 本で移動へ戻れるよう基準をリセット。
       _adjLastPos = null;

@@ -620,6 +620,43 @@ void main() {
     expect(moved.start.x, closeTo(100, 1)); // 80 → 100
   });
 
+  testWidgets('長押しからそのまま同じ指でドラッグして移動でき、undo できる(回帰)', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final vector = VectorController()
+      ..addShape(
+        kind: ShapeKind.rectangle,
+        start: const VecPoint(80, 80),
+        end: const VecPoint(120, 120),
+        colorHex: '#000000',
+        width: 4,
+        filled: true,
+      );
+    await pumpVector(tester, controller, surface, vector);
+
+    // 中心を押し続けて長押し成立 → そのまま同じ指で移動。
+    final g = await tester.startGesture(
+      tester.getCenter(find.byType(DrawSurface)),
+    );
+    await tester.pump(const Duration(milliseconds: 500)); // 長押し発火
+    expect(vector.adjusting, isTrue);
+    final id = vector.selectedId!;
+
+    await g.moveBy(const Offset(25, 0));
+    await tester.pump();
+    await g.up();
+    await tester.pump();
+
+    final moved = vector.layer.byId(id)! as VectorShapeObject;
+    expect(moved.start.x, closeTo(105, 1)); // 80 → 105
+    expect(vector.canUndo, isTrue); // 移動は undo 可能
+    vector.undo();
+    expect(
+      (vector.layer.byId(id)! as VectorShapeObject).start.x,
+      closeTo(80, 1),
+    );
+  });
+
   testWidgets('長押しでオブジェクト調整: ピンチで拡大する', (tester) async {
     final surface = RasterLayerStore();
     final controller = CanvasController(surface: surface);
