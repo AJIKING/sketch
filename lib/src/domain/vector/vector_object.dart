@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import '../canvas/gradient_direction.dart';
 import '../canvas/shape_kind.dart';
 
 /// ベクターの座標(pure Dart, `dart:ui` 非依存)。
@@ -193,6 +194,7 @@ class VectorText extends VectorObject {
     this.fontFamily = '',
     this.gradient = false,
     this.secondColorHex = '',
+    this.gradientDirection = GradientDirection.horizontal,
   }) : super(width: fontSize);
 
   final VecPoint position; // 左上(canvas/doc 空間)
@@ -214,6 +216,9 @@ class VectorText extends VectorObject {
   /// グラデーションの 2 色目(空かつ [gradient] のときは [colorHex] と同色扱い)。
   final String secondColorHex;
 
+  /// グラデーションの方向(横/縦/斜め/放射)。
+  final GradientDirection gradientDirection;
+
   VectorText copyWith({
     String? colorHex,
     VecPoint? position,
@@ -227,6 +232,7 @@ class VectorText extends VectorObject {
     String? fontFamily,
     bool? gradient,
     String? secondColorHex,
+    GradientDirection? gradientDirection,
   }) => VectorText(
     id: id,
     colorHex: colorHex ?? this.colorHex,
@@ -241,6 +247,7 @@ class VectorText extends VectorObject {
     fontFamily: fontFamily ?? this.fontFamily,
     gradient: gradient ?? this.gradient,
     secondColorHex: secondColorHex ?? this.secondColorHex,
+    gradientDirection: gradientDirection ?? this.gradientDirection,
   );
 
   @override

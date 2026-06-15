@@ -11,7 +11,6 @@ import '../../application/timelapse_recorder.dart';
 import '../../application/vector_controller.dart';
 import '../../domain/brush/brush_preset.dart';
 import '../../domain/canvas/filters.dart' as filters;
-import '../../domain/canvas/gradient_kind.dart';
 import '../../domain/canvas/layer_blend_mode.dart';
 import '../../domain/canvas/selection_kind.dart';
 import '../../domain/canvas/shape_kind.dart';
@@ -21,6 +20,7 @@ import '../theme/atelier_theme.dart';
 import '../widgets/brush_preview.dart';
 import 'color_picker.dart';
 import 'draw_surface.dart';
+import 'gradient_settings.dart';
 import 'raster_layer_store.dart';
 import 'v_slider.dart';
 
@@ -589,50 +589,25 @@ class _CanvasScreenState extends State<CanvasScreen> {
           ),
           HexColorField(hex: _c.colorHex, onSubmitted: _c.selectColor),
           const SizedBox(height: 12),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text(
-              '終点を透明にする',
-              style: TextStyle(color: AtelierTokens.ink),
-            ),
-            value: _c.gradientToTransparent,
-            onChanged: _c.setGradientToTransparent,
+          // 終点色・透明終点・方向は共通 UI で統一(ブラシ/テキストと同じ)。
+          GradientSettings(
+            firstColorHex: _c.colorHex,
+            secondColorHex: _c.secondColorHex,
+            onSecondColorHex: _c.setSecondColorHex,
+            swatches: _gradientSwatches,
+            transparent: _c.gradientToTransparent,
+            onTransparentChanged: _c.setGradientToTransparent,
+            direction: _c.gradientDirection,
+            onDirectionChanged: _c.setGradientDirection,
           ),
-          if (!_c.gradientToTransparent) ...[
-            const Padding(
-              padding: EdgeInsets.only(top: 4, bottom: 6),
-              child: Text(
-                '終点の色(カラーコード)',
-                style: TextStyle(color: AtelierTokens.inkDim, fontSize: 13),
-              ),
-            ),
-            HexColorField(
-              hex: _c.secondColorHex,
-              onSubmitted: _c.setSecondColorHex,
-            ),
-          ],
-          const SizedBox(height: 8),
-          for (final kind in GradientKind.values)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                kind == GradientKind.radial
-                    ? Icons.blur_circular
-                    : Icons.gradient,
-              ),
-              title: Text(
-                kind.label,
-                style: const TextStyle(color: AtelierTokens.ink),
-              ),
-              trailing: _c.gradientKind == kind
-                  ? const Icon(Icons.check, color: AtelierTokens.vermilion)
-                  : null,
-              onTap: () => _c.setGradientKind(kind),
-            ),
         ],
       ),
     );
   }
+
+  /// グラデの 2 色目候補(パレット + カスタム + 最近色)。
+  List<String> get _gradientSwatches =>
+      <String>{..._c.palette, ..._c.customPalette, ..._c.recent}.toList();
 
   @override
   Widget build(BuildContext context) {
@@ -1207,20 +1182,20 @@ class _BrushSheet extends StatelessWidget {
             ),
           ],
         ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text(
-            '2色グラデーション(始点→終点)',
-            style: TextStyle(color: AtelierTokens.ink),
-          ),
-          subtitle: const Text(
-            '現在色から2色目へ滑らかに変化',
-            style: TextStyle(color: AtelierTokens.inkDim),
-          ),
-          value: controller.gradientBrush,
-          onChanged: controller.setGradientBrush,
+        // 2色グラデーション(現在色→2色目)。方向はストロークに沿うので省略。
+        // 終点色 UI はグラデツール/テキストと共通(GradientSettings)。
+        GradientSettings(
+          enabled: controller.gradientBrush,
+          onEnabledChanged: controller.setGradientBrush,
+          firstColorHex: controller.colorHex,
+          secondColorHex: controller.secondColorHex,
+          onSecondColorHex: controller.setSecondColorHex,
+          swatches: <String>{
+            ...controller.palette,
+            ...controller.customPalette,
+            ...controller.recent,
+          }.toList(),
         ),
-        if (controller.gradientBrush) _secondColorPicker(),
         _brushParam(
           '濃さ',
           controller.brush.flow,
@@ -1273,75 +1248,6 @@ class _BrushSheet extends StatelessWidget {
       ],
     );
   }
-
-  /// グラデブラシの 2 色目を選ぶ(1色目=現在色のプレビュー付き)。
-  Widget _secondColorPicker() {
-    final swatches = <String>{
-      ...controller.palette,
-      ...controller.customPalette,
-      ...controller.recent,
-    }.toList();
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const SizedBox(
-                width: 96,
-                child: Text(
-                  '2色目',
-                  style: TextStyle(color: AtelierTokens.inkDim, fontSize: 13),
-                ),
-              ),
-              _dot(controller.colorHex, false),
-              const Icon(
-                Icons.arrow_right_alt,
-                color: AtelierTokens.inkDim,
-                size: 20,
-              ),
-              _dot(controller.secondColorHex, true),
-            ],
-          ),
-          const SizedBox(height: 8),
-          HexColorField(
-            hex: controller.secondColorHex,
-            onSubmitted: controller.setSecondColorHex,
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final hex in swatches)
-                GestureDetector(
-                  onTap: () => controller.setSecondColorHex(hex),
-                  child: Semantics(
-                    button: true,
-                    label: '2色目 $hex',
-                    child: _dot(hex, hex == controller.secondColorHex),
-                  ),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _dot(String hex, bool selected) => Container(
-    width: 28,
-    height: 28,
-    decoration: BoxDecoration(
-      color: hexColor(hex),
-      shape: BoxShape.circle,
-      border: Border.all(
-        color: selected ? AtelierTokens.vermilion : AtelierTokens.hair,
-        width: selected ? 2 : 1,
-      ),
-    ),
-  );
 
   Widget _brushParam(
     String label,

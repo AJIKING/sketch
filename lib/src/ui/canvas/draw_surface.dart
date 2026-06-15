@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import '../../application/canvas_controller.dart';
 import '../../application/vector_controller.dart';
 import '../../core/clock.dart';
-import '../../domain/canvas/gradient_kind.dart';
+import '../../domain/canvas/gradient_direction.dart';
 import '../../domain/canvas/layer_stack.dart';
 import '../../domain/canvas/pixel_ops.dart';
 import '../../domain/canvas/selection_kind.dart';
@@ -17,6 +17,8 @@ import '../../domain/vector/vector_object.dart';
 import '../theme/atelier_theme.dart';
 import 'blend_mode_map.dart';
 import 'color_picker.dart';
+import 'gradient_settings.dart';
+import 'gradient_shader.dart';
 import 'painted_stroke.dart';
 import 'raster_layer_store.dart';
 import 'raster_painter.dart';
@@ -1056,6 +1058,7 @@ class DrawSurfaceState extends State<DrawSurface> {
       fontFamily: result.fontFamily,
       gradient: result.gradient,
       secondColorHex: result.secondColorHex,
+      gradientDirection: result.gradientDirection,
     );
     if (existing != null) {
       vec.updateText(
@@ -1071,6 +1074,7 @@ class DrawSurfaceState extends State<DrawSurface> {
         fontFamily: result.fontFamily,
         gradient: result.gradient,
         secondColorHex: result.secondColorHex,
+        gradientDirection: result.gradientDirection,
       );
     } else {
       vec.addText(
@@ -1086,15 +1090,23 @@ class DrawSurfaceState extends State<DrawSurface> {
         fontFamily: result.fontFamily,
         gradient: result.gradient,
         secondColorHex: result.secondColorHex,
+        gradientDirection: result.gradientDirection,
       );
     }
     setState(() {});
   }
 
+  /// テキスト設定は他ツールと同じく下から出るボトムシートで編集する。
   Future<TextEditResult?> _promptText(VectorText? existing) {
-    return showDialog<TextEditResult>(
+    return showModalBottomSheet<TextEditResult>(
       context: context,
-      builder: (_) => _TextInputDialog(
+      backgroundColor: AtelierTokens.surface,
+      showDragHandle: true,
+      isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.92,
+      ),
+      builder: (_) => _TextSheet(
         initialText: existing?.text ?? '',
         initialSize: (existing?.fontSize ?? _c.size * 2.2).clamp(12.0, 240.0),
         initialColorHex: existing?.colorHex ?? _c.colorHex,
@@ -1104,6 +1116,7 @@ class DrawSurfaceState extends State<DrawSurface> {
         initialFontFamily: existing?.fontFamily ?? '',
         initialGradient: existing?.gradient ?? false,
         initialSecondColorHex: existing?.secondColorHex ?? _c.secondColorHex,
+        initialDirection: existing?.gradientDirection ?? _c.gradientDirection,
         palette: _c.palette,
         isEditing: existing != null,
       ),
@@ -1262,9 +1275,12 @@ class DrawSurfaceState extends State<DrawSurface> {
               return Color.fromARGB(_alpha, r2, g2, b2);
             }(),
           ];
-    final shader = _c.gradientKind == GradientKind.radial
-        ? ui.Gradient.radial(a, (b - a).distance, colors)
-        : ui.Gradient.linear(a, b, colors);
+    // ドラッグした矩形を対象に、選んだ方向(横/縦/斜め/放射)でシェーダを作る。
+    final shader = gradientShader(
+      _c.gradientDirection,
+      Rect.fromPoints(a, b),
+      colors,
+    );
     _bakeOnLayer(id, (canvas, w, h) {
       canvas.drawRect(
         Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
@@ -1586,7 +1602,7 @@ class DrawSurfaceState extends State<DrawSurface> {
   }
 }
 
-/// テキスト編集ダイアログの結果。
+/// テキスト編集の結果。
 typedef TextEditResult = ({
   String text,
   double fontSize,
@@ -1597,14 +1613,15 @@ typedef TextEditResult = ({
   String fontFamily,
   bool gradient,
   String secondColorHex,
+  GradientDirection gradientDirection,
 });
 
-/// テキスト編集ダイアログ(文字 + サイズ + 太字/下線/取消線 + 自由な色)。
+/// テキスト設定のボトムシート(文字 + サイズ + 装飾 + フォント + グラデ + 色)。
 ///
-/// 既存テキストの再編集にも使う(各値をプリフィル)。色は HSV ピッカーで
-/// 通常オブジェクトと同様に自由に選べる。controller を State で dispose する。
-class _TextInputDialog extends StatefulWidget {
-  const _TextInputDialog({
+/// 他ツール(ブラシ等)と同じく下から出るシートに統一。既存テキストの再編集にも
+/// 使う(各値をプリフィル)。グラデ設定は共通の [GradientSettings] を使う。
+class _TextSheet extends StatefulWidget {
+  const _TextSheet({
     required this.initialText,
     required this.initialSize,
     required this.initialColorHex,
@@ -1614,6 +1631,7 @@ class _TextInputDialog extends StatefulWidget {
     required this.initialFontFamily,
     required this.initialGradient,
     required this.initialSecondColorHex,
+    required this.initialDirection,
     required this.palette,
     required this.isEditing,
   });
@@ -1627,14 +1645,15 @@ class _TextInputDialog extends StatefulWidget {
   final String initialFontFamily;
   final bool initialGradient;
   final String initialSecondColorHex;
+  final GradientDirection initialDirection;
   final List<String> palette;
   final bool isEditing;
 
   @override
-  State<_TextInputDialog> createState() => _TextInputDialogState();
+  State<_TextSheet> createState() => _TextSheetState();
 }
 
-class _TextInputDialogState extends State<_TextInputDialog> {
+class _TextSheetState extends State<_TextSheet> {
   late final TextEditingController _controller = TextEditingController(
     text: widget.initialText,
   );
@@ -1644,6 +1663,7 @@ class _TextInputDialogState extends State<_TextInputDialog> {
   late bool _strikethrough = widget.initialStrikethrough;
   late String _fontFamily = widget.initialFontFamily;
   late bool _gradient = widget.initialGradient;
+  late GradientDirection _direction = widget.initialDirection;
   late Hsv _hsv = _toHsv(widget.initialColorHex);
   late Hsv _hsv2 = _toHsv(widget.initialSecondColorHex);
 
@@ -1673,191 +1693,176 @@ class _TextInputDialogState extends State<_TextInputDialog> {
     return Color.fromARGB(255, r, g, b);
   }
 
+  void _submit() => Navigator.of(context).pop((
+    text: _controller.text,
+    fontSize: _fontSize,
+    bold: _bold,
+    underline: _underline,
+    strikethrough: _strikethrough,
+    colorHex: _colorHex,
+    fontFamily: _fontFamily,
+    gradient: _gradient,
+    secondColorHex: _secondColorHex,
+    gradientDirection: _direction,
+  ));
+
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.isEditing ? 'テキストを編集' : 'テキスト'),
-      content: SingleChildScrollView(
-        child: SizedBox(
-          width: 300,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    return SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        24 + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            widget.isEditing ? 'テキストを編集' : 'テキスト',
+            style: const TextStyle(color: AtelierTokens.ink, fontSize: 18),
+          ),
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            maxLines: null,
+            decoration: const InputDecoration(hintText: '文字を入力'),
+          ),
+          Row(
             children: [
-              TextField(
-                controller: _controller,
-                autofocus: true,
-                maxLines: null,
-                decoration: const InputDecoration(hintText: '文字を入力'),
+              const Text('サイズ'),
+              Expanded(
+                child: Slider(
+                  value: _fontSize,
+                  min: 12,
+                  max: 240,
+                  label: _fontSize.round().toString(),
+                  onChanged: (v) => setState(() => _fontSize = v),
+                ),
               ),
-              Row(
-                children: [
-                  const Text('サイズ'),
-                  Expanded(
-                    child: Slider(
-                      value: _fontSize,
-                      min: 12,
-                      max: 240,
-                      label: _fontSize.round().toString(),
-                      onChanged: (v) => setState(() => _fontSize = v),
-                    ),
-                  ),
-                ],
+            ],
+          ),
+          Wrap(
+            spacing: 8,
+            children: [
+              FilterChip(
+                label: const Text('太字'),
+                selected: _bold,
+                onSelected: (v) => setState(() => _bold = v),
               ),
-              Wrap(
-                spacing: 8,
-                children: [
-                  FilterChip(
-                    label: const Text('太字'),
-                    selected: _bold,
-                    onSelected: (v) => setState(() => _bold = v),
-                  ),
-                  FilterChip(
-                    label: const Text('下線'),
-                    selected: _underline,
-                    onSelected: (v) => setState(() => _underline = v),
-                  ),
-                  FilterChip(
-                    label: const Text('取り消し線'),
-                    selected: _strikethrough,
-                    onSelected: (v) => setState(() => _strikethrough = v),
-                  ),
-                ],
+              FilterChip(
+                label: const Text('下線'),
+                selected: _underline,
+                onSelected: (v) => setState(() => _underline = v),
               ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Text('フォント'),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: DropdownButton<String>(
-                      key: const Key('text-font-dropdown'),
-                      isExpanded: true,
-                      value: _fontFamily,
-                      items: [
-                        for (final f in textFonts)
-                          DropdownMenuItem(
-                            value: f.family,
-                            child: Text(f.label),
-                          ),
-                      ],
-                      onChanged: (v) => setState(() => _fontFamily = v ?? ''),
-                    ),
-                  ),
-                ],
+              FilterChip(
+                label: const Text('取り消し線'),
+                selected: _strikethrough,
+                onSelected: (v) => setState(() => _strikethrough = v),
               ),
-              SwitchListTile(
-                key: const Key('text-gradient-switch'),
-                contentPadding: EdgeInsets.zero,
-                title: const Text('2色グラデーション'),
-                subtitle: const Text('文字色 → 2色目へ横方向に変化'),
-                value: _gradient,
-                onChanged: (v) => setState(() => _gradient = v),
-              ),
-              if (_gradient) ...[
-                Row(
-                  children: [
-                    const Text('2色目'),
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: _color(_secondColorHex),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AtelierTokens.hair),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _secondColorHex,
-                      style: const TextStyle(color: AtelierTokens.inkDim),
-                    ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Text('フォント'),
+              const SizedBox(width: 8),
+              Expanded(
+                child: DropdownButton<String>(
+                  key: const Key('text-font-dropdown'),
+                  isExpanded: true,
+                  value: _fontFamily,
+                  items: [
+                    for (final f in textFonts)
+                      DropdownMenuItem(value: f.family, child: Text(f.label)),
                   ],
+                  onChanged: (v) => setState(() => _fontFamily = v ?? ''),
                 ),
-                const SizedBox(height: 8),
-                HexColorField(
-                  hex: _secondColorHex,
-                  onSubmitted: (hex) => setState(() => _hsv2 = _toHsv(hex)),
+              ),
+            ],
+          ),
+          // グラデ設定はブラシ/グラデツールと共通 UI(方向=横/縦/斜め/放射)。
+          GradientSettings(
+            enabled: _gradient,
+            onEnabledChanged: (v) => setState(() => _gradient = v),
+            firstColorHex: _colorHex,
+            secondColorHex: _secondColorHex,
+            onSecondColorHex: (hex) => setState(() => _hsv2 = _toHsv(hex)),
+            swatches: widget.palette,
+            direction: _direction,
+            onDirectionChanged: (d) => setState(() => _direction = d),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Text('色'),
+              const SizedBox(width: 8),
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: _color(_colorHex),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AtelierTokens.hair),
                 ),
-              ],
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  const Text('色'),
-                  const SizedBox(width: 8),
-                  Container(
-                    width: 24,
-                    height: 24,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _colorHex,
+                style: const TextStyle(color: AtelierTokens.inkDim),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          HsvField(
+            h: _hsv.$1,
+            s: _hsv.$2,
+            v: _hsv.$3,
+            onChanged: (h, s, v) => setState(() => _hsv = (h, s, v)),
+          ),
+          const SizedBox(height: 8),
+          HexColorField(
+            hex: _colorHex,
+            onSubmitted: (hex) => setState(() => _hsv = _toHsv(hex)),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final hex in widget.palette)
+                GestureDetector(
+                  onTap: () => setState(() => _hsv = _toHsv(hex)),
+                  child: Container(
+                    width: 26,
+                    height: 26,
                     decoration: BoxDecoration(
-                      color: _color(_colorHex),
+                      color: _color(hex),
                       shape: BoxShape.circle,
                       border: Border.all(color: AtelierTokens.hair),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _colorHex,
-                    style: const TextStyle(color: AtelierTokens.inkDim),
-                  ),
-                ],
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('キャンセル'),
               ),
-              const SizedBox(height: 8),
-              HsvField(
-                h: _hsv.$1,
-                s: _hsv.$2,
-                v: _hsv.$3,
-                onChanged: (h, s, v) => setState(() => _hsv = (h, s, v)),
-              ),
-              const SizedBox(height: 8),
-              HexColorField(
-                hex: _colorHex,
-                onSubmitted: (hex) => setState(() => _hsv = _toHsv(hex)),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final hex in widget.palette)
-                    GestureDetector(
-                      onTap: () => setState(() => _hsv = _toHsv(hex)),
-                      child: Container(
-                        width: 26,
-                        height: 26,
-                        decoration: BoxDecoration(
-                          color: _color(hex),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: AtelierTokens.hair),
-                        ),
-                      ),
-                    ),
-                ],
+              const SizedBox(width: 8),
+              FilledButton(
+                onPressed: _submit,
+                child: Text(widget.isEditing ? '更新' : '追加'),
               ),
             ],
           ),
-        ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('キャンセル'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop((
-            text: _controller.text,
-            fontSize: _fontSize,
-            bold: _bold,
-            underline: _underline,
-            strikethrough: _strikethrough,
-            colorHex: _colorHex,
-            fontFamily: _fontFamily,
-            gradient: _gradient,
-            secondColorHex: _secondColorHex,
-          )),
-          child: Text(widget.isEditing ? '更新' : '追加'),
-        ),
-      ],
     );
   }
 }

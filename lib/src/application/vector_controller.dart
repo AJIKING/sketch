@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
+import '../domain/canvas/gradient_direction.dart';
 import '../domain/canvas/shape_kind.dart';
 import '../domain/vector/vector_layer.dart';
 import '../domain/vector/vector_object.dart';
@@ -157,6 +158,7 @@ class VectorController extends ChangeNotifier {
     String fontFamily = '',
     bool gradient = false,
     String secondColorHex = '',
+    GradientDirection gradientDirection = GradientDirection.horizontal,
   }) {
     _pushUndo();
     final object = VectorText(
@@ -173,6 +175,7 @@ class VectorController extends ChangeNotifier {
       fontFamily: fontFamily,
       gradient: gradient,
       secondColorHex: secondColorHex,
+      gradientDirection: gradientDirection,
     );
     _layer.add(object);
     _selectedId = object.id;
@@ -194,6 +197,7 @@ class VectorController extends ChangeNotifier {
     String fontFamily = '',
     bool gradient = false,
     String secondColorHex = '',
+    GradientDirection gradientDirection = GradientDirection.horizontal,
   }) {
     final current = _layer.byId(id);
     if (current is! VectorText) return false;
@@ -209,6 +213,7 @@ class VectorController extends ChangeNotifier {
       fontFamily: fontFamily,
       gradient: gradient,
       secondColorHex: secondColorHex,
+      gradientDirection: gradientDirection,
     );
     // 変化が無ければ履歴を汚さない(再編集して未変更で確定したケース)。
     if (current.text == updated.text &&
@@ -219,7 +224,8 @@ class VectorController extends ChangeNotifier {
         current.strikethrough == updated.strikethrough &&
         current.fontFamily == updated.fontFamily &&
         current.gradient == updated.gradient &&
-        current.secondColorHex == updated.secondColorHex) {
+        current.secondColorHex == updated.secondColorHex &&
+        current.gradientDirection == updated.gradientDirection) {
       return true;
     }
     _pushUndo();

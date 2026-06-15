@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sketch/src/domain/canvas/gradient_direction.dart';
 import 'package:sketch/src/domain/canvas/shape_kind.dart';
 import 'package:sketch/src/domain/vector/vector_layer.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -141,6 +142,43 @@ void main() {
 
     expect(leftRed, isTrue, reason: '左側は赤寄り');
     expect(rightBlue, isTrue, reason: '右側は青寄り');
+  });
+
+  testWidgets('縦方向グラデーションのテキストは上が赤・下が青に寄る', (tester) async {
+    const w = 80, h = 90;
+    final layer = VectorLayer()
+      ..add(
+        const VectorText(
+          id: 't',
+          colorHex: '#FF0000', // 始点=赤
+          position: VecPoint(4, 4),
+          text: 'M\nM',
+          fontSize: 34,
+          boxWidth: 60,
+          boxHeight: 80,
+          gradient: true,
+          secondColorHex: '#0000FF', // 終点=青
+          gradientDirection: GradientDirection.vertical,
+        ),
+      );
+
+    var topRed = false, bottomBlue = false;
+    await tester.runAsync(() async {
+      final image = await _render(layer, w, h);
+      final data = await image.toByteData();
+      for (var y = 4; y < h - 4; y++) {
+        for (var x = 4; x < w - 4; x++) {
+          final i = (y * w + x) * 4;
+          if (data!.getUint8(i + 3) == 0) continue;
+          final r = data.getUint8(i), b = data.getUint8(i + 2);
+          if (y < 35 && r > b + 40) topRed = true;
+          if (y > h - 40 && b > r + 40) bottomBlue = true;
+        }
+      }
+    });
+
+    expect(topRed, isTrue, reason: '上側は赤寄り');
+    expect(bottomBlue, isTrue, reason: '下側は青寄り');
   });
 
   testWidgets('フォント指定でも例外なくレイアウトできる(オフライン: フォールバック)', (tester) async {

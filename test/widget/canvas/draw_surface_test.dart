@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sketch/src/application/canvas_controller.dart';
 import 'package:sketch/src/application/vector_controller.dart';
+import 'package:sketch/src/domain/canvas/gradient_direction.dart';
 import 'package:sketch/src/domain/canvas/layer_stack.dart';
 import 'package:sketch/src/domain/canvas/selection_kind.dart';
 import 'package:sketch/src/domain/canvas/shape_kind.dart';
@@ -190,7 +191,7 @@ void main() {
 
     await tester.tap(find.byType(DrawSurface));
     await tester.pumpAndSettle();
-    expect(find.widgetWithText(AlertDialog, 'テキスト'), findsOneWidget);
+    expect(find.text('テキスト'), findsOneWidget); // ボトムシートの見出し
 
     await tester.enterText(find.byType(TextField).first, 'ABC');
     await tester.tap(find.text('追加'));
@@ -221,7 +222,7 @@ void main() {
     // 同じ位置を再タップ → 既存テキストの編集(プリフィル)。
     await tester.tap(find.byType(DrawSurface));
     await tester.pumpAndSettle();
-    expect(find.widgetWithText(AlertDialog, 'テキストを編集'), findsOneWidget);
+    expect(find.text('テキストを編集'), findsOneWidget); // ボトムシートの見出し
 
     await tester.enterText(find.byType(TextField).first, 'World');
     await tester.tap(find.text('更新'));
@@ -258,7 +259,7 @@ void main() {
     );
   });
 
-  testWidgets('テキスト: 2色グラデーションを有効にして確定できる', (tester) async {
+  testWidgets('テキスト: 2色グラデーション+方向を設定して確定できる', (tester) async {
     _useTallSurface(tester);
     final surface = RasterLayerStore();
     final controller = CanvasController(surface: surface)
@@ -271,7 +272,10 @@ void main() {
     await tester.enterText(find.byType(TextField).first, 'グラデ');
 
     // 2色グラデーションを ON(フォントは標準のまま=確定時に取得を起こさない)。
-    await tester.tap(find.byKey(const Key('text-gradient-switch')));
+    await tester.tap(find.byKey(const Key('gradient-enable-switch')));
+    await tester.pumpAndSettle();
+    // 方向を「縦」に(共通の GradientSettings チップ)。
+    await tester.tap(find.text('縦'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('追加'));
     await tester.pumpAndSettle();
@@ -279,6 +283,7 @@ void main() {
     final t = vector.selected! as VectorText;
     expect(t.text, 'グラデ');
     expect(t.gradient, isTrue);
+    expect(t.gradientDirection, GradientDirection.vertical);
     expect(t.fontFamily, ''); // 標準のまま
   });
 

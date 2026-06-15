@@ -1,12 +1,13 @@
 import 'dart:async';
-import 'dart:ui' as ui;
 
 import 'package:flutter/painting.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../domain/canvas/gradient_direction.dart';
 import '../../domain/color/ink_color.dart';
 import '../../domain/vector/vector_layer.dart';
 import '../../domain/vector/vector_object.dart';
+import 'gradient_shader.dart';
 import 'shape_render.dart';
 
 /// 解決済みフォントファミリ名のキャッシュ(family → 実フォント名)。
@@ -103,6 +104,7 @@ void renderVectorObject(Canvas canvas, VectorObject object) {
         fontFamily: t.fontFamily,
         gradient: t.gradient,
         secondColorHex: t.secondColorHex,
+        gradientDirection: t.gradientDirection,
       ).paint(canvas, Offset(t.position.x, t.position.y));
   }
 }
@@ -120,6 +122,7 @@ TextPainter buildVectorTextPainter({
   String? fontFamily,
   bool gradient = false,
   String? secondColorHex,
+  GradientDirection gradientDirection = GradientDirection.horizontal,
 }) {
   final (r, g, b) = hexToRgb(colorHex);
   final color = Color.fromARGB(255, r, g, b);
@@ -156,10 +159,11 @@ TextPainter buildVectorTextPainter({
           ? colorHex
           : secondColorHex,
     );
-    final shader = ui.Gradient.linear(Offset.zero, Offset(painter.width, 0), [
-      color,
-      Color.fromARGB(255, sr, sg, sb),
-    ]);
+    final shader = gradientShader(
+      gradientDirection,
+      Rect.fromLTWH(0, 0, painter.width, painter.height),
+      [color, Color.fromARGB(255, sr, sg, sb)],
+    );
     painter.text = TextSpan(
       text: text,
       style: style.copyWith(

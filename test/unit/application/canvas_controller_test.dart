@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sketch/src/application/canvas_controller.dart';
 import 'package:sketch/src/domain/brush/brush_preset.dart';
+import 'package:sketch/src/domain/canvas/gradient_direction.dart';
 import 'package:sketch/src/domain/canvas/layer_blend_mode.dart';
 import 'package:sketch/src/domain/canvas/layer_stack.dart';
 import 'package:sketch/src/domain/canvas/symmetry_mode.dart';
@@ -70,6 +71,15 @@ void main() {
     expect(notifications, n);
     c.setSecondColorHex('#00FF00');
     expect(c.secondColorHex, '#00FF00');
+  });
+
+  test('グラデの方向を切り替えると通知、同値では通知しない', () {
+    expect(c.gradientDirection, GradientDirection.horizontal);
+    c.setGradientDirection(GradientDirection.radial);
+    expect(c.gradientDirection, GradientDirection.radial);
+    expect(notifications, 1);
+    c.setGradientDirection(GradientDirection.radial); // 同値
+    expect(notifications, 1);
   });
 
   test('対称モードを切り替えると通知、同値では通知しない', () {

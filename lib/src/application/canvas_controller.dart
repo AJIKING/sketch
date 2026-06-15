@@ -6,7 +6,7 @@ import '../domain/brush/brush_preset.dart';
 import '../domain/canvas/canvas_surface.dart';
 import '../domain/canvas/history.dart';
 import '../domain/canvas/layer_blend_mode.dart';
-import '../domain/canvas/gradient_kind.dart';
+import '../domain/canvas/gradient_direction.dart';
 import '../domain/canvas/layer_stack.dart';
 import '../domain/canvas/selection_kind.dart';
 import '../domain/canvas/shape_kind.dart';
@@ -58,7 +58,7 @@ class CanvasController extends ChangeNotifier {
   ShapeKind _shapeKind = ShapeKind.line;
   bool _shapeFilled = false;
   bool _shapeSnap = false;
-  GradientKind _gradientKind = GradientKind.linear;
+  GradientDirection _gradientDirection = GradientDirection.horizontal;
   SelectionKind _selectionKind = SelectionKind.rectangle;
   SymmetryMode _symmetry = SymmetryMode.none;
   bool _gradientBrush = false;
@@ -80,7 +80,7 @@ class CanvasController extends ChangeNotifier {
   ShapeKind get shapeKind => _shapeKind;
   bool get shapeFilled => _shapeFilled;
   bool get shapeSnap => _shapeSnap;
-  GradientKind get gradientKind => _gradientKind;
+  GradientDirection get gradientDirection => _gradientDirection;
   SelectionKind get selectionKind => _selectionKind;
   SymmetryMode get symmetry => _symmetry;
 
@@ -178,9 +178,9 @@ class CanvasController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setGradientKind(GradientKind kind) {
-    if (kind == _gradientKind) return;
-    _gradientKind = kind;
+  void setGradientDirection(GradientDirection direction) {
+    if (direction == _gradientDirection) return;
+    _gradientDirection = direction;
     notifyListeners();
   }
 
