@@ -14,7 +14,8 @@ ui.Shader gradientShader(
   List<Color> colors,
 ) {
   if (direction.isRadial) {
-    final radius = bounds.longestSide / 2;
+    // 中心から最遠の角まで届く半径(= 対角線の半分)。退化時は最小 1。
+    final radius = Offset(bounds.width, bounds.height).distance / 2;
     return ui.Gradient.radial(bounds.center, radius <= 0 ? 1 : radius, colors);
   }
   final ((ax, ay), (bx, by)) = direction.unitAxis;

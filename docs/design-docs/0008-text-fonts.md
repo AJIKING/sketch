@@ -32,3 +32,7 @@
 - 初回オフライン時は取得に失敗し、該当フォントはフォールバック(標準)で描画される(クラッシュはしない。テストは `GoogleFonts.config.allowRuntimeFetching = false` で通信せず検証)。この場合 box もフォールバック寸法で確定し、後でオンラインになって実フォントが届くと表示と box がわずかにずれる(同一セッション内の限定ケース)。
 - 完全オフラインが要件化したら、`.ttf` 同梱(上表の代替案)へ移行する。`fontFamily` はデータとして残るので移行時も互換。
 - グラデーションの方向は `GradientDirection`(横/縦/斜め2種/放射)で指定可能。テキスト・ブラシ・グラデツールで設定 UI(`GradientSettings`)と方向の型を統一した。多色(3 色以上)は今後。下線/取消線の色は始点色固定(グラデにしない)。
+
+## migration note: GradientKind → GradientDirection
+
+旧 `GradientKind { linear, radial }`(線形/円形)を廃止し、方向まで含む `GradientDirection { horizontal, vertical, diagonalDown, diagonalUp, radial }` に統合した。**現状どちらも永続化(`GalleryStore`/シリアライズ)に乗っていない**ため既存データへの影響はない。将来テキストやグラデ設定を保存する際は、旧概念との対応を `linear → horizontal`(従来の既定の向き)、`radial → radial` として移行すること。グラデツールの放射半径は「ドラッグ対角線」から「対角線の半分(中心→角)」へ変更しており、保存値の見た目互換が要るならこの差も考慮する。

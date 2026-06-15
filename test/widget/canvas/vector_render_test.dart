@@ -162,6 +162,8 @@ void main() {
         ),
       );
 
+    // 帯域はフォントのメトリクス差に強いよう相対(上 1/3・下 1/3)で判定する。
+    final topBand = h ~/ 3, bottomBand = h - h ~/ 3;
     var topRed = false, bottomBlue = false;
     await tester.runAsync(() async {
       final image = await _render(layer, w, h);
@@ -171,8 +173,8 @@ void main() {
           final i = (y * w + x) * 4;
           if (data!.getUint8(i + 3) == 0) continue;
           final r = data.getUint8(i), b = data.getUint8(i + 2);
-          if (y < 35 && r > b + 40) topRed = true;
-          if (y > h - 40 && b > r + 40) bottomBlue = true;
+          if (y < topBand && r > b + 40) topRed = true;
+          if (y > bottomBand && b > r + 40) bottomBlue = true;
         }
       }
     });
