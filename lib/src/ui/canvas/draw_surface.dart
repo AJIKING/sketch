@@ -763,7 +763,7 @@ class DrawSurfaceState extends State<DrawSurface> {
       context: context,
       builder: (_) => _TextInputDialog(
         initialText: existing?.text ?? '',
-        initialSize: existing?.fontSize ?? (_c.size * 2.2).clamp(12.0, 240.0),
+        initialSize: (existing?.fontSize ?? _c.size * 2.2).clamp(12.0, 240.0),
         initialColorHex: existing?.colorHex ?? _c.colorHex,
         initialBold: existing?.bold ?? false,
         initialUnderline: existing?.underline ?? false,

@@ -161,21 +161,29 @@ class VectorController extends ChangeNotifier {
     bool underline = false,
     bool strikethrough = false,
   }) {
-    if (_layer.byId(id) is! VectorText) return false;
-    _pushUndo();
-    _layer.update(
-      id,
-      (o) => (o as VectorText).copyWith(
-        text: text,
-        fontSize: fontSize,
-        colorHex: colorHex,
-        boxWidth: boxWidth,
-        boxHeight: boxHeight,
-        bold: bold,
-        underline: underline,
-        strikethrough: strikethrough,
-      ),
+    final current = _layer.byId(id);
+    if (current is! VectorText) return false;
+    final updated = current.copyWith(
+      text: text,
+      fontSize: fontSize,
+      colorHex: colorHex,
+      boxWidth: boxWidth,
+      boxHeight: boxHeight,
+      bold: bold,
+      underline: underline,
+      strikethrough: strikethrough,
     );
+    // 変化が無ければ履歴を汚さない(再編集して未変更で確定したケース)。
+    if (current.text == updated.text &&
+        current.fontSize == updated.fontSize &&
+        current.colorHex == updated.colorHex &&
+        current.bold == updated.bold &&
+        current.underline == updated.underline &&
+        current.strikethrough == updated.strikethrough) {
+      return true;
+    }
+    _pushUndo();
+    _layer.update(id, (_) => updated);
     notifyListeners();
     return true;
   }

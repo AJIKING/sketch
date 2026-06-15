@@ -121,5 +121,12 @@ void main() {
       expect(make().copyWith(strikethrough: true).strikethrough, isTrue);
       expect(make().width, 24);
     });
+
+    test('withWidth はフォントとボックスを比例して縮拡する', () {
+      final t = make().withWidth(48); // 24 → 48(2 倍)
+      expect(t.fontSize, 48);
+      expect(t.boxWidth, 80); // 40 * 2
+      expect(t.boxHeight, 60); // 30 * 2
+    });
   });
 }

@@ -90,6 +90,42 @@ void main() {
     expect(c.canUndo, isTrue); // 一連の操作は undo 可能
   });
 
+  test('updateText で内容が変わらなければ履歴(redo)を汚さない(回帰)', () {
+    c.addText(
+      position: const VecPoint(0, 0),
+      text: 'A',
+      fontSize: 20,
+      colorHex: '#000000',
+      boxWidth: 10,
+      boxHeight: 12,
+    );
+    final id = c.selectedId!;
+    c.addText(
+      position: const VecPoint(5, 5),
+      text: 'B',
+      fontSize: 20,
+      colorHex: '#000000',
+      boxWidth: 10,
+      boxHeight: 12,
+    );
+    c.undo(); // B を取り消し → redo 可能、A は残る
+    expect(c.canRedo, isTrue);
+
+    // A を同じ値で更新 → 変化なしなので push せず、redo が保たれる。
+    expect(
+      c.updateText(
+        id,
+        text: 'A',
+        fontSize: 20,
+        colorHex: '#000000',
+        boxWidth: 10,
+        boxHeight: 12,
+      ),
+      isTrue,
+    );
+    expect(c.canRedo, isTrue); // 据え置き(履歴を汚さない)
+  });
+
   test('updateText は非テキストには効かない', () {
     c.addStroke(const [VecPoint(0, 0)], colorHex: '#000000', width: 10);
     final id = c.selectedId!;

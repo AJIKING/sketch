@@ -208,7 +208,15 @@ class VectorText extends VectorObject {
   VectorText withColor(String colorHex) => copyWith(colorHex: colorHex);
 
   @override
-  VectorText withWidth(double width) => copyWith(fontSize: width);
+  VectorText withWidth(double width) {
+    // フォントサイズに比例してボックスも縮拡し、当たり判定と描画をずらさない。
+    final factor = fontSize == 0 ? 1.0 : width / fontSize;
+    return copyWith(
+      fontSize: width,
+      boxWidth: boxWidth * factor,
+      boxHeight: boxHeight * factor,
+    );
+  }
 
   @override
   VecBounds get bounds => (
