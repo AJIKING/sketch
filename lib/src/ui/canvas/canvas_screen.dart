@@ -1305,6 +1305,11 @@ class _BrushSheet extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
+          HexColorField(
+            hex: controller.secondColorHex,
+            onSubmitted: controller.setSecondColorHex,
+          ),
+          const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 8,

@@ -40,6 +40,34 @@ void main() {
     expect(find.text('手ブレ補正'), findsOneWidget); // Phase4
   });
 
+  testWidgets('グラデブラシの2色目をカラーコードで設定できる', (tester) async {
+    // 背の高いブラシシートが収まるよう縦長画面にする。
+    tester.view.physicalSize = const Size(1000, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(_app());
+    await tester.pump();
+
+    // ブラシシートを開き、2色グラデーションを有効化。
+    await tester.tap(find.byTooltip('ブラシ'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(SwitchListTile));
+    await tester.pumpAndSettle();
+
+    // 2色目欄(唯一の TextField=カラーコード)へ入力して適用。
+    await tester.enterText(find.byType(TextField), '0000FF');
+    await tester.tap(find.text('適用'));
+    await tester.pumpAndSettle();
+
+    // 正規化された #0000FF がフィールドへ反映される。
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.controller!.text, '#0000FF');
+  });
+
   testWidgets('メニュー→フィルタでフィルタ一覧が出る(Phase4)', (tester) async {
     await tester.pumpWidget(_app());
     await tester.pump();
