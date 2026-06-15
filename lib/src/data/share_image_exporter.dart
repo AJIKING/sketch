@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' show Rect;
 
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -33,6 +34,10 @@ class ShareImageExporter implements ImageExporter {
       ShareParams(
         files: [XFile(file.path, mimeType: mimeType)],
         text: (text != null && text.isNotEmpty) ? text : null,
+        // iOS は共有ポップオーバーのアンカー矩形(非ゼロ・source view 内)を
+        // 要求する。未指定だと PlatformException になるため明示する。iPhone は
+        // フルスクリーン表示のため位置は実質無視される(iPad は左上アンカー)。
+        sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
       ),
     );
     return true;
