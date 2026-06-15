@@ -223,10 +223,10 @@ class RasterPainter extends CustomPainter {
     final image = store.imageOf(layer.id);
     final mask = layer.hasMask ? store.imageOf(maskLayerId(layer.id)) : null;
     if (image != null) {
-      // マスクがあれば、レイヤー画素をマスクのアルファで切り抜く(dstIn)。マスクは
-      // 別レイヤーで saveLayer に包み、ライブプレビューには掛けない。
-      if (mask != null) canvas.saveLayer(rect, Paint());
+      // マスクがあれば、レイヤー画素をマスクのアルファで切り抜く(dstIn)。変形中は
+      // 本体とマスクへ同じ変形を掛け、切り抜きが本体に追従するようにする。
       final transformed = layer.id == transformLayerId;
+      if (mask != null) canvas.saveLayer(rect, Paint());
       if (transformed) {
         canvas.save();
         canvas.transform(layerTransform.toMatrix().storage);
@@ -237,7 +237,6 @@ class RasterPainter extends CustomPainter {
         rect,
         Paint(),
       );
-      if (transformed) canvas.restore();
       if (mask != null) {
         canvas.drawImageRect(
           mask,
@@ -245,8 +244,9 @@ class RasterPainter extends CustomPainter {
           rect,
           Paint()..blendMode = BlendMode.dstIn,
         );
-        canvas.restore();
       }
+      if (transformed) canvas.restore();
+      if (mask != null) canvas.restore();
     }
     if (liveStroke != null && layer.id == liveLayerId) {
       renderStrokeMirrored(canvas, liveStroke!, symmetry, docSize);

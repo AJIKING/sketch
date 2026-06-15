@@ -723,6 +723,75 @@ void main() {
     expect(surface.imageOf(maskLayerId(id)), isNotNull);
   });
 
+  testWidgets('マスク: 編集中のフィルタは本体でなくマスクへ適用される(回帰)', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final key = GlobalKey<DrawSurfaceState>();
+    await _pumpKeyed(tester, key, controller, surface);
+
+    final id = controller.layers.active.id;
+    key.currentState!.addMaskToActive(); // 白マスク + 編集モード
+    await tester.pump();
+    expect(controller.maskEditing, isTrue);
+    final maskBefore = surface.imageOf(maskLayerId(id));
+    expect(surface.imageOf(id), isNull); // 本体は空
+
+    // フィルタ適用 → マスクが差し替わり、本体は触られない。
+    await tester.runAsync(
+      () => key.currentState!.applyFilter((rgba, w, h) => rgba),
+    );
+    await tester.pump();
+    expect(surface.imageOf(id), isNull, reason: '本体は変更されない');
+    expect(surface.imageOf(maskLayerId(id)), isNot(same(maskBefore)));
+  });
+
+  testWidgets('レイヤー結合: 非表示の下レイヤーへ結合しても結果は可視(回帰)', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final key = GlobalKey<DrawSurfaceState>();
+    await _pumpKeyed(tester, key, controller, surface);
+
+    // 上(アクティブ)に描く。下レイヤーを非表示にする。
+    await tester.drag(find.byType(DrawSurface), const Offset(60, 40));
+    await tester.pump();
+    controller.toggleLayerVisible(0);
+    expect(controller.layers.layers[0].visible, isFalse);
+
+    expect(key.currentState!.mergeActiveDown(), isTrue);
+    expect(controller.layers.length, 1);
+    expect(controller.layers.active.visible, isTrue, reason: '結合先は可視化される');
+  });
+
+  testWidgets('変形: マスク付きレイヤーは本体とマスク両方を焼き直し、undo で戻る(回帰)', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final key = GlobalKey<DrawSurfaceState>();
+    await _pumpKeyed(tester, key, controller, surface);
+
+    await tester.drag(find.byType(DrawSurface), const Offset(60, 40));
+    await tester.pump();
+    final id = controller.layers.active.id;
+    key.currentState!.addMaskToActive();
+    await tester.pump();
+    final bodyBefore = surface.imageOf(id);
+    final maskBefore = surface.imageOf(maskLayerId(id));
+    expect(bodyBefore, isNotNull);
+    expect(maskBefore, isNotNull);
+
+    // 変形確定 → 本体・マスクとも焼き直される(新しい画像オブジェクト)。
+    key.currentState!.enterTransform();
+    await tester.pump();
+    key.currentState!.confirmTransform();
+    await tester.pump();
+    expect(surface.imageOf(id), isNot(same(bodyBefore)));
+    expect(surface.imageOf(maskLayerId(id)), isNot(same(maskBefore)));
+
+    // undo → 本体・マスクとも元へ戻る(構成スナップショット)。
+    controller.undo();
+    expect(surface.imageOf(id), same(bodyBefore));
+    expect(surface.imageOf(maskLayerId(id)), same(maskBefore));
+  });
+
   testWidgets('2 本指ピンチでビューが拡大する(Phase3)', (tester) async {
     final surface = RasterLayerStore();
     final controller = CanvasController(surface: surface);

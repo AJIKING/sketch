@@ -217,35 +217,45 @@ class DrawSurfaceState extends State<DrawSurface> {
     setState(() {});
   }
 
-  /// 変形を確定してレイヤー画像へ焼き込む(undo 可能)。
+  /// 変形を確定してレイヤー画像へ焼き込む(undo 可能)。マスク付きレイヤーは
+  /// マスク画像にも同じ変形を掛け、切り抜きが本体に追従するようにする。
   void confirmTransform() {
     final id = _transformLayerId;
+    final layer = id == null ? null : _c.layers.byId(id);
     final existing = id == null ? null : widget.surface.imageOf(id);
     // 対象レイヤーが(変形中の削除などで)消えていたら焼き込まない。
-    if (id != null &&
-        existing != null &&
-        _c.layers.byId(id) != null &&
-        !_docSize.isEmpty) {
+    if (id != null && layer != null && existing != null && !_docSize.isEmpty) {
       final w = _docSize.width.round().clamp(1, 4096);
       final h = _docSize.height.round().clamp(1, 4096);
-      final recorder = ui.PictureRecorder();
-      final canvas = Canvas(recorder);
-      canvas.transform(_layerTransform.toMatrix().storage);
-      canvas.drawImageRect(
-        existing,
-        Rect.fromLTWH(
-          0,
-          0,
-          existing.width.toDouble(),
-          existing.height.toDouble(),
-        ),
-        Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
-        Paint(),
-      );
-      _c.beginStroke(id);
-      widget.surface.set(id, recorder.endRecording().toImageSync(w, h));
+      final maskImg = layer.hasMask
+          ? widget.surface.imageOf(maskLayerId(id))
+          : null;
+      // 本体 + マスクの 2 枚を巻き戻すため、マスクありは構成スナップショットを使う。
+      if (maskImg != null) {
+        _c.beginStructural();
+      } else {
+        _c.beginStroke(id);
+      }
+      widget.surface.set(id, _transformImage(existing, w, h));
+      if (maskImg != null) {
+        widget.surface.set(maskLayerId(id), _transformImage(maskImg, w, h));
+      }
     }
     _exitTransform();
+  }
+
+  /// [src] を現在のレイヤー変形で doc サイズ ([w]×[h]) へ焼き直した画像。
+  ui.Image _transformImage(ui.Image src, int w, int h) {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    canvas.transform(_layerTransform.toMatrix().storage);
+    canvas.drawImageRect(
+      src,
+      _imageRect(src),
+      Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
+      Paint(),
+    );
+    return recorder.endRecording().toImageSync(w, h);
   }
 
   /// 変形を破棄してモードを抜ける。
@@ -887,7 +897,8 @@ class DrawSurfaceState extends State<DrawSurface> {
 
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    _paintMaskedLayer(canvas, below, rect); // 下: マスク適用済みを下地に
+    // 非表示レイヤーの内容は混ぜない(見えているものだけ結合する)。
+    if (below.visible) _paintMaskedLayer(canvas, below, rect);
     if (above.visible) {
       // 上: マスク適用後にブレンド+不透明度で重ねる。
       canvas.saveLayer(
@@ -914,6 +925,10 @@ class DrawSurfaceState extends State<DrawSurface> {
     if (belowHadMask) {
       widget.surface.set(maskLayerId(below.id), null); // 焼き込み済みの下マスク
       _c.setLayerMask(_c.layers.activeIndex, false);
+    }
+    // 非表示レイヤーへ結合しても結果が消えないよう、結合先を可視化する。
+    if (!_c.layers.active.visible) {
+      _c.toggleLayerVisible(_c.layers.activeIndex);
     }
     setState(() {});
     return true;
@@ -1148,7 +1163,8 @@ class DrawSurfaceState extends State<DrawSurface> {
       _warnHidden();
       return;
     }
-    final id = layer.id;
+    // マスク編集中はマスクへ向ける(ブラシ等と一貫させる)。
+    final id = _targetFor(layer.id);
     final (r, g, b) = _currentRgb();
     final fill = (r, g, b, _alpha);
     final existing = widget.surface.imageOf(id);
@@ -1295,7 +1311,8 @@ class DrawSurfaceState extends State<DrawSurface> {
   Future<void> applyFilter(
     Uint8List Function(Uint8List rgba, int width, int height) op,
   ) async {
-    final id = _c.layers.active.id;
+    // マスク編集中はマスクへ適用する(ぼかし=マスクのフェザー等。本体を壊さない)。
+    final id = _c.drawTargetId;
     final existing = widget.surface.imageOf(id);
     if (existing == null) return;
     final bd = await existing.toByteData(format: ui.ImageByteFormat.rawRgba);
