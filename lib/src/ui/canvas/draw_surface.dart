@@ -434,7 +434,13 @@ class DrawSurfaceState extends State<DrawSurface> {
       return;
     }
     if (_c.tool == Tool.select) {
-      _selDraft = [_viewport.toCanvas(e.localPosition)];
+      final cs = _viewport.toCanvas(e.localPosition);
+      // 自動選択はドラフトを作らず、その場で連結領域を選ぶ。
+      if (_c.selectionKind == SelectionKind.magicWand) {
+        unawaited(_magicWandAt(cs));
+        return;
+      }
+      _selDraft = [cs];
       setState(() {});
       return;
     }
@@ -1043,6 +1049,44 @@ class DrawSurfaceState extends State<DrawSurface> {
       iy,
     );
     _c.setColorHex(a == 0 ? '#EFE7D6' : rgbToHex(r, g, b));
+  }
+
+  /// 自動選択(マジックワンド)。タップ点の色に連結する領域を選択パスにする。
+  /// 領域はピクセル精度の走査線ラン(矩形集合)として `_selection` に載せるため、
+  /// 既存の clipPath ベースの消去 / 塗り / 反転がそのまま使える。
+  Future<void> _magicWandAt(Offset canvasPos) async {
+    if (_docSize.isEmpty) return;
+    final existing = widget.surface.imageOf(_c.layers.active.id);
+    if (existing == null) {
+      deselect(); // 空レイヤーは選択できるものが無い
+      return;
+    }
+    final bd = await existing.toByteData(format: ui.ImageByteFormat.rawRgba);
+    if (!mounted || bd == null) return;
+    final src = bd.buffer.asUint8List();
+    final (ix, iy) = _imageCoord(canvasPos, existing);
+    final spans = selectRegion(
+      src,
+      existing.width,
+      existing.height,
+      ix,
+      iy,
+      tolerance: _fillTolerance,
+    );
+    if (!mounted) return;
+    if (spans.isEmpty) {
+      deselect();
+      return;
+    }
+    // image 座標 → doc 座標へスケールして矩形を積む。
+    final sx = _docSize.width / existing.width;
+    final sy = _docSize.height / existing.height;
+    final path = Path();
+    for (final (y, x0, x1) in spans) {
+      path.addRect(Rect.fromLTWH(x0 * sx, y * sy, (x1 - x0) * sx, sy));
+    }
+    _selDraft = null;
+    setState(() => _selection = path);
   }
 
   void _gradientFromTo(Offset a, Offset b) {

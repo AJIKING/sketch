@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sketch/src/application/canvas_controller.dart';
 import 'package:sketch/src/application/vector_controller.dart';
+import 'package:sketch/src/domain/canvas/selection_kind.dart';
 import 'package:sketch/src/domain/canvas/shape_kind.dart';
 import 'package:sketch/src/domain/timelapse/timelapse_frame.dart';
 import 'package:sketch/src/domain/vector/vector_object.dart';
@@ -432,6 +433,30 @@ void main() {
     key.currentState!.invertSelection();
     await tester.pump();
     expect(key.currentState!.selection!.getBounds().width, greaterThan(0));
+  });
+
+  testWidgets('選択: 自動選択(マジックワンド)で連結領域を選ぶ', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final key = GlobalKey<DrawSurfaceState>();
+    await _pumpKeyed(tester, key, controller, surface);
+
+    // 一筆描いてレイヤー画像を確定(中央付近に描線、四隅は透明のまま)。
+    await tester.drag(find.byType(DrawSurface), const Offset(60, 40));
+    await tester.pump();
+    expect(surface.imageOf(controller.layers.active.id), isNotNull);
+
+    controller.selectTool(Tool.select);
+    controller.setSelectionKind(SelectionKind.magicWand);
+
+    // 透明な左上隅をタップ → 連結する透明領域が選択される(toByteData は実 async)。
+    final topLeft = tester.getTopLeft(find.byType(DrawSurface));
+    await tester.runAsync(() async {
+      await tester.tapAt(topLeft + const Offset(6, 6));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    });
+    await tester.pump();
+    expect(key.currentState!.hasSelection, isTrue);
   });
 
   testWidgets('選択: 選択内を現在色で塗る(undo可)', (tester) async {

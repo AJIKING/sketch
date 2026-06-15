@@ -435,9 +435,11 @@ class _CanvasScreenState extends State<CanvasScreen> {
         children: [
           for (final kind in SelectionKind.values)
             ListTile(
-              leading: Icon(
-                kind == SelectionKind.lasso ? Icons.gesture : Icons.crop_din,
-              ),
+              leading: Icon(switch (kind) {
+                SelectionKind.lasso => Icons.gesture,
+                SelectionKind.magicWand => Icons.auto_fix_high,
+                SelectionKind.rectangle => Icons.crop_din,
+              }),
               title: Text(
                 kind.label,
                 style: const TextStyle(color: AtelierTokens.ink),
