@@ -691,6 +691,7 @@ class DrawSurfaceState extends State<DrawSurface> {
         height: h,
         alphaLocked: alphaLocked,
         clip: _selection,
+        symmetry: _c.symmetry,
       ),
     );
   }
@@ -1049,6 +1050,7 @@ class DrawSurfaceState extends State<DrawSurface> {
       viewport: const ViewportTransform(), // 等倍・無回転で全体を出力
       docSize: _docSize,
       vectorLayer: widget.vector?.layer, // ベクター層も焼き込む
+      // 対称ガイドは出力に含めない(symmetry 既定 none のまま)。
     ).paint(canvas, Size(w.toDouble(), h.toDouble()));
     final image = await recorder.endRecording().toImage(w, h);
     final data = await image.toByteData(format: ui.ImageByteFormat.png);
@@ -1277,6 +1279,7 @@ class DrawSurfaceState extends State<DrawSurface> {
                 vectorLayer: widget.vector?.layer,
                 liveVector: _buildLiveVector(),
                 selectedVectorId: widget.vector?.selectedId,
+                symmetry: _c.symmetry,
               ),
               size: Size.infinite,
             ),

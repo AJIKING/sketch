@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sketch/src/application/canvas_controller.dart';
 import 'package:sketch/src/domain/brush/brush_preset.dart';
 import 'package:sketch/src/domain/canvas/layer_blend_mode.dart';
+import 'package:sketch/src/domain/canvas/symmetry_mode.dart';
 
 import '../../fixtures/fake_canvas_surface.dart';
 import '../../fixtures/in_memory_palette_store.dart';
@@ -57,6 +58,15 @@ void main() {
       c.selectBrush(inkBrush);
       expect(c.brush.flow, inkBrush.flow);
     });
+  });
+
+  test('対称モードを切り替えると通知、同値では通知しない', () {
+    expect(c.symmetry, SymmetryMode.none);
+    c.setSymmetry(SymmetryMode.vertical);
+    expect(c.symmetry, SymmetryMode.vertical);
+    expect(notifications, 1);
+    c.setSymmetry(SymmetryMode.vertical);
+    expect(notifications, 1);
   });
 
   group('サイズ / 不透明度', () {

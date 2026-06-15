@@ -13,6 +13,7 @@ import '../../domain/canvas/gradient_kind.dart';
 import '../../domain/canvas/layer_blend_mode.dart';
 import '../../domain/canvas/selection_kind.dart';
 import '../../domain/canvas/shape_kind.dart';
+import '../../domain/canvas/symmetry_mode.dart';
 import '../../domain/gallery/sketch.dart';
 import '../theme/atelier_theme.dart';
 import '../widgets/brush_preview.dart';
@@ -946,7 +947,27 @@ class _BrushSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const Padding(
+          padding: EdgeInsets.only(bottom: 6),
+          child: Text(
+            '対称(シンメトリー)',
+            style: TextStyle(color: AtelierTokens.inkDim, fontSize: 13),
+          ),
+        ),
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final mode in SymmetryMode.values)
+              ChoiceChip(
+                label: Text(mode.label),
+                selected: controller.symmetry == mode,
+                onSelected: (_) => controller.setSymmetry(mode),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
         Row(
           children: [
             const SizedBox(

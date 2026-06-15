@@ -10,6 +10,7 @@ import '../domain/canvas/gradient_kind.dart';
 import '../domain/canvas/layer_stack.dart';
 import '../domain/canvas/selection_kind.dart';
 import '../domain/canvas/shape_kind.dart';
+import '../domain/canvas/symmetry_mode.dart';
 import '../domain/color/ink_color.dart';
 import '../domain/palette/palette_store.dart';
 
@@ -61,6 +62,7 @@ class CanvasController extends ChangeNotifier {
   bool _shapeSnap = false;
   GradientKind _gradientKind = GradientKind.linear;
   SelectionKind _selectionKind = SelectionKind.rectangle;
+  SymmetryMode _symmetry = SymmetryMode.none;
   bool _gradientBrush = false;
   String _secondColorHex = '#2C4A63'; // 既定の 2 色目は藍
 
@@ -80,6 +82,7 @@ class CanvasController extends ChangeNotifier {
   bool get shapeSnap => _shapeSnap;
   GradientKind get gradientKind => _gradientKind;
   SelectionKind get selectionKind => _selectionKind;
+  SymmetryMode get symmetry => _symmetry;
 
   /// 2 色グラデーションで描くか(始点色 → [secondColorHex] へ変化)。
   bool get gradientBrush => _gradientBrush;
@@ -172,6 +175,12 @@ class CanvasController extends ChangeNotifier {
   void setSelectionKind(SelectionKind kind) {
     if (kind == _selectionKind) return;
     _selectionKind = kind;
+    notifyListeners();
+  }
+
+  void setSymmetry(SymmetryMode mode) {
+    if (mode == _symmetry) return;
+    _symmetry = mode;
     notifyListeners();
   }
 

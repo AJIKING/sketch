@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 
 import '../../domain/canvas/layer_stack.dart';
+import '../../domain/canvas/symmetry_mode.dart';
 import '../../domain/color/ink_color.dart';
 import '../../domain/vector/vector_layer.dart';
 import '../../domain/vector/vector_object.dart';
@@ -35,6 +36,7 @@ class RasterPainter extends CustomPainter {
     this.vectorLayer,
     this.liveVector,
     this.selectedVectorId,
+    this.symmetry = SymmetryMode.none,
     super.repaint,
   });
 
@@ -66,6 +68,9 @@ class RasterPainter extends CustomPainter {
   /// 選択中ベクターオブジェクトの id(枠を描く、無ければ null)。
   final String? selectedVectorId;
 
+  /// 対称(シンメトリー)描画モード。ライブ表示とガイド軸に使う。
+  final SymmetryMode symmetry;
+
   @override
   void paint(Canvas canvas, Size size) {
     if (docSize.isEmpty) return;
@@ -88,6 +93,8 @@ class RasterPainter extends CustomPainter {
       if (base.visible) _paintGroup(canvas, rect, base, clipped);
       i = j;
     }
+
+    _paintSymmetryGuides(canvas, rect);
 
     // ラスター層の上にベクターオーバーレイ(確定 + 描画中)を重ねる。
     final vec = vectorLayer;
@@ -115,6 +122,25 @@ class RasterPainter extends CustomPainter {
       );
     }
     canvas.restore();
+  }
+
+  /// 対称軸のガイド(キャンバス中心の十字)。描画位置の目安。
+  void _paintSymmetryGuides(Canvas canvas, Rect rect) {
+    if (symmetry == SymmetryMode.none) return;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = const Color(0x66CF4A2C);
+    final showX =
+        symmetry == SymmetryMode.vertical || symmetry == SymmetryMode.quad;
+    final showY =
+        symmetry == SymmetryMode.horizontal || symmetry == SymmetryMode.quad;
+    if (showX) {
+      canvas.drawLine(rect.topCenter, rect.bottomCenter, paint);
+    }
+    if (showY) {
+      canvas.drawLine(rect.centerLeft, rect.centerRight, paint);
+    }
   }
 
   /// 選択中ベクターオブジェクトの外接矩形を破線風の二重線で示す。
@@ -210,7 +236,7 @@ class RasterPainter extends CustomPainter {
       if (transformed) canvas.restore();
     }
     if (liveStroke != null && layer.id == liveLayerId) {
-      renderStroke(canvas, liveStroke!);
+      renderStrokeMirrored(canvas, liveStroke!, symmetry, docSize);
     }
     final shape = liveShape;
     if (shape != null && layer.id == shape.layerId) {
@@ -243,10 +269,12 @@ ui.Image bakeStroke({
   required int height,
   bool alphaLocked = false,
   Path? clip,
+  SymmetryMode symmetry = SymmetryMode.none,
 }) {
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
   final bounds = Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble());
+  final doc = Size(width.toDouble(), height.toDouble());
 
   Rect srcOf(ui.Image img) =>
       Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble());
@@ -256,7 +284,7 @@ ui.Image bakeStroke({
     canvas.save();
     if (clip != null) canvas.clipPath(clip); // 選択範囲に制限
     canvas.saveLayer(bounds, Paint());
-    renderStroke(canvas, stroke);
+    renderStrokeMirrored(canvas, stroke, symmetry, doc);
     // 既存の不透明部分でマスク(dstIn): ストロークを既存 alpha に閉じ込める。
     canvas.drawImageRect(
       existing,
@@ -272,7 +300,7 @@ ui.Image bakeStroke({
     }
     canvas.save();
     if (clip != null) canvas.clipPath(clip); // 選択範囲に制限
-    renderStroke(canvas, stroke);
+    renderStrokeMirrored(canvas, stroke, symmetry, doc);
     canvas.restore();
   }
   return recorder.endRecording().toImageSync(width, height);

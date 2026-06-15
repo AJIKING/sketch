@@ -3,8 +3,37 @@ import 'dart:ui';
 
 import '../../application/canvas_controller.dart' show Tool;
 import '../../domain/brush/stroke_planner.dart';
+import '../../domain/canvas/symmetry_mode.dart';
 import '../../domain/color/ink_color.dart';
 import 'painted_stroke.dart';
+
+/// ストロークを対称(シンメトリー)込みで描く。軸はキャンバス中心。
+///
+/// 元のストロークに加え、Canvas を中心で鏡映変換して再描画することで、
+/// ライブ表示と焼き込みの双方で同じ対称結果を得る。
+void renderStrokeMirrored(
+  Canvas canvas,
+  PaintedStroke stroke,
+  SymmetryMode mode,
+  Size docSize,
+) {
+  renderStroke(canvas, stroke);
+  if (mode == SymmetryMode.none || docSize.isEmpty) return;
+  final cx = docSize.width / 2, cy = docSize.height / 2;
+  final mirrorX = mode == SymmetryMode.vertical || mode == SymmetryMode.quad;
+  final mirrorY = mode == SymmetryMode.horizontal || mode == SymmetryMode.quad;
+  void mirrored(double sx, double sy, double tx, double ty) {
+    canvas.save();
+    canvas.translate(tx, ty);
+    canvas.scale(sx, sy);
+    renderStroke(canvas, stroke);
+    canvas.restore();
+  }
+
+  if (mirrorX) mirrored(-1, 1, 2 * cx, 0); // 左右(X=cx で反転)
+  if (mirrorY) mirrored(1, -1, 0, 2 * cy); // 上下(Y=cy で反転)
+  if (mirrorX && mirrorY) mirrored(-1, -1, 2 * cx, 2 * cy); // 対角
+}
 
 /// 1 ストロークを Canvas へ描く(CanvasPainter / BrushPreview の共通実装)。
 ///
