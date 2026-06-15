@@ -25,19 +25,16 @@ class ShareImageExporter implements ImageExporter {
     String? text,
     String mimeType = 'image/png',
   }) async {
-    try {
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/${suggestedName ?? 'hatch-sketch.png'}');
-      await file.writeAsBytes(bytes);
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(file.path, mimeType: mimeType)],
-          text: (text != null && text.isNotEmpty) ? text : null,
-        ),
-      );
-      return true;
-    } catch (_) {
-      return false;
-    }
+    // 例外は握り潰さず呼び出し側へ伝播する(原因を画面で確認できるようにする)。
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/${suggestedName ?? 'hatch-sketch.png'}');
+    await file.writeAsBytes(bytes);
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path, mimeType: mimeType)],
+        text: (text != null && text.isNotEmpty) ? text : null,
+      ),
+    );
+    return true;
   }
 }

@@ -122,21 +122,28 @@ class _CanvasScreenState extends State<CanvasScreen> {
 
   Future<void> _exportTimelapse() async {
     final messenger = ScaffoldMessenger.of(context);
-    final gif = _timelapse.exportGif();
-    if (gif == null) {
-      messenger.showSnackBar(const SnackBar(content: Text('タイムラプスの記録がありません')));
-      return;
+    try {
+      final gif = _timelapse.exportGif();
+      if (gif == null) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('タイムラプスの記録がありません')),
+        );
+        return;
+      }
+      await widget.dependencies.imageExporter.exportPng(
+        gif,
+        suggestedName: 'hatch-timelapse.gif',
+        mimeType: 'image/gif',
+        text: 'Hatch でタイムラプス #Hatch',
+      );
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(content: Text('タイムラプスの共有シートを開きました')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('書き出しエラー: $e')));
     }
-    final ok = await widget.dependencies.imageExporter.exportPng(
-      gif,
-      suggestedName: 'hatch-timelapse.gif',
-      mimeType: 'image/gif',
-      text: 'Hatch でタイムラプス #Hatch',
-    );
-    if (!mounted) return;
-    messenger.showSnackBar(
-      SnackBar(content: Text(ok ? 'タイムラプスを書き出しました' : '書き出しをキャンセルしました')),
-    );
   }
 
   Color get _currentColor => hexColor(_c.colorHex);
@@ -160,23 +167,48 @@ class _CanvasScreenState extends State<CanvasScreen> {
     messenger.showSnackBar(const SnackBar(content: Text('写真をレイヤーとして読み込みました')));
   }
 
+  /// 画像として保存(OS の共有/保存シート)。失敗は実際のエラーを表示する。
+  Future<void> _exportImage() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final png = await _drawKey.currentState?.exportPng();
+      if (!mounted) return;
+      if (png == null) {
+        messenger.showSnackBar(const SnackBar(content: Text('画像を生成できませんでした')));
+        return;
+      }
+      await widget.dependencies.imageExporter.exportPng(png);
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(content: Text('保存/共有シートを開きました')));
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('書き出しエラー: $e')));
+    }
+  }
+
   /// SNS 等への共有。キャプションを添えて OS の共有シートを開く。
   Future<void> _shareSketch() async {
     final caption = await _promptCaption();
     if (!mounted || caption == null) return; // キャンセル
     final messenger = ScaffoldMessenger.of(context);
-    final png = await _drawKey.currentState?.exportPng();
-    final ok =
-        png != null &&
-        await widget.dependencies.imageExporter.exportPng(
-          png,
-          text: caption.isEmpty ? null : caption,
-          suggestedName: 'hatch-share.png',
-        );
-    if (!mounted) return;
-    messenger.showSnackBar(
-      SnackBar(content: Text(ok ? '共有しました' : '共有をキャンセルしました')),
-    );
+    try {
+      final png = await _drawKey.currentState?.exportPng();
+      if (!mounted) return;
+      if (png == null) {
+        messenger.showSnackBar(const SnackBar(content: Text('画像を生成できませんでした')));
+        return;
+      }
+      await widget.dependencies.imageExporter.exportPng(
+        png,
+        text: caption.isEmpty ? null : caption,
+        suggestedName: 'hatch-share.png',
+      );
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(content: Text('共有シートを開きました')));
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('共有エラー: $e')));
+    }
   }
 
   /// 共有キャプションの入力ダイアログ。共有で文字列、キャンセルで null。
@@ -301,15 +333,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
             title: const Text('画像として保存'),
             onTap: () async {
               Navigator.of(context).pop();
-              final messenger = ScaffoldMessenger.of(this.context);
-              final png = await _drawKey.currentState?.exportPng();
-              final ok =
-                  png != null &&
-                  await widget.dependencies.imageExporter.exportPng(png);
-              if (!mounted) return;
-              messenger.showSnackBar(
-                SnackBar(content: Text(ok ? '画像を書き出しました' : '書き出しをキャンセルしました')),
-              );
+              await _exportImage();
             },
           ),
           if (widget.dependencies.photoSource != null)
@@ -498,9 +522,44 @@ class _CanvasScreenState extends State<CanvasScreen> {
     _openSheet(
       (context) => Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 始点=現在色(色シートで設定)、終点=2 色目。どちらもカラーコード可。
+          const Padding(
+            padding: EdgeInsets.only(bottom: 6),
+            child: Text(
+              '始点の色(カラーコード)',
+              style: TextStyle(color: AtelierTokens.inkDim, fontSize: 13),
+            ),
+          ),
+          HexColorField(hex: _c.colorHex, onSubmitted: _c.selectColor),
+          const SizedBox(height: 12),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text(
+              '終点を透明にする',
+              style: TextStyle(color: AtelierTokens.ink),
+            ),
+            value: _c.gradientToTransparent,
+            onChanged: _c.setGradientToTransparent,
+          ),
+          if (!_c.gradientToTransparent) ...[
+            const Padding(
+              padding: EdgeInsets.only(top: 4, bottom: 6),
+              child: Text(
+                '終点の色(カラーコード)',
+                style: TextStyle(color: AtelierTokens.inkDim, fontSize: 13),
+              ),
+            ),
+            HexColorField(
+              hex: _c.secondColorHex,
+              onSubmitted: _c.setSecondColorHex,
+            ),
+          ],
+          const SizedBox(height: 8),
           for (final kind in GradientKind.values)
             ListTile(
+              contentPadding: EdgeInsets.zero,
               leading: Icon(
                 kind == GradientKind.radial
                     ? Icons.blur_circular

@@ -1019,10 +1019,17 @@ class DrawSurfaceState extends State<DrawSurface> {
     }
     final id = layer.id;
     final (r, g, bb) = _currentRgb();
-    final colors = [
-      Color.fromARGB(_alpha, r, g, bb),
-      Color.fromARGB(0, r, g, bb),
-    ];
+    // 始点=現在色、終点=2 色目(どちらもカラーコードで指定可)。終点を透明に
+    // したい場合は 2 色目の不透明度を下げる、ではなく『透明グラデ』トグルで切替。
+    final colors = _c.gradientToTransparent
+        ? [Color.fromARGB(_alpha, r, g, bb), Color.fromARGB(0, r, g, bb)]
+        : [
+            Color.fromARGB(_alpha, r, g, bb),
+            () {
+              final (r2, g2, b2) = hexToRgb(_c.secondColorHex);
+              return Color.fromARGB(_alpha, r2, g2, b2);
+            }(),
+          ];
     final shader = _c.gradientKind == GradientKind.radial
         ? ui.Gradient.radial(a, (b - a).distance, colors)
         : ui.Gradient.linear(a, b, colors);

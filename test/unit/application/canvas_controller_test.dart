@@ -60,6 +60,17 @@ void main() {
     });
   });
 
+  test('グラデの終点透明トグル/2色目を設定できる', () {
+    expect(c.gradientToTransparent, isFalse); // 既定は 2 色グラデ
+    c.setGradientToTransparent(true);
+    expect(c.gradientToTransparent, isTrue);
+    final n = notifications;
+    c.setGradientToTransparent(true); // 同値
+    expect(notifications, n);
+    c.setSecondColorHex('#00FF00');
+    expect(c.secondColorHex, '#00FF00');
+  });
+
   test('対称モードを切り替えると通知、同値では通知しない', () {
     expect(c.symmetry, SymmetryMode.none);
     c.setSymmetry(SymmetryMode.vertical);

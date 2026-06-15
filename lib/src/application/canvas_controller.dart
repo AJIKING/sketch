@@ -64,6 +64,7 @@ class CanvasController extends ChangeNotifier {
   SelectionKind _selectionKind = SelectionKind.rectangle;
   SymmetryMode _symmetry = SymmetryMode.none;
   bool _gradientBrush = false;
+  bool _gradientToTransparent = false; // グラデツール: 終点を透明にするか
   String _secondColorHex = '#2C4A63'; // 既定の 2 色目は藍
 
   Tool get tool => _tool;
@@ -89,6 +90,9 @@ class CanvasController extends ChangeNotifier {
 
   /// グラデブラシの 2 色目(終点色)の HEX。
   String get secondColorHex => _secondColorHex;
+
+  /// グラデーションツールの終点を透明にするか(false なら 2 色目の色へ)。
+  bool get gradientToTransparent => _gradientToTransparent;
   LayerStack get layers => _layers;
   bool get canUndo => _history.canUndo;
   bool get canRedo => _history.canRedo;
@@ -181,6 +185,12 @@ class CanvasController extends ChangeNotifier {
   void setSymmetry(SymmetryMode mode) {
     if (mode == _symmetry) return;
     _symmetry = mode;
+    notifyListeners();
+  }
+
+  void setGradientToTransparent(bool value) {
+    if (value == _gradientToTransparent) return;
+    _gradientToTransparent = value;
     notifyListeners();
   }
 
