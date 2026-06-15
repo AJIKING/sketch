@@ -11,6 +11,7 @@ import '../../domain/canvas/gradient_kind.dart';
 import '../../domain/canvas/pixel_ops.dart';
 import '../../domain/canvas/selection_kind.dart';
 import '../../domain/color/ink_color.dart';
+import '../../domain/timelapse/timelapse_frame.dart';
 import '../../domain/vector/vector_object.dart';
 import '../theme/atelier_theme.dart';
 import 'color_picker.dart';
@@ -38,6 +39,7 @@ class DrawSurface extends StatefulWidget {
     required this.transforming,
     this.onToggleUi,
     this.vector,
+    this.onCommitted,
   });
 
   final CanvasController controller;
@@ -54,6 +56,9 @@ class DrawSurface extends StatefulWidget {
 
   /// キャンバス長押しでツール UI の表示/非表示を切り替える(任意)。
   final VoidCallback? onToggleUi;
+
+  /// 確定(焼き込み)ごとに呼ばれる(タイムラプスのフレーム取得などに使う)。
+  final VoidCallback? onCommitted;
 
   @override
   State<DrawSurface> createState() => DrawSurfaceState();
@@ -704,6 +709,7 @@ class DrawSurfaceState extends State<DrawSurface> {
         symmetry: _c.symmetry,
       ),
     );
+    widget.onCommitted?.call();
   }
 
   Offset _snapEnd(Offset start, Offset end) =>
@@ -799,6 +805,7 @@ class DrawSurfaceState extends State<DrawSurface> {
     canvas.restore();
     _c.beginStroke(id);
     widget.surface.set(id, recorder.endRecording().toImageSync(w, h));
+    widget.onCommitted?.call();
   }
 
   void clearInsideSelection() {
@@ -1067,6 +1074,33 @@ class DrawSurfaceState extends State<DrawSurface> {
     return data?.buffer.asUint8List();
   }
 
+  /// タイムラプス用に、現在のドキュメントを最大辺 [maxDim] へ縮小して RGBA で取得。
+  Future<TimelapseFrame?> captureFrame(int maxDim) async {
+    if (_docSize.isEmpty) return null;
+    final longest = _docSize.width > _docSize.height
+        ? _docSize.width
+        : _docSize.height;
+    final scale = (maxDim / longest).clamp(0.05, 1.0);
+    final w = (_docSize.width * scale).round().clamp(1, maxDim);
+    final h = (_docSize.height * scale).round().clamp(1, maxDim);
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    canvas.scale(w / _docSize.width, h / _docSize.height);
+    RasterPainter(
+      layers: _c.layers,
+      store: widget.surface,
+      liveStroke: null,
+      liveLayerId: null,
+      viewport: const ViewportTransform(),
+      docSize: _docSize,
+      vectorLayer: widget.vector?.layer,
+    ).paint(canvas, _docSize);
+    final image = await recorder.endRecording().toImage(w, h);
+    final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    if (data == null) return null;
+    return TimelapseFrame(rgba: data.buffer.asUint8List(), width: w, height: h);
+  }
+
   /// 写真(エンコード済みバイト列)を新規レイヤーへ中央フィットで取り込む(undo 可)。
   /// デコードに失敗したら何もしない。
   Future<void> importImage(Uint8List bytes) async {
@@ -1105,6 +1139,7 @@ class DrawSurfaceState extends State<DrawSurface> {
     canvas.drawImageRect(image, src, dst, Paint());
     _c.beginStroke(id); // 取り込み前(空)を履歴へ → undo で戻せる
     widget.surface.set(id, recorder.endRecording().toImageSync(w, h));
+    widget.onCommitted?.call();
     setState(() {});
   }
 

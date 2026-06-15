@@ -200,6 +200,9 @@ void main() {
     expect(find.text('このレイヤーを消去'), findsOneWidget);
     // photoSource 未注入の _app() では「写真を読み込む」は出ない。
     expect(find.text('写真を読み込む'), findsNothing);
+    // タイムラプス記録トグルがある(記録前は書き出しは出ない)。
+    expect(find.text('タイムラプス記録'), findsOneWidget);
+    expect(find.text('タイムラプスを書き出す(GIF)'), findsNothing);
   });
 
   testWidgets('photoSource 注入時はメニューから写真を読み込む(ピッカー起動)', (tester) async {

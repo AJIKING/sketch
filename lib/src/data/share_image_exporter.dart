@@ -22,6 +22,7 @@ class ShareImageExporter implements ImageExporter {
     Uint8List bytes, {
     String? suggestedName,
     String? text,
+    String mimeType = 'image/png',
   }) async {
     try {
       final dir = await getTemporaryDirectory();
@@ -29,7 +30,7 @@ class ShareImageExporter implements ImageExporter {
       await file.writeAsBytes(bytes);
       final result = await SharePlus.instance.share(
         ShareParams(
-          files: [XFile(file.path, mimeType: 'image/png')],
+          files: [XFile(file.path, mimeType: mimeType)],
           text: (text != null && text.isNotEmpty) ? text : null,
         ),
       );

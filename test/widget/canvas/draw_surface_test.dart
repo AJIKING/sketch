@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sketch/src/application/canvas_controller.dart';
 import 'package:sketch/src/application/vector_controller.dart';
 import 'package:sketch/src/domain/canvas/shape_kind.dart';
+import 'package:sketch/src/domain/timelapse/timelapse_frame.dart';
 import 'package:sketch/src/domain/vector/vector_object.dart';
 import 'package:sketch/src/ui/canvas/draw_surface.dart';
 import 'package:sketch/src/ui/canvas/raster_layer_store.dart';
@@ -592,6 +593,23 @@ void main() {
       (vector.layer.byId(id)! as VectorStroke).points.first.x,
       closeTo(100, 1),
     );
+  });
+
+  testWidgets('captureFrame は縮小した RGBA フレームを返す(タイムラプス用)', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final key = GlobalKey<DrawSurfaceState>();
+    await _pumpKeyed(tester, key, controller, surface); // 200x200
+
+    TimelapseFrame? frame;
+    await tester.runAsync(() async {
+      frame = await key.currentState!.captureFrame(100);
+    });
+
+    expect(frame, isNotNull);
+    expect(frame!.width, lessThanOrEqualTo(100));
+    expect(frame!.height, lessThanOrEqualTo(100));
+    expect(frame!.rgba.length, frame!.width * frame!.height * 4);
   });
 
   testWidgets('写真読み込み: 新規レイヤーへ画像が焼き込まれ undo できる', (tester) async {

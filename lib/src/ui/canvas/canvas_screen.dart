@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -6,7 +7,9 @@ import 'package:flutter/material.dart';
 import '../../application/canvas_controller.dart';
 import '../../application/dependencies.dart';
 import '../../application/gallery_controller.dart';
+import '../../application/timelapse_recorder.dart';
 import '../../application/vector_controller.dart';
+import '../../data/gif_encoder.dart';
 import '../../domain/brush/brush_preset.dart';
 import '../../domain/canvas/filters.dart' as filters;
 import '../../domain/canvas/gradient_kind.dart';
@@ -55,7 +58,10 @@ class _CanvasScreenState extends State<CanvasScreen> {
     paletteStore: widget.dependencies.paletteStore,
   );
   final VectorController _vec = VectorController();
-  late final Listenable _repaint = Listenable.merge([_c, _vec]);
+  late final TimelapseRecorder _timelapse = TimelapseRecorder(
+    encode: encodeGif,
+  );
+  late final Listenable _repaint = Listenable.merge([_c, _vec, _timelapse]);
 
   late final String _id =
       widget.existing?.id ??
@@ -84,8 +90,40 @@ class _CanvasScreenState extends State<CanvasScreen> {
     _transforming.dispose();
     _c.dispose();
     _vec.dispose();
+    _timelapse.dispose();
     _surface.disposeAll(); // ライブのレイヤー画像を解放(履歴画像とは別オブジェクト)
     super.dispose();
+  }
+
+  /// 確定ごと(録画中)にタイムラプスのフレームを取り込む。
+  void _onCommitted() {
+    if (!_timelapse.recording) return;
+    unawaited(_captureTimelapseFrame());
+  }
+
+  Future<void> _captureTimelapseFrame() async {
+    final frame = await _drawKey.currentState?.captureFrame(360);
+    if (!mounted || frame == null) return;
+    _timelapse.addFrame(frame);
+  }
+
+  Future<void> _exportTimelapse() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final gif = _timelapse.exportGif();
+    if (gif == null) {
+      messenger.showSnackBar(const SnackBar(content: Text('タイムラプスの記録がありません')));
+      return;
+    }
+    final ok = await widget.dependencies.imageExporter.exportPng(
+      gif,
+      suggestedName: 'hatch-timelapse.gif',
+      mimeType: 'image/gif',
+      text: 'Hatch でタイムラプス #Hatch',
+    );
+    if (!mounted) return;
+    messenger.showSnackBar(
+      SnackBar(content: Text(ok ? 'タイムラプスを書き出しました' : '書き出しをキャンセルしました')),
+    );
   }
 
   Color get _currentColor => hexColor(_c.colorHex);
@@ -154,7 +192,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
         maxHeight: MediaQuery.sizeOf(context).height * 0.92,
       ),
       builder: (_) => ListenableBuilder(
-        listenable: _c,
+        listenable: _repaint,
         builder: (context, _) => SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(
             20,
@@ -278,6 +316,26 @@ class _CanvasScreenState extends State<CanvasScreen> {
               await _shareSketch();
             },
           ),
+          SwitchListTile(
+            secondary: const Icon(Icons.timelapse),
+            title: const Text('タイムラプス記録'),
+            subtitle: Text(
+              _timelapse.recording
+                  ? '記録中(${_timelapse.frameCount}コマ)'
+                  : 'ONで描画過程を記録',
+            ),
+            value: _timelapse.recording,
+            onChanged: _timelapse.setRecording,
+          ),
+          if (_timelapse.hasFrames)
+            ListTile(
+              leading: const Icon(Icons.gif_box_outlined),
+              title: const Text('タイムラプスを書き出す(GIF)'),
+              onTap: () async {
+                Navigator.of(context).pop();
+                await _exportTimelapse();
+              },
+            ),
           ListTile(
             leading: const Icon(Icons.auto_awesome),
             title: const Text('フィルタ'),
@@ -472,7 +530,8 @@ class _CanvasScreenState extends State<CanvasScreen> {
                     clock: widget.dependencies.clock,
                     transforming: _transforming,
                     vector: _vec,
-                    // 2 本指ダブルタップでツール UI を表示/非表示。
+                    onCommitted: _onCommitted,
+                    // 長押しでツール UI を表示/非表示。
                     onToggleUi: () => setState(() => _uiVisible = !_uiVisible),
                   ),
                 ),
