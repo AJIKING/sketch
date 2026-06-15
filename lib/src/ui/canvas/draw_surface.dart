@@ -775,6 +775,41 @@ class DrawSurfaceState extends State<DrawSurface> {
     setState(() {});
   }
 
+  /// アートボード全体を選択する。docSize 未確定なら何もしない。
+  void selectAll() {
+    if (_docSize.isEmpty) return;
+    _selDraft = null;
+    setState(() {
+      _selection = Path()..addRect(Offset.zero & _docSize);
+    });
+  }
+
+  /// 現在の選択範囲を反転する(アートボード全体との差分)。未選択なら全選択。
+  void invertSelection() {
+    if (_docSize.isEmpty) return;
+    final full = Path()..addRect(Offset.zero & _docSize);
+    _selDraft = null;
+    setState(() {
+      _selection = _selection == null
+          ? full
+          : Path.combine(PathOperation.difference, full, _selection!);
+    });
+  }
+
+  /// 選択範囲(未選択ならレイヤー全体)を現在色で塗りつぶす(undo 可能)。
+  void fillSelection() {
+    final id = _c.layers.active.id;
+    if (_docSize.isEmpty || _c.layers.byId(id) == null) return;
+    final (r, g, b) = _currentRgb();
+    _bakeOnLayer(id, (canvas, w, h) {
+      canvas.drawRect(
+        Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
+        Paint()..color = Color.fromARGB(_alpha, r, g, b),
+      );
+    });
+    setState(() {});
+  }
+
   /// 選択範囲内をアクティブレイヤーから消す(undo 可能)。
   /// 既存画像の上に [draw] を描いてレイヤー [id] へ焼き込む共通処理(undo 可能)。
   /// [clipToSelection] が true で選択範囲があれば、新規描画をその範囲へ制限する

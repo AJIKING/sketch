@@ -449,6 +449,39 @@ class _CanvasScreenState extends State<CanvasScreen> {
             ),
           const Divider(),
           ListTile(
+            leading: const Icon(Icons.select_all),
+            title: const Text(
+              '全選択',
+              style: TextStyle(color: AtelierTokens.ink),
+            ),
+            onTap: () {
+              Navigator.of(context).pop();
+              _drawKey.currentState?.selectAll();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.flip),
+            title: const Text(
+              '選択を反転',
+              style: TextStyle(color: AtelierTokens.ink),
+            ),
+            onTap: () {
+              Navigator.of(context).pop();
+              _drawKey.currentState?.invertSelection();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.format_color_fill),
+            title: const Text(
+              '選択内を塗る',
+              style: TextStyle(color: AtelierTokens.ink),
+            ),
+            onTap: () {
+              Navigator.of(context).pop();
+              _drawKey.currentState?.fillSelection();
+            },
+          ),
+          ListTile(
             leading: const Icon(Icons.cleaning_services_outlined),
             title: const Text(
               '選択範囲を消去',

@@ -407,6 +407,59 @@ void main() {
     expect(key.currentState!.hasSelection, isFalse);
   });
 
+  testWidgets('選択: 全選択 / 反転 / 解除', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final key = GlobalKey<DrawSurfaceState>();
+    await _pumpKeyed(tester, key, controller, surface);
+
+    expect(key.currentState!.hasSelection, isFalse);
+
+    // 全選択 → 選択あり。
+    key.currentState!.selectAll();
+    await tester.pump();
+    expect(key.currentState!.hasSelection, isTrue);
+
+    // 反転(全選択の反転=空)→ 選択は残るが面積ゼロ。
+    key.currentState!.invertSelection();
+    await tester.pump();
+    expect(key.currentState!.hasSelection, isTrue);
+    final inverted = key.currentState!.selection!;
+    expect(inverted.getBounds().isEmpty, isTrue);
+
+    // 未選択からの反転は全選択になる。
+    key.currentState!.deselect();
+    key.currentState!.invertSelection();
+    await tester.pump();
+    expect(key.currentState!.selection!.getBounds().width, greaterThan(0));
+  });
+
+  testWidgets('選択: 選択内を現在色で塗る(undo可)', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final key = GlobalKey<DrawSurfaceState>();
+    await _pumpKeyed(tester, key, controller, surface);
+
+    // 描画してレイヤー画像を確定させておく。
+    await tester.drag(find.byType(DrawSurface), const Offset(80, 60));
+    await tester.pump();
+    final id = controller.layers.active.id;
+    final before = surface.imageOf(id);
+    expect(before, isNotNull);
+
+    // 選択して塗る → 画像が差し替わり undo 可能。
+    controller.selectTool(Tool.select);
+    await tester.drag(find.byType(DrawSurface), const Offset(60, 50));
+    await tester.pump();
+    expect(key.currentState!.hasSelection, isTrue);
+
+    key.currentState!.fillSelection();
+    expect(surface.imageOf(id), isNot(same(before)));
+    expect(controller.canUndo, isTrue);
+    controller.undo();
+    expect(surface.imageOf(id), same(before));
+  });
+
   testWidgets('2 本指ピンチでビューが拡大する(Phase3)', (tester) async {
     final surface = RasterLayerStore();
     final controller = CanvasController(surface: surface);
