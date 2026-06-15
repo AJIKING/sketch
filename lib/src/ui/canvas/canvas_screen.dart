@@ -1323,6 +1323,22 @@ class _LayerSheet extends StatelessWidget {
                   onChanged: (v) => controller.setLayerOpacity(i, v),
                 ),
               ),
+              IconButton(
+                icon: const Icon(Icons.keyboard_arrow_up),
+                iconSize: 20,
+                visualDensity: VisualDensity.compact,
+                tooltip: '前面へ',
+                onPressed: i < controller.layers.length - 1
+                    ? () => controller.moveLayer(i, 1)
+                    : null,
+              ),
+              IconButton(
+                icon: const Icon(Icons.keyboard_arrow_down),
+                iconSize: 20,
+                visualDensity: VisualDensity.compact,
+                tooltip: '背面へ',
+                onPressed: i > 0 ? () => controller.moveLayer(i, -1) : null,
+              ),
             ],
           ),
         ],

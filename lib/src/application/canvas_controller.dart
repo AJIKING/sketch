@@ -292,6 +292,11 @@ class CanvasController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// レイヤーを前面(+1)/背面(-1)へ動かす。
+  void moveLayer(int index, int delta) {
+    if (_layers.move(index, delta)) notifyListeners();
+  }
+
   void setLayerOpacity(int index, double opacity) {
     _layers.setOpacity(index, opacity);
     notifyListeners();

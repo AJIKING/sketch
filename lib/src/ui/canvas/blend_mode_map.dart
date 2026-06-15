@@ -17,4 +17,8 @@ BlendMode toUiBlendMode(LayerBlendMode mode) => switch (mode) {
   LayerBlendMode.difference => BlendMode.difference,
   LayerBlendMode.exclusion => BlendMode.exclusion,
   LayerBlendMode.add => BlendMode.plus,
+  LayerBlendMode.hue => BlendMode.hue,
+  LayerBlendMode.saturation => BlendMode.saturation,
+  LayerBlendMode.color => BlendMode.color,
+  LayerBlendMode.luminosity => BlendMode.luminosity,
 };

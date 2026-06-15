@@ -15,7 +15,11 @@ enum LayerBlendMode {
   softLight('ソフトライト'),
   difference('差の絶対値'),
   exclusion('除外'),
-  add('加算発光');
+  add('加算発光'),
+  hue('色相'),
+  saturation('彩度'),
+  color('カラー'),
+  luminosity('輝度');
 
   const LayerBlendMode(this.label);
 

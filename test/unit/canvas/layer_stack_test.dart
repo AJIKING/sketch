@@ -99,4 +99,25 @@ void main() {
     s.toggleAlphaLock(0);
     expect(s.layers[0].alphaLocked, isFalse);
   });
+
+  test('move でレイヤーを前面/背面へ動かし、アクティブが追従する', () {
+    final s = LayerStack.initial()..add(); // 3 枚、アクティブ=2(最前面)
+    final ids = s.layers.map((l) => l.id).toList();
+    expect(s.activeIndex, 2);
+
+    // 最前面(2)を背面へ -1 → index1 へ。アクティブも 1 へ追従。
+    expect(s.move(2, -1), isTrue);
+    expect(s.layers.map((l) => l.id), [ids[0], ids[2], ids[1]]);
+    expect(s.activeIndex, 1);
+
+    // 範囲外は false。
+    expect(s.move(0, -1), isFalse);
+    expect(s.move(2, 1), isFalse);
+  });
+
+  test('HSL ブレンドを含む合成モードが揃っている', () {
+    expect(LayerBlendMode.values, contains(LayerBlendMode.hue));
+    expect(LayerBlendMode.values, contains(LayerBlendMode.luminosity));
+    expect(LayerBlendMode.values.length, greaterThanOrEqualTo(17));
+  });
 }

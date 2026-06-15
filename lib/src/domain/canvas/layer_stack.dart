@@ -97,6 +97,26 @@ class LayerStack {
     _activeIndex = index;
   }
 
+  /// [index] のレイヤーを [delta] だけ動かす(+1 で前面へ、-1 で背面へ)。
+  /// 範囲外なら false。アクティブは動かしたレイヤーに追従する。
+  bool move(int index, int delta) {
+    final to = index + delta;
+    if (index < 0 ||
+        index >= _layers.length ||
+        to < 0 ||
+        to >= _layers.length) {
+      return false;
+    }
+    final layer = _layers.removeAt(index);
+    _layers.insert(to, layer);
+    if (_activeIndex == index) {
+      _activeIndex = to;
+    } else if (_activeIndex == to) {
+      _activeIndex = index;
+    }
+    return true;
+  }
+
   void toggleVisible(int index) {
     _layers[index].visible = !_layers[index].visible;
   }
