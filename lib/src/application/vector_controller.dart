@@ -154,6 +154,9 @@ class VectorController extends ChangeNotifier {
     bool bold = false,
     bool underline = false,
     bool strikethrough = false,
+    String fontFamily = '',
+    bool gradient = false,
+    String secondColorHex = '',
   }) {
     _pushUndo();
     final object = VectorText(
@@ -167,6 +170,9 @@ class VectorController extends ChangeNotifier {
       bold: bold,
       underline: underline,
       strikethrough: strikethrough,
+      fontFamily: fontFamily,
+      gradient: gradient,
+      secondColorHex: secondColorHex,
     );
     _layer.add(object);
     _selectedId = object.id;
@@ -185,6 +191,9 @@ class VectorController extends ChangeNotifier {
     bool bold = false,
     bool underline = false,
     bool strikethrough = false,
+    String fontFamily = '',
+    bool gradient = false,
+    String secondColorHex = '',
   }) {
     final current = _layer.byId(id);
     if (current is! VectorText) return false;
@@ -197,6 +206,9 @@ class VectorController extends ChangeNotifier {
       bold: bold,
       underline: underline,
       strikethrough: strikethrough,
+      fontFamily: fontFamily,
+      gradient: gradient,
+      secondColorHex: secondColorHex,
     );
     // 変化が無ければ履歴を汚さない(再編集して未変更で確定したケース)。
     if (current.text == updated.text &&
@@ -204,7 +216,10 @@ class VectorController extends ChangeNotifier {
         current.colorHex == updated.colorHex &&
         current.bold == updated.bold &&
         current.underline == updated.underline &&
-        current.strikethrough == updated.strikethrough) {
+        current.strikethrough == updated.strikethrough &&
+        current.fontFamily == updated.fontFamily &&
+        current.gradient == updated.gradient &&
+        current.secondColorHex == updated.secondColorHex) {
       return true;
     }
     _pushUndo();

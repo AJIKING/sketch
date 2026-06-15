@@ -31,6 +31,10 @@ dependencies:
   # タイムラプスのアニメ GIF 書き出し(純 Dart・オフライン)。
   image: ^4.3.0
 
+  # テキストの多書体(十数種)。初回のみネット取得→以降は端末キャッシュ
+  # (キャッシュ後はオフライン可)。lib/src/ui/canvas/text_fonts.dart 参照。
+  google_fonts: ^6.2.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

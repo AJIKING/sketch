@@ -128,6 +128,25 @@ void main() {
       expect(make().width, 24);
     });
 
+    test('フォント / グラデーションは既定なし、copyWith で設定でき装飾を保つ', () {
+      final base = make();
+      expect(base.fontFamily, isNull);
+      expect(base.gradient, isFalse);
+      expect(base.secondColorHex, isNull);
+
+      final styled = base.copyWith(
+        fontFamily: 'Noto Sans JP',
+        gradient: true,
+        secondColorHex: '#FF0000',
+      );
+      expect(styled.fontFamily, 'Noto Sans JP');
+      expect(styled.gradient, isTrue);
+      expect(styled.secondColorHex, '#FF0000');
+      // 他の属性は移動・色変えでも維持される。
+      expect(styled.translate(1, 1).gradient, isTrue);
+      expect(styled.withColor('#00FF00').fontFamily, 'Noto Sans JP');
+    });
+
     test('withWidth はフォントとボックスを比例して縮拡する', () {
       final t = make().withWidth(48); // 24 → 48(2 倍)
       expect(t.fontSize, 48);

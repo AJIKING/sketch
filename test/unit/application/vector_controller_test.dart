@@ -90,6 +90,42 @@ void main() {
     expect(c.canUndo, isTrue); // 一連の操作は undo 可能
   });
 
+  test('addText/updateText でフォント・グラデーションを設定できる', () {
+    c.addText(
+      position: const VecPoint(0, 0),
+      text: 'A',
+      fontSize: 20,
+      colorHex: '#000000',
+      boxWidth: 10,
+      boxHeight: 12,
+      fontFamily: 'Noto Serif JP',
+      gradient: true,
+      secondColorHex: '#00FF00',
+    );
+    final id = c.selectedId!;
+    final t = c.layer.byId(id)! as VectorText;
+    expect(t.fontFamily, 'Noto Serif JP');
+    expect(t.gradient, isTrue);
+    expect(t.secondColorHex, '#00FF00');
+
+    // フォント変更だけでも更新が走る(履歴へ積まれる)。
+    expect(
+      c.updateText(
+        id,
+        text: 'A',
+        fontSize: 20,
+        colorHex: '#000000',
+        boxWidth: 10,
+        boxHeight: 12,
+        fontFamily: 'Dela Gothic One',
+        gradient: true,
+        secondColorHex: '#00FF00',
+      ),
+      isTrue,
+    );
+    expect((c.layer.byId(id)! as VectorText).fontFamily, 'Dela Gothic One');
+  });
+
   test('updateText で内容が変わらなければ履歴(redo)を汚さない(回帰)', () {
     c.addText(
       position: const VecPoint(0, 0),

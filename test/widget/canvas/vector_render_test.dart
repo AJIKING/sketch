@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sketch/src/domain/canvas/shape_kind.dart';
 import 'package:sketch/src/domain/vector/vector_layer.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:sketch/src/domain/vector/vector_object.dart';
 import 'package:sketch/src/ui/canvas/vector_render.dart';
 
@@ -104,5 +105,59 @@ void main() {
     });
 
     expect(found, isTrue, reason: '赤い文字の画素が描かれる');
+  });
+
+  testWidgets('2色グラデーションのテキストは左が赤・右が青に寄る', (tester) async {
+    const w = 160, h = 48;
+    final layer = VectorLayer()
+      ..add(
+        const VectorText(
+          id: 't',
+          colorHex: '#FF0000', // 始点=赤
+          position: VecPoint(4, 4),
+          text: 'MMMMMM',
+          fontSize: 30,
+          boxWidth: 150,
+          boxHeight: 36,
+          gradient: true,
+          secondColorHex: '#0000FF', // 終点=青
+        ),
+      );
+
+    var leftRed = false, rightBlue = false;
+    await tester.runAsync(() async {
+      final image = await _render(layer, w, h);
+      final data = await image.toByteData();
+      for (var y = 4; y < 40; y++) {
+        for (var x = 4; x < w - 4; x++) {
+          final i = (y * w + x) * 4;
+          if (data!.getUint8(i + 3) == 0) continue; // 透明は無視
+          final r = data.getUint8(i), b = data.getUint8(i + 2);
+          if (x < 50 && r > b + 40) leftRed = true;
+          if (x > w - 50 && b > r + 40) rightBlue = true;
+        }
+      }
+    });
+
+    expect(leftRed, isTrue, reason: '左側は赤寄り');
+    expect(rightBlue, isTrue, reason: '右側は青寄り');
+  });
+
+  testWidgets('フォント指定でも例外なくレイアウトできる(オフライン: フォールバック)', (tester) async {
+    // テストではフォントのネット取得を無効化(フォールバック描画。通信しない)。
+    GoogleFonts.config.allowRuntimeFetching = false;
+    addTearDown(() => GoogleFonts.config.allowRuntimeFetching = true);
+
+    final painter = buildVectorTextPainter(
+      text: 'あA',
+      colorHex: '#222222',
+      fontSize: 32,
+      bold: false,
+      underline: false,
+      strikethrough: false,
+      fontFamily: 'Noto Sans JP',
+    );
+    expect(painter.width, greaterThan(0));
+    expect(painter.height, greaterThan(0));
   });
 }

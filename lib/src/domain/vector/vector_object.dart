@@ -190,6 +190,9 @@ class VectorText extends VectorObject {
     this.bold = false,
     this.underline = false,
     this.strikethrough = false,
+    this.fontFamily,
+    this.gradient = false,
+    this.secondColorHex,
   }) : super(width: fontSize);
 
   final VecPoint position; // 左上(canvas/doc 空間)
@@ -201,6 +204,15 @@ class VectorText extends VectorObject {
   final bool underline;
   final bool strikethrough;
 
+  /// フォントファミリ名(null = 既定)。ui 層が google_fonts 等で解決する。
+  final String? fontFamily;
+
+  /// 2 色グラデーションで塗るか([colorHex] → [secondColorHex])。
+  final bool gradient;
+
+  /// グラデーションの 2 色目(null かつ [gradient] のときは [colorHex] と同色扱い)。
+  final String? secondColorHex;
+
   VectorText copyWith({
     String? colorHex,
     VecPoint? position,
@@ -211,6 +223,9 @@ class VectorText extends VectorObject {
     bool? bold,
     bool? underline,
     bool? strikethrough,
+    String? fontFamily,
+    bool? gradient,
+    String? secondColorHex,
   }) => VectorText(
     id: id,
     colorHex: colorHex ?? this.colorHex,
@@ -222,6 +237,9 @@ class VectorText extends VectorObject {
     bold: bold ?? this.bold,
     underline: underline ?? this.underline,
     strikethrough: strikethrough ?? this.strikethrough,
+    fontFamily: fontFamily ?? this.fontFamily,
+    gradient: gradient ?? this.gradient,
+    secondColorHex: secondColorHex ?? this.secondColorHex,
   );
 
   @override

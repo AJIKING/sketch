@@ -22,6 +22,7 @@ import 'raster_layer_store.dart';
 import 'raster_painter.dart';
 import 'shape_render.dart';
 import 'stroke_stabilizer.dart';
+import 'text_fonts.dart';
 import 'vector_render.dart';
 import 'viewport_transform.dart';
 
@@ -1046,6 +1047,9 @@ class DrawSurfaceState extends State<DrawSurface> {
       bold: result.bold,
       underline: result.underline,
       strikethrough: result.strikethrough,
+      fontFamily: result.fontFamily,
+      gradient: result.gradient,
+      secondColorHex: result.secondColorHex,
     );
     if (existing != null) {
       vec.updateText(
@@ -1058,6 +1062,9 @@ class DrawSurfaceState extends State<DrawSurface> {
         bold: result.bold,
         underline: result.underline,
         strikethrough: result.strikethrough,
+        fontFamily: result.fontFamily,
+        gradient: result.gradient,
+        secondColorHex: result.secondColorHex,
       );
     } else {
       vec.addText(
@@ -1070,6 +1077,9 @@ class DrawSurfaceState extends State<DrawSurface> {
         bold: result.bold,
         underline: result.underline,
         strikethrough: result.strikethrough,
+        fontFamily: result.fontFamily,
+        gradient: result.gradient,
+        secondColorHex: result.secondColorHex,
       );
     }
     setState(() {});
@@ -1085,6 +1095,9 @@ class DrawSurfaceState extends State<DrawSurface> {
         initialBold: existing?.bold ?? false,
         initialUnderline: existing?.underline ?? false,
         initialStrikethrough: existing?.strikethrough ?? false,
+        initialFontFamily: existing?.fontFamily ?? '',
+        initialGradient: existing?.gradient ?? false,
+        initialSecondColorHex: existing?.secondColorHex ?? _c.secondColorHex,
         palette: _c.palette,
         isEditing: existing != null,
       ),
@@ -1575,6 +1588,9 @@ typedef TextEditResult = ({
   bool underline,
   bool strikethrough,
   String colorHex,
+  String fontFamily,
+  bool gradient,
+  String secondColorHex,
 });
 
 /// テキスト編集ダイアログ(文字 + サイズ + 太字/下線/取消線 + 自由な色)。
@@ -1589,6 +1605,9 @@ class _TextInputDialog extends StatefulWidget {
     required this.initialBold,
     required this.initialUnderline,
     required this.initialStrikethrough,
+    required this.initialFontFamily,
+    required this.initialGradient,
+    required this.initialSecondColorHex,
     required this.palette,
     required this.isEditing,
   });
@@ -1599,6 +1618,9 @@ class _TextInputDialog extends StatefulWidget {
   final bool initialBold;
   final bool initialUnderline;
   final bool initialStrikethrough;
+  final String initialFontFamily;
+  final bool initialGradient;
+  final String initialSecondColorHex;
   final List<String> palette;
   final bool isEditing;
 
@@ -1614,7 +1636,15 @@ class _TextInputDialogState extends State<_TextInputDialog> {
   late bool _bold = widget.initialBold;
   late bool _underline = widget.initialUnderline;
   late bool _strikethrough = widget.initialStrikethrough;
+  late String _fontFamily = widget.initialFontFamily;
+  late bool _gradient = widget.initialGradient;
   late Hsv _hsv = _toHsv(widget.initialColorHex);
+  late Hsv _hsv2 = _toHsv(widget.initialSecondColorHex);
+
+  String get _secondColorHex {
+    final (r, g, b) = hsvToRgb(_hsv2.$1, _hsv2.$2, _hsv2.$3);
+    return rgbToHex(r, g, b);
+  }
 
   @override
   void dispose() {
@@ -1688,6 +1718,61 @@ class _TextInputDialogState extends State<_TextInputDialog> {
                   ),
                 ],
               ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Text('フォント'),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      value: _fontFamily,
+                      items: [
+                        for (final f in textFonts)
+                          DropdownMenuItem(
+                            value: f.family,
+                            child: Text(f.label),
+                          ),
+                      ],
+                      onChanged: (v) => setState(() => _fontFamily = v ?? ''),
+                    ),
+                  ),
+                ],
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('2色グラデーション'),
+                subtitle: const Text('文字色 → 2色目へ横方向に変化'),
+                value: _gradient,
+                onChanged: (v) => setState(() => _gradient = v),
+              ),
+              if (_gradient) ...[
+                Row(
+                  children: [
+                    const Text('2色目'),
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: _color(_secondColorHex),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AtelierTokens.hair),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _secondColorHex,
+                      style: const TextStyle(color: AtelierTokens.inkDim),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                HexColorField(
+                  hex: _secondColorHex,
+                  onSubmitted: (hex) => setState(() => _hsv2 = _toHsv(hex)),
+                ),
+              ],
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -1758,6 +1843,9 @@ class _TextInputDialogState extends State<_TextInputDialog> {
             underline: _underline,
             strikethrough: _strikethrough,
             colorHex: _colorHex,
+            fontFamily: _fontFamily,
+            gradient: _gradient,
+            secondColorHex: _secondColorHex,
           )),
           child: Text(widget.isEditing ? '更新' : '追加'),
         ),

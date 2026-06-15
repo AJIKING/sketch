@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- google_fonts がテキスト用フォントを初回取得するために必要(以降は端末
+         キャッシュでオフライン可)。lib/src/ui/canvas/text_fonts.dart 参照。 -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="sketch"
         android:name="${applicationName}"

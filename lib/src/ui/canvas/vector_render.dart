@@ -1,4 +1,7 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/painting.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../domain/color/ink_color.dart';
 import '../../domain/vector/vector_layer.dart';
@@ -62,12 +65,16 @@ void renderVectorObject(Canvas canvas, VectorObject object) {
         bold: t.bold,
         underline: t.underline,
         strikethrough: t.strikethrough,
+        fontFamily: t.fontFamily,
+        gradient: t.gradient,
+        secondColorHex: t.secondColorHex,
       ).paint(canvas, Offset(t.position.x, t.position.y));
   }
 }
 
-/// テキストの描画/測定に使う `TextPainter`(レイアウト済み)。下線・取消線対応。
-/// 描画(`vector_render`)と box 測定(`draw_surface`)で同じ体裁を使うため共有する。
+/// テキストの描画/測定に使う `TextPainter`(レイアウト済み)。下線・取消線・
+/// フォント・2 色グラデーションに対応。描画(`vector_render`)と box 測定
+/// (`draw_surface`)で同じ体裁を使うため共有する。
 TextPainter buildVectorTextPainter({
   required String text,
   required String colorHex,
@@ -75,6 +82,9 @@ TextPainter buildVectorTextPainter({
   required bool bold,
   required bool underline,
   required bool strikethrough,
+  String? fontFamily,
+  bool gradient = false,
+  String? secondColorHex,
 }) {
   final (r, g, b) = hexToRgb(colorHex);
   final color = Color.fromARGB(255, r, g, b);
@@ -82,19 +92,47 @@ TextPainter buildVectorTextPainter({
     if (underline) TextDecoration.underline,
     if (strikethrough) TextDecoration.lineThrough,
   ];
-  return TextPainter(
-    text: TextSpan(
-      text: text,
-      style: TextStyle(
-        color: color,
-        fontSize: fontSize,
-        fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
-        decoration: TextDecoration.combine(decorations),
-        decorationColor: color,
-        decorationThickness: 2,
-        height: 1.2,
-      ),
-    ),
+  final weight = bold ? FontWeight.w800 : FontWeight.w600;
+
+  var style = TextStyle(
+    color: color,
+    fontSize: fontSize,
+    fontWeight: weight,
+    decoration: TextDecoration.combine(decorations),
+    decorationColor: color,
+    decorationThickness: 2,
+    height: 1.2,
+  );
+  // フォント指定があれば google_fonts で解決(初回のみ取得、以降キャッシュ)。
+  if (fontFamily != null && fontFamily.isNotEmpty) {
+    style = GoogleFonts.getFont(fontFamily, textStyle: style);
+  }
+
+  final painter = TextPainter(
+    text: TextSpan(text: text, style: style),
     textDirection: TextDirection.ltr,
   )..layout();
+
+  // グラデーションは前景シェーダで上書きする(レイアウト後の寸法が要るので 2 段)。
+  if (gradient) {
+    final (sr, sg, sb) = hexToRgb(
+      (secondColorHex == null || secondColorHex.isEmpty)
+          ? colorHex
+          : secondColorHex,
+    );
+    final shader = ui.Gradient.linear(Offset.zero, Offset(painter.width, 0), [
+      color,
+      Color.fromARGB(255, sr, sg, sb),
+    ]);
+    painter.text = TextSpan(
+      text: text,
+      style: style.copyWith(
+        color: null,
+        foreground: Paint()..shader = shader,
+        decorationColor: color,
+      ),
+    );
+    painter.layout();
+  }
+  return painter;
 }

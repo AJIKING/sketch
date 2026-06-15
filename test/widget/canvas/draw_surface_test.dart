@@ -231,6 +231,37 @@ void main() {
     expect((vector.layer.byId(id)! as VectorText).text, 'World');
   });
 
+  testWidgets('テキスト: フォントと2色グラデーションを設定できる', (tester) async {
+    _useTallSurface(tester);
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface)
+      ..selectTool(Tool.text);
+    final vector = VectorController();
+    await pumpVector(tester, controller, surface, vector);
+
+    await tester.tap(find.byType(DrawSurface));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'グラデ');
+
+    // 2色グラデーションを ON。
+    await tester.tap(find.byType(SwitchListTile));
+    await tester.pumpAndSettle();
+
+    // フォントを「明朝」(Noto Serif JP)に。
+    await tester.tap(find.byType(DropdownButton<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('明朝').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('追加'));
+    await tester.pumpAndSettle();
+
+    final t = vector.selected! as VectorText;
+    expect(t.text, 'グラデ');
+    expect(t.gradient, isTrue);
+    expect(t.fontFamily, 'Noto Serif JP');
+  });
+
   testWidgets('テキスト: カラーコード入力で色を設定できる', (tester) async {
     _useTallSurface(tester);
     final surface = RasterLayerStore();
