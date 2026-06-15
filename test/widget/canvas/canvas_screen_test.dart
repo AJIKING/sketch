@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sketch/src/application/dependencies.dart';
@@ -12,11 +14,15 @@ import '../../fixtures/recording_image_exporter.dart';
 
 Widget _app() => _appWith(RecordingImageExporter());
 
-Widget _appWith(RecordingImageExporter exporter) {
+Widget _appWith(
+  RecordingImageExporter exporter, {
+  FakePhotoSource? photoSource,
+}) {
   final deps = Dependencies(
     clock: FakeClock(),
     galleryStore: InMemoryGalleryStore(),
     imageExporter: exporter,
+    photoSource: photoSource,
   );
   return MaterialApp(
     home: CanvasScreen(
@@ -80,6 +86,30 @@ void main() {
     expect(find.text('反転'), findsOneWidget);
     expect(find.text('ぼかし'), findsOneWidget);
     expect(find.text('モザイク'), findsOneWidget);
+  });
+
+  testWidgets('PhotoSource 未注入なら「写真を読み込む」を出さない', (tester) async {
+    await tester.pumpWidget(_app()); // photoSource なし
+    await tester.pump();
+    await tester.tap(find.byTooltip('メニュー'));
+    await tester.pumpAndSettle();
+    expect(find.text('写真を読み込む'), findsNothing);
+  });
+
+  testWidgets('メニュー→写真を読み込むで PhotoSource が呼ばれる', (tester) async {
+    final photo = FakePhotoSource(Uint8List.fromList([0, 1, 2, 3]));
+    await tester.pumpWidget(
+      _appWith(RecordingImageExporter(), photoSource: photo),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('メニュー'));
+    await tester.pumpAndSettle();
+    expect(find.text('写真を読み込む'), findsOneWidget); // 注入時のみ出る
+
+    await tester.tap(find.text('写真を読み込む'));
+    await tester.pumpAndSettle();
+    expect(photo.calls, 1); // ピッカーが呼ばれる(デコード失敗でも導線は成立)
   });
 
   testWidgets('ドックに塗りつぶし/グラデ/スポイトがある(Phase2)', (tester) async {

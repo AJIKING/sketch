@@ -930,6 +930,17 @@ void main() {
     expect(img, isNotNull);
     expect(img!.width, 100);
     expect(img.height, 200);
+
+    // 書き出しも docSize の解像度(100x200)で出る(ビュー 300x300 非依存)。
+    Uint8List? png;
+    await tester.runAsync(() async {
+      png = await key.currentState!.exportPng();
+    });
+    expect(png, isNotNull);
+    // PNG ヘッダ(IHDR)の幅/高さを直接読む(コーデック不要で決定的)。
+    final header = ByteData.sublistView(png!);
+    expect(header.getUint32(16), 100, reason: 'PNG 幅 = docSize');
+    expect(header.getUint32(20), 200, reason: 'PNG 高さ = docSize');
   });
 
   testWidgets('固定解像度: 同じ向きのリサイズではズームを保持する(回帰)', (tester) async {
@@ -1105,6 +1116,22 @@ void main() {
     expect(controller.layers.length, before + 1); // 新規レイヤーへ
     expect(surface.imageOf(controller.layers.active.id), isNotNull);
     expect(controller.canUndo, isTrue); // 取り込み前へ戻せる
+  });
+
+  testWidgets('写真読み込み: 壊れた画像バイトでは何も起きない(回帰)', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final key = GlobalKey<DrawSurfaceState>();
+    await _pumpKeyed(tester, key, controller, surface);
+    final before = controller.layers.length;
+
+    // デコードできないバイト列 → 例外を握って何もしない(レイヤーも増えない)。
+    await tester.runAsync(
+      () => key.currentState!.importImage(Uint8List.fromList([0, 1, 2, 3])),
+    );
+    await tester.pump();
+    expect(controller.layers.length, before);
+    expect(controller.canUndo, isFalse);
   });
 
   testWidgets('長押しでオブジェクト調整: ドラッグで移動する', (tester) async {
