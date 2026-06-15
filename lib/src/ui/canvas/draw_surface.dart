@@ -40,10 +40,14 @@ class DrawSurface extends StatefulWidget {
     this.onToggleUi,
     this.vector,
     this.onCommitted,
+    this.documentSize,
   });
 
   final CanvasController controller;
   final RasterLayerStore surface;
+
+  /// 固定解像度ドキュメントの寸法(ADR 0006)。null なら画面サイズ追従(従来)。
+  final Size? documentSize;
 
   /// ベクターオーバーレイ(ADR 0005 Phase 2)。null なら無効。
   final VectorController? vector;
@@ -255,9 +259,9 @@ class DrawSurfaceState extends State<DrawSurface> {
   /// テスト/外部から現在のビューポートを読む。
   ViewportTransform get viewport => _viewport;
 
-  /// ビューを初期状態(等倍・全面表示)へ戻す。
+  /// ビューを初期状態へ戻す。固定解像度は中央フィット、画面サイズは等倍全面。
   void resetView() {
-    _viewport = const ViewportTransform();
+    _viewport = ViewportTransform.fit(_docSize, _viewSize);
     setState(() {});
   }
 
@@ -1284,22 +1288,29 @@ class DrawSurfaceState extends State<DrawSurface> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final view = constraints.biggest;
+          final fixed = widget.documentSize;
           if (_docSize.isEmpty) {
-            // 初回レイアウト: キャンバスは画面いっぱい(等倍)。
-            _docSize = view;
+            // 固定解像度ならその寸法、画面サイズなら表示域。表示は中央フィット
+            // (画面サイズは doc==view なので等倍=全面)。
+            _docSize = fixed ?? view;
             _viewSize = view;
+            _viewport = ViewportTransform.fit(_docSize, view);
           } else if (view != _viewSize) {
             final old = _viewSize;
             _viewSize = view;
-            // 画面の向きが変わったらキャンバスを新しい向きいっぱいに作り直す
-            // (横にしたら横全面)。既存の絵は新サイズへ引き伸ばして引き継ぐ。
-            // 同じ向きの微小なインセット変化ではズーム/位置を保持する。
-            final orientationChanged =
-                (old.width >= old.height) != (view.width >= view.height);
-            if (orientationChanged) {
-              _docSize = view;
-              _viewport = const ViewportTransform(); // 等倍で全面表示に戻す
-              _cancelAllInProgress();
+            if (fixed != null) {
+              // 固定解像度: 表示域が変わるたび中央フィットし直す。
+              _viewport = ViewportTransform.fit(_docSize, view);
+            } else {
+              // 画面サイズ: 向きが変わったら新しい向きいっぱいに作り直す。
+              // 同じ向きの微小なインセット変化ではズーム/位置を保持する。
+              final orientationChanged =
+                  (old.width >= old.height) != (view.width >= view.height);
+              if (orientationChanged) {
+                _docSize = view;
+                _viewport = const ViewportTransform();
+                _cancelAllInProgress();
+              }
             }
           }
           return Listener(

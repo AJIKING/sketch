@@ -23,12 +23,19 @@ void main() {
   });
 
   // 回帰: ギャラリー→キャンバスの遷移(Navigator.of の context 不正で
-  // 実機がクラッシュした不具合を捕捉する)。
-  testWidgets('新規キャンバスをタップするとキャンバスへ遷移する', (tester) async {
+  // 実機がクラッシュした不具合を捕捉する)。サイズ選択ダイアログ経由。
+  testWidgets('新規キャンバス→サイズ選択→キャンバスへ遷移する', (tester) async {
     await tester.pumpWidget(HatchApp(dependencies: _testDeps()));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('新規キャンバス'));
+    await tester.pumpAndSettle();
+
+    // サイズ選択ダイアログ。
+    expect(find.text('キャンバスサイズ'), findsOneWidget);
+    expect(find.text('正方形 2048×2048'), findsOneWidget);
+
+    await tester.tap(find.text('画面サイズ'));
     await tester.pumpAndSettle();
 
     // キャンバスのツールドックが出ている。

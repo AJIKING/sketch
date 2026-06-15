@@ -33,10 +33,14 @@ class CanvasScreen extends StatefulWidget {
     required this.gallery,
     this.existing,
     this.backgroundPng,
+    this.documentSize,
   });
 
   final Dependencies dependencies;
   final GalleryController gallery;
+
+  /// 固定解像度ドキュメントの寸法(ADR 0006)。null なら画面サイズ追従。
+  final Size? documentSize;
 
   /// 既存スケッチを開く場合のメタ(新規なら null)。
   final Sketch? existing;
@@ -531,6 +535,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
                     transforming: _transforming,
                     vector: _vec,
                     onCommitted: _onCommitted,
+                    documentSize: widget.documentSize,
                     // 長押しでツール UI を表示/非表示。
                     onToggleUi: () => setState(() => _uiVisible = !_uiVisible),
                   ),

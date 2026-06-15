@@ -506,6 +506,47 @@ void main() {
     expect(v.offset, Offset.zero);
   });
 
+  testWidgets('固定解像度ドキュメントは中央フィット表示で docSize 固定(A2)', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final key = GlobalKey<DrawSurfaceState>();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 300,
+              height: 300,
+              child: DrawSurface(
+                key: key,
+                controller: controller,
+                surface: surface,
+                clock: FakeClock(),
+                transforming: ValueNotifier<bool>(false),
+                documentSize: const Size(100, 200),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // doc 100x200 を view 300x300 へ: scale=min(3,1.5)=1.5、中央寄せ。
+    final v = key.currentState!.viewport;
+    expect(v.scale, closeTo(1.5, 1e-9));
+    expect(v.offset.dx, closeTo(75, 1e-6)); // (300-150)/2
+    expect(v.offset.dy, closeTo(0, 1e-6)); // (300-300)/2
+
+    // 描くと固定解像度(100x200)で焼き込まれる(画面サイズではない)。
+    await tester.drag(find.byType(DrawSurface), const Offset(0, 30));
+    await tester.pump();
+    final img = surface.imageOf(controller.layers.active.id);
+    expect(img, isNotNull);
+    expect(img!.width, 100);
+    expect(img.height, 200);
+  });
+
   testWidgets('同じ向きの微小リサイズではユーザーのズームを保持する(回帰)', (tester) async {
     final surface = RasterLayerStore();
     final controller = CanvasController(surface: surface);

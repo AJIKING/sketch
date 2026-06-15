@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
@@ -8,6 +9,15 @@ import 'domain/gallery/sketch.dart';
 import 'ui/canvas/canvas_screen.dart';
 import 'ui/gallery/gallery_screen.dart';
 import 'ui/theme/atelier_theme.dart';
+
+/// 新規キャンバスのサイズプリセット(ADR 0006)。null は画面サイズ追従。
+const List<(String, Size?)> _sizePresets = [
+  ('画面サイズ', null),
+  ('正方形 1080×1080', Size(1080, 1080)),
+  ('正方形 2048×2048', Size(2048, 2048)),
+  ('縦 1080×1920', Size(1080, 1920)),
+  ('横 1920×1080', Size(1920, 1080)),
+];
 
 /// アプリのルート。差し替え境界([Dependencies])を受け取り、ギャラリーを起点に
 /// キャンバスへ遷移する。テストでは fake を束ねた [Dependencies] を渡す。
@@ -44,7 +54,17 @@ class _HatchAppState extends State<HatchApp> {
     final navigator = _navigatorKey.currentState;
     if (navigator == null) return;
     Uint8List? background;
-    if (existing != null) background = await _gallery.image(existing.id);
+    Size? documentSize;
+    if (existing != null) {
+      // 既存は保存 PNG の解像度をドキュメントサイズとして復元する。
+      background = await _gallery.image(existing.id);
+      if (background != null) documentSize = await _imageSize(background);
+    } else {
+      // 新規はサイズを選ぶ(キャンセルなら開かない)。
+      final choice = await _promptDocumentSize();
+      if (choice == null) return;
+      documentSize = choice.size;
+    }
     if (!mounted) return;
     await navigator.push(
       MaterialPageRoute<void>(
@@ -53,11 +73,42 @@ class _HatchAppState extends State<HatchApp> {
           gallery: _gallery,
           existing: existing,
           backgroundPng: background,
+          documentSize: documentSize,
         ),
       ),
     );
     if (!mounted) return;
     await _gallery.load(); // 戻ったら一覧を更新
+  }
+
+  /// 新規キャンバスのサイズ選択。戻り値 null はキャンセル、size null は画面サイズ。
+  Future<({Size? size})?> _promptDocumentSize() {
+    final ctx = _navigatorKey.currentContext;
+    if (ctx == null) return Future<({Size? size})?>.value(null);
+    return showDialog<({Size? size})>(
+      context: ctx,
+      builder: (dialogCtx) => SimpleDialog(
+        title: const Text('キャンバスサイズ'),
+        children: [
+          for (final preset in _sizePresets)
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(dialogCtx).pop((size: preset.$2)),
+              child: Text(preset.$1),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// PNG バイト列の画素寸法。デコード不可なら null。
+  Future<Size?> _imageSize(Uint8List bytes) async {
+    try {
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      return Size(frame.image.width.toDouble(), frame.image.height.toDouble());
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
