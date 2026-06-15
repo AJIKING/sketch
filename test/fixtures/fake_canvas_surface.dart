@@ -18,4 +18,10 @@ class FakeCanvasSurface implements CanvasSurface {
 
   @override
   void clear(String layerId) => state[layerId] = 'cleared';
+
+  /// 解放されたスナップショットを記録する(画素は文字列トークンなので破棄不要)。
+  final List<Object> disposed = [];
+
+  @override
+  void disposeSnapshot(Object pixels) => disposed.add(pixels);
 }

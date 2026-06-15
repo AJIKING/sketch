@@ -232,6 +232,17 @@ void main() {
       expect(c.canRedo, isFalse);
     });
 
+    test('履歴上限を超えると最古スナップショットが解放される', () {
+      final s = FakeCanvasSurface();
+      final cc = CanvasController(surface: s, historyLimit: 2);
+      final id = cc.layers.active.id;
+      for (final token in ['a', 'b', 'c']) {
+        s.draw(id, token);
+        cc.beginStroke(); // 3 回目で最古(a)が上限超過 → 解放される
+      }
+      expect(s.disposed, isNotEmpty);
+    });
+
     test('beginStroke(layerId) はアクティブでなく指定レイヤーを記録する', () {
       final a = c.layers.layers[0].id;
       final b = c.layers.layers[1].id; // 既定アクティブ

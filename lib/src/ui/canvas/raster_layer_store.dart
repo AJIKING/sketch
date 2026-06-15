@@ -9,34 +9,75 @@ class RasterSnapshot {
 }
 
 /// `CanvasSurface` のラスター実装(ADR 0004)。レイヤー id ごとに合成済み
-/// ピクセル(`ui.Image`)を保持する。`ui.Image` は不変なので、スナップショットは
-/// 参照を持つだけで安価。
+/// ピクセル(`ui.Image`)を保持する。
+///
+/// `ui.Image` はネイティブメモリを持つため、ライブのレイヤー画像と undo 履歴の
+/// スナップショットが**同一オブジェクトを共有**しうる前提で**参照計数**し、最後の
+/// 参照が外れたときだけ `dispose` する(ADR 0003 の「履歴画像の解放」)。参照元は
+/// (1) 各レイヤー id のライブスロット、(2) 各 [RasterSnapshot]。
 class RasterLayerStore implements CanvasSurface {
   final Map<String, ui.Image?> _images = {};
 
+  /// 画像ごとの参照数(ライブスロット + 生存スナップショット)。
+  final Map<ui.Image, int> _refs = {};
+
   ui.Image? imageOf(String layerId) => _images[layerId];
 
-  void set(String layerId, ui.Image? image) => _images[layerId] = image;
+  /// レイヤー [layerId] のライブ画像を [image] へ差し替える(参照計数を更新)。
+  void set(String layerId, ui.Image? image) => _setLive(layerId, image);
+
+  void _setLive(String layerId, ui.Image? image) {
+    final old = _images[layerId];
+    if (identical(old, image)) return;
+    _retain(image); // 先に retain してから release(同一でも安全side)
+    _images[layerId] = image;
+    _release(old);
+  }
+
+  void _retain(ui.Image? image) {
+    if (image == null) return;
+    _refs[image] = (_refs[image] ?? 0) + 1;
+  }
+
+  void _release(ui.Image? image) {
+    if (image == null) return;
+    final count = _refs[image];
+    if (count == null) return; // 追跡外(通常起きない)
+    if (count <= 1) {
+      _refs.remove(image);
+      image.dispose();
+    } else {
+      _refs[image] = count - 1;
+    }
+  }
 
   @override
-  Object snapshot(String layerId) => RasterSnapshot(_images[layerId]);
+  Object snapshot(String layerId) {
+    final image = _images[layerId];
+    _retain(image); // スナップショットが 1 参照を持つ
+    return RasterSnapshot(image);
+  }
 
   @override
   void restore(String layerId, Object pixels) =>
-      _images[layerId] = (pixels as RasterSnapshot).image;
+      _setLive(layerId, (pixels as RasterSnapshot).image);
 
   @override
-  void clear(String layerId) => _images[layerId] = null;
+  void clear(String layerId) => _setLive(layerId, null);
 
-  /// 保持中のレイヤー画像をすべて解放する(画面破棄時に呼ぶ)。
+  @override
+  void disposeSnapshot(Object pixels) =>
+      _release((pixels as RasterSnapshot).image);
+
+  /// 追跡中のレイヤー画像をすべて解放する(画面破棄時に呼ぶ)。
   ///
-  /// ライブのレイヤー画像と undo 履歴のスナップショット画像は常に別オブジェクト
-  /// (履歴は「変更前」の置換済み画像を持つ)なので、ここでの解放と履歴側の
-  /// 解放が二重にならない。
+  /// ライブ・スナップショット双方が参照する画像を `_refs` で一意に把握しているため、
+  /// ここで全画像を 1 回ずつ破棄すれば二重解放も取りこぼしも起きない。
   void disposeAll() {
-    for (final image in _images.values) {
-      image?.dispose();
+    for (final image in _refs.keys) {
+      image.dispose();
     }
+    _refs.clear();
     _images.clear();
   }
 }

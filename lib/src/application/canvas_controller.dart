@@ -37,13 +37,16 @@ class CanvasController extends ChangeNotifier {
     required this.surface,
     this.paletteStore,
     int historyLimit = 16,
-  }) : _history = History<UndoEntry>(limit: historyLimit);
+  }) {
+    // 履歴から落ちたスナップショットの画素を surface へ返して解放させる。
+    _history = History<UndoEntry>(limit: historyLimit, onDrop: _releaseEntry);
+  }
 
   final CanvasSurface surface;
 
   /// ユーザー定義パレットの保存先(任意。null なら非永続)。
   final PaletteStore? paletteStore;
-  final History<UndoEntry> _history;
+  late final History<UndoEntry> _history;
   final LayerStack _layers = LayerStack.initial();
   final List<String> _customPalette = [];
   bool _disposed = false;
@@ -412,17 +415,33 @@ class CanvasController extends ChangeNotifier {
     }
   }
 
+  /// 履歴から落とした([onDrop])/消費したエントリのスナップショット画素を解放する。
+  void _releaseEntry(UndoEntry entry) {
+    switch (entry) {
+      case PixelEdit(:final pixels):
+        surface.disposeSnapshot(pixels);
+      case StackEdit(:final pixels):
+        for (final p in pixels.values) {
+          surface.disposeSnapshot(p);
+        }
+    }
+  }
+
   void undo() {
     final next = _history.nextUndo;
     if (next == null) return;
-    _applyEntry(_history.undo(_currentLike(next))!);
+    final restored = _history.undo(_currentLike(next))!;
+    _applyEntry(restored);
+    _releaseEntry(restored); // 復元で画素はライブへ移ったのでスナップショットを解放
     notifyListeners();
   }
 
   void redo() {
     final next = _history.nextRedo;
     if (next == null) return;
-    _applyEntry(_history.redo(_currentLike(next))!);
+    final restored = _history.redo(_currentLike(next))!;
+    _applyEntry(restored);
+    _releaseEntry(restored);
     notifyListeners();
   }
 

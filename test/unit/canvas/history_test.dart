@@ -64,4 +64,23 @@ void main() {
     expect(h.canUndo, isFalse);
     expect(h.canRedo, isFalse);
   });
+
+  test('onDrop は恒久破棄される要素にだけ呼ばれる(上限/redoクリア/clear)', () {
+    final dropped = <int>[];
+    final h = History<int>(limit: 2, onDrop: dropped.add);
+
+    h.record(1);
+    h.record(2);
+    h.record(3); // 上限超過 → 1 を破棄
+    expect(dropped, [1]);
+
+    h.undo(99); // 3 を返し、99 を redo へ(破棄ではない)
+    dropped.clear();
+    h.record(4); // redo(99)がクリアされ破棄される
+    expect(dropped, [99]);
+
+    dropped.clear();
+    h.clear(); // 残り全部(undo の 2,4)を破棄
+    expect(dropped, containsAll(<int>[2, 4]));
+  });
 }

@@ -9,9 +9,15 @@
 ///
 /// `docs/test-plan.md`「undo/redo」/ ADR 0003。
 class History<T> {
-  History({this.limit = 16});
+  History({this.limit = 16, this.onDrop});
 
   final int limit;
+
+  /// スナップショットが恒久的に破棄される(上限超過・redo クリア・[clear])とき
+  /// に呼ばれる。呼び出し側は紐づくリソース(画像など)を解放できる。undo/redo で
+  /// スタック間を移動するだけの要素では呼ばれない。
+  final void Function(T dropped)? onDrop;
+
   final List<T> _undo = [];
   final List<T> _redo = [];
 
@@ -28,7 +34,17 @@ class History<T> {
   /// 変更の直前に現在状態を記録する。redo はクリアされる。
   void record(T snapshot) {
     _undo.add(snapshot);
-    if (_undo.length > limit) _undo.removeAt(0);
+    // 上限超過は必ず破棄する(removeAt を null-aware の引数に置くと onDrop 未設定時に
+    // 評価されず破棄漏れになるため、常に取り出してから通知する)。
+    if (_undo.length > limit) {
+      final dropped = _undo.removeAt(0);
+      onDrop?.call(dropped);
+    }
+    if (onDrop != null) {
+      for (final dropped in _redo) {
+        onDrop!(dropped);
+      }
+    }
     _redo.clear();
   }
 
@@ -51,6 +67,14 @@ class History<T> {
   }
 
   void clear() {
+    if (onDrop != null) {
+      for (final dropped in _undo) {
+        onDrop!(dropped);
+      }
+      for (final dropped in _redo) {
+        onDrop!(dropped);
+      }
+    }
     _undo.clear();
     _redo.clear();
   }

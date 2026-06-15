@@ -12,4 +12,11 @@ abstract interface class CanvasSurface {
 
   /// レイヤー [layerId] を消去する。
   void clear(String layerId);
+
+  /// 履歴から落としたスナップショット [pixels] を解放する(参照が無くなれば破棄)。
+  ///
+  /// undo 履歴が保持していたスナップショットが上限超過・redo クリア等で不要に
+  /// なったときに呼ぶ。スナップショットの画素はライブ画像や他スナップショットと
+  /// **共有されうる**ため、実装は参照計数で「最後の 1 個」になったときのみ破棄する。
+  void disposeSnapshot(Object pixels);
 }
