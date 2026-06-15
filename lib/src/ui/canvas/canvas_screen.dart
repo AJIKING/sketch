@@ -120,31 +120,48 @@ class _CanvasScreenState extends State<CanvasScreen> {
     }
   }
 
-  Future<void> _exportTimelapse() async {
-    final messenger = ScaffoldMessenger.of(context);
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// 画像/GIF バイト列を共有シートで書き出し、結果メッセージを出す共通処理。
+  /// [bytes] が null(生成失敗/記録なし)なら [emptyMessage]。例外は内容を表示。
+  Future<void> _export(
+    Uint8List? bytes, {
+    required String okMessage,
+    required String emptyMessage,
+    String? suggestedName,
+    String? text,
+    String mimeType = 'image/png',
+  }) async {
+    if (bytes == null) {
+      _snack(emptyMessage);
+      return;
+    }
     try {
-      final gif = _timelapse.exportGif();
-      if (gif == null) {
-        messenger.showSnackBar(
-          const SnackBar(content: Text('タイムラプスの記録がありません')),
-        );
-        return;
-      }
-      await widget.dependencies.imageExporter.exportPng(
-        gif,
-        suggestedName: 'hatch-timelapse.gif',
-        mimeType: 'image/gif',
-        text: 'Hatch でタイムラプス #Hatch',
+      await widget.dependencies.imageExporter.exportImage(
+        bytes,
+        suggestedName: suggestedName,
+        text: text,
+        mimeType: mimeType,
       );
-      if (!mounted) return;
-      messenger.showSnackBar(
-        const SnackBar(content: Text('タイムラプスの共有シートを開きました')),
-      );
+      _snack(okMessage);
     } catch (e) {
-      if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('書き出しエラー: $e')));
+      _snack('書き出しエラー: $e');
     }
   }
+
+  Future<void> _exportTimelapse() => _export(
+    _timelapse.exportGif(),
+    okMessage: 'タイムラプスを保存しました',
+    emptyMessage: 'タイムラプスの記録がありません',
+    suggestedName: 'hatch-timelapse.gif',
+    mimeType: 'image/gif',
+    text: 'Hatch でタイムラプス #Hatch',
+  );
 
   Color get _currentColor => hexColor(_c.colorHex);
 
@@ -167,48 +184,31 @@ class _CanvasScreenState extends State<CanvasScreen> {
     messenger.showSnackBar(const SnackBar(content: Text('写真をレイヤーとして読み込みました')));
   }
 
-  /// 画像として保存(OS の共有/保存シート)。失敗は実際のエラーを表示する。
+  /// 画像として保存(OS の共有/保存シート経由)。
   Future<void> _exportImage() async {
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final png = await _drawKey.currentState?.exportPng();
-      if (!mounted) return;
-      if (png == null) {
-        messenger.showSnackBar(const SnackBar(content: Text('画像を生成できませんでした')));
-        return;
-      }
-      await widget.dependencies.imageExporter.exportPng(png);
-      if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(content: Text('保存/共有シートを開きました')));
-    } catch (e) {
-      if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('書き出しエラー: $e')));
-    }
+    final png = await _drawKey.currentState?.exportPng();
+    if (!mounted) return;
+    await _export(
+      png,
+      okMessage: '画像を保存しました',
+      emptyMessage: '画像を生成できませんでした',
+      suggestedName: 'hatch-sketch.png',
+    );
   }
 
   /// SNS 等への共有。キャプションを添えて OS の共有シートを開く。
   Future<void> _shareSketch() async {
     final caption = await _promptCaption();
     if (!mounted || caption == null) return; // キャンセル
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final png = await _drawKey.currentState?.exportPng();
-      if (!mounted) return;
-      if (png == null) {
-        messenger.showSnackBar(const SnackBar(content: Text('画像を生成できませんでした')));
-        return;
-      }
-      await widget.dependencies.imageExporter.exportPng(
-        png,
-        text: caption.isEmpty ? null : caption,
-        suggestedName: 'hatch-share.png',
-      );
-      if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(content: Text('共有シートを開きました')));
-    } catch (e) {
-      if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('共有エラー: $e')));
-    }
+    final png = await _drawKey.currentState?.exportPng();
+    if (!mounted) return;
+    await _export(
+      png,
+      okMessage: '共有しました',
+      emptyMessage: '画像を生成できませんでした',
+      suggestedName: 'hatch-share.png',
+      text: caption.isEmpty ? null : caption,
+    );
   }
 
   /// 共有キャプションの入力ダイアログ。共有で文字列、キャンセルで null。

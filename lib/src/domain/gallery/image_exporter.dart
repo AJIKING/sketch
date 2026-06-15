@@ -6,11 +6,11 @@ import 'dart:typed_data';
 /// 抽象化する。テストは記録のみの fake(`recording_image_exporter`)に差し替え、
 /// 実ファイル I/O や権限ダイアログに触れない。
 abstract interface class ImageExporter {
-  /// 画像バイト列をエクスポートする。許可が得られたら true。
+  /// 画像/GIF バイト列をエクスポート(共有シート/保存)する。提示できたら true。
   ///
   /// [text] を渡すと共有メッセージ(キャプション)を添える(SNS 共有向け)。
   /// [mimeType] は既定 image/png。GIF 等は `image/gif` を渡す。
-  Future<bool> exportPng(
+  Future<bool> exportImage(
     Uint8List bytes, {
     String? suggestedName,
     String? text,

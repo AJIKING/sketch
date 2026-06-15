@@ -13,7 +13,7 @@ class RecordingImageExporter implements ImageExporter {
   calls = [];
 
   @override
-  Future<bool> exportPng(
+  Future<bool> exportImage(
     Uint8List bytes, {
     String? suggestedName,
     String? text,

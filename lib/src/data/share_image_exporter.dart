@@ -20,7 +20,7 @@ class ShareImageExporter implements ImageExporter {
   const ShareImageExporter();
 
   @override
-  Future<bool> exportPng(
+  Future<bool> exportImage(
     Uint8List bytes, {
     String? suggestedName,
     String? text,
