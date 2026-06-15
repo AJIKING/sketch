@@ -21,19 +21,19 @@ const List<(String, Size?)> _sizePresets = [
 
 /// アプリのルート。差し替え境界([Dependencies])を受け取り、ギャラリーを起点に
 /// キャンバスへ遷移する。テストでは fake を束ねた [Dependencies] を渡す。
-class HatchApp extends StatefulWidget {
-  const HatchApp({super.key, this.dependencies});
+class RakugaApp extends StatefulWidget {
+  const RakugaApp({super.key, this.dependencies});
 
   /// 省略時は本番構成(`Dependencies.production()`)。
   final Dependencies? dependencies;
 
   @override
-  State<HatchApp> createState() => _HatchAppState();
+  State<RakugaApp> createState() => _RakugaAppState();
 }
 
-class _HatchAppState extends State<HatchApp> {
-  // MaterialApp が内部に作る Navigator を、HatchApp(その祖先)の context からでも
-  // 操作するための key。`Navigator.of(context)` を HatchApp の context で呼ぶと
+class _RakugaAppState extends State<RakugaApp> {
+  // MaterialApp が内部に作る Navigator を、RakugaApp(その祖先)の context からでも
+  // 操作するための key。`Navigator.of(context)` を RakugaApp の context で呼ぶと
   // 「Navigator を含まない context」エラーになるため、これを使う。
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
@@ -114,7 +114,7 @@ class _HatchAppState extends State<HatchApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Hatch',
+      title: 'Rakuga',
       navigatorKey: _navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: atelierTheme(),

@@ -158,9 +158,9 @@ class _CanvasScreenState extends State<CanvasScreen> {
     _timelapse.exportGif(),
     okMessage: 'タイムラプスを保存しました',
     emptyMessage: 'タイムラプスの記録がありません',
-    suggestedName: 'hatch-timelapse.gif',
+    suggestedName: 'rakuga-timelapse.gif',
     mimeType: 'image/gif',
-    text: 'Hatch でタイムラプス #Hatch',
+    text: 'Rakuga でタイムラプス #Rakuga',
   );
 
   Color get _currentColor => hexColor(_c.colorHex);
@@ -192,7 +192,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
       png,
       okMessage: '画像を保存しました',
       emptyMessage: '画像を生成できませんでした',
-      suggestedName: 'hatch-sketch.png',
+      suggestedName: 'rakuga-sketch.png',
     );
   }
 
@@ -206,7 +206,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
       png,
       okMessage: '共有しました',
       emptyMessage: '画像を生成できませんでした',
-      suggestedName: 'hatch-share.png',
+      suggestedName: 'rakuga-share.png',
       text: caption.isEmpty ? null : caption,
     );
   }
@@ -1483,7 +1483,7 @@ class _ShareCaptionDialog extends StatefulWidget {
 class _ShareCaptionDialogState extends State<_ShareCaptionDialog> {
   // SNS 向けの既定キャプション(ユーザーは編集・削除できる)。
   final TextEditingController _controller = TextEditingController(
-    text: 'Hatch で描きました #Hatch',
+    text: 'Rakuga で描きました #Rakuga',
   );
 
   @override

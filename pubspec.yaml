@@ -1,5 +1,5 @@
 name: sketch
-description: "Hatch — ポケットのアトリエ。スケッチ/お絵描き Flutter アプリ。"
+description: "Rakuga(ラクガ)— 描くを、もっと気軽に。スケッチ/お絵描き Flutter アプリ。"
 # pub.dev への誤公開を防ぐ(非公開アプリ)。
 publish_to: 'none'
 

@@ -303,7 +303,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(AlertDialog), findsOneWidget);
-    expect(find.text('Hatch で描きました #Hatch'), findsOneWidget); // 既定
+    expect(find.text('Rakuga で描きました #Rakuga'), findsOneWidget); // 既定
 
     await tester.tap(find.text('キャンセル'));
     await tester.pumpAndSettle();

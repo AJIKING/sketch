@@ -14,18 +14,18 @@ Dependencies _testDeps() => Dependencies(
 
 void main() {
   testWidgets('起動するとギャラリーのブランドと新規ボタンが出る', (tester) async {
-    await tester.pumpWidget(HatchApp(dependencies: _testDeps()));
+    await tester.pumpWidget(RakugaApp(dependencies: _testDeps()));
     await tester.pump();
 
-    expect(find.text('Hatch'), findsOneWidget);
-    expect(find.text('Pocket Atelier'), findsOneWidget);
+    expect(find.text('Rakuga'), findsOneWidget);
+    expect(find.text('描くを、もっと気軽に。'), findsOneWidget);
     expect(find.text('新規キャンバス'), findsOneWidget);
   });
 
   // 回帰: ギャラリー→キャンバスの遷移(Navigator.of の context 不正で
   // 実機がクラッシュした不具合を捕捉する)。サイズ選択ダイアログ経由。
   testWidgets('新規キャンバス→サイズ選択→キャンバスへ遷移する', (tester) async {
-    await tester.pumpWidget(HatchApp(dependencies: _testDeps()));
+    await tester.pumpWidget(RakugaApp(dependencies: _testDeps()));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('新規キャンバス'));

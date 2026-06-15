@@ -8,5 +8,5 @@ import 'src/app.dart';
 /// 毎回まっさらな状態で起動する。スケルトン段階では本番と同じ起動だが、
 /// 境界が増えたらここで test 用実装に差し替える。
 void main() {
-  runApp(const HatchApp());
+  runApp(const RakugaApp());
 }

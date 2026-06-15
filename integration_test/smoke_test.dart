@@ -10,10 +10,10 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('起動して新規キャンバスを開ける', (tester) async {
-    await tester.pumpWidget(const HatchApp());
+    await tester.pumpWidget(const RakugaApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('Hatch'), findsOneWidget);
+    expect(find.text('Rakuga'), findsOneWidget);
     expect(find.text('新規キャンバス'), findsOneWidget);
 
     await tester.tap(find.text('新規キャンバス'));

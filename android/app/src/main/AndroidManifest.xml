@@ -3,7 +3,7 @@
          キャッシュでオフライン可)。lib/src/ui/canvas/text_fonts.dart 参照。 -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="sketch"
+        android:label="Rakuga"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

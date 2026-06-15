@@ -41,7 +41,7 @@ class GalleryScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Hatch',
+                            'Rakuga',
                             style: TextStyle(
                               fontSize: 38,
                               fontWeight: FontWeight.w900,
@@ -49,7 +49,7 @@ class GalleryScreen extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            'Pocket Atelier',
+                            '描くを、もっと気軽に。',
                             style: TextStyle(color: AtelierTokens.inkDim),
                           ),
                         ],

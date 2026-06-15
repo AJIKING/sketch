@@ -22,7 +22,7 @@ typedef GifEncoder =
 
 /// 差し替え境界の束(`docs/architecture.md`)。
 ///
-/// composition root(`main*.dart`)が用途別に生成して `HatchApp` へ渡す。
+/// composition root(`main*.dart`)が用途別に生成して `RakugaApp` へ渡す。
 /// 本番・開発・テストで実装だけを差し替える。
 class Dependencies {
   const Dependencies({
