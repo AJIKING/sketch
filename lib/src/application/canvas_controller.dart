@@ -11,6 +11,7 @@ import '../domain/canvas/layer_stack.dart';
 import '../domain/canvas/selection_kind.dart';
 import '../domain/canvas/shape_kind.dart';
 import '../domain/canvas/symmetry_mode.dart';
+import '../domain/canvas/undo_entry.dart';
 import '../domain/color/ink_color.dart';
 import '../domain/palette/palette_store.dart';
 
@@ -27,9 +28,6 @@ enum Tool {
   select,
 }
 
-/// undo/redo のスナップショット(対象レイヤー id + 不透明な画素トークン)。
-typedef LayerSnapshot = ({String layerId, Object pixels});
-
 /// キャンバス画面の状態(`docs/test-plan.md` Widget「ツールドック」ほか)。
 ///
 /// ツール・ブラシ・サイズ・不透明度・現在色・最近色・レイヤー・履歴を保持する。
@@ -39,13 +37,13 @@ class CanvasController extends ChangeNotifier {
     required this.surface,
     this.paletteStore,
     int historyLimit = 16,
-  }) : _history = History<LayerSnapshot>(limit: historyLimit);
+  }) : _history = History<UndoEntry>(limit: historyLimit);
 
   final CanvasSurface surface;
 
   /// ユーザー定義パレットの保存先(任意。null なら非永続)。
   final PaletteStore? paletteStore;
-  final History<LayerSnapshot> _history;
+  final History<UndoEntry> _history;
   final LayerStack _layers = LayerStack.initial();
   final List<String> _customPalette = [];
   bool _disposed = false;
@@ -327,8 +325,17 @@ class CanvasController extends ChangeNotifier {
     notifyListeners();
   }
 
-  LayerSnapshot _snapshot(String layerId) =>
-      (layerId: layerId, pixels: surface.snapshot(layerId));
+  PixelEdit _snapshot(String layerId) =>
+      PixelEdit(layerId, surface.snapshot(layerId));
+
+  /// 構成 + 全レイヤー画素の完全スナップショット(構成変更の巻き戻し用)。
+  StackEdit _structuralSnapshot() {
+    final pixels = <String, Object>{};
+    for (final l in _layers.layers) {
+      pixels[l.id] = surface.snapshot(l.id);
+    }
+    return StackEdit(_layers.snapshot(), pixels);
+  }
 
   /// 変更の直前に呼ぶ。対象レイヤー([layerId] 省略時はアクティブ)の画素を
   /// 履歴へ積む。非同期処理では開始時に捕捉した id を渡すこと(await 中に
@@ -338,19 +345,50 @@ class CanvasController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 構成変更(結合など)の直前に呼ぶ。現在の構成 + 全画素を履歴へ積む。
+  void beginStructural() {
+    _history.record(_structuralSnapshot());
+    notifyListeners();
+  }
+
+  /// アクティブレイヤーを直下へ結合する(構造のみ)。画素合成は ui が事前に行い、
+  /// 結合後の画素を下レイヤーへ書き込んでおくこと。最下層なら false。undo 用に
+  /// 呼び出し前に [beginStructural] を呼ぶこと。
+  bool mergeDown(int index) {
+    if (!_layers.mergeDown(index)) return false;
+    notifyListeners();
+    return true;
+  }
+
+  /// [next] と同じ種類の「現在状態」スナップショット(redo 退避用)。
+  UndoEntry _currentLike(UndoEntry next) => switch (next) {
+    PixelEdit(:final layerId) => _snapshot(layerId),
+    StackEdit() => _structuralSnapshot(),
+  };
+
+  void _applyEntry(UndoEntry entry) {
+    switch (entry) {
+      case PixelEdit(:final layerId, :final pixels):
+        surface.restore(layerId, pixels);
+      case StackEdit(:final stack, :final pixels):
+        _layers.restore(stack);
+        for (final e in pixels.entries) {
+          surface.restore(e.key, e.value);
+        }
+    }
+  }
+
   void undo() {
     final next = _history.nextUndo;
     if (next == null) return;
-    final restored = _history.undo(_snapshot(next.layerId))!;
-    surface.restore(restored.layerId, restored.pixels);
+    _applyEntry(_history.undo(_currentLike(next))!);
     notifyListeners();
   }
 
   void redo() {
     final next = _history.nextRedo;
     if (next == null) return;
-    final restored = _history.redo(_snapshot(next.layerId))!;
-    surface.restore(restored.layerId, restored.pixels);
+    _applyEntry(_history.redo(_currentLike(next))!);
     notifyListeners();
   }
 

@@ -253,7 +253,15 @@ class _CanvasScreenState extends State<CanvasScreen> {
 
   void _openColorSheet() => _openSheet((_) => _ColorSheet(controller: _c));
   void _openBrushSheet() => _openSheet((_) => _BrushSheet(controller: _c));
-  void _openLayerSheet() => _openSheet((_) => _LayerSheet(controller: _c));
+  void _openLayerSheet() => _openSheet(
+    (_) => _LayerSheet(
+      controller: _c,
+      onMergeDown: (i) {
+        _c.setActiveLayer(i);
+        _drawKey.currentState?.mergeActiveDown();
+      },
+    ),
+  );
 
   void _openFilterSheet() {
     _openSheet(
@@ -1314,8 +1322,11 @@ class _BrushSheet extends StatelessWidget {
 }
 
 class _LayerSheet extends StatelessWidget {
-  const _LayerSheet({required this.controller});
+  const _LayerSheet({required this.controller, required this.onMergeDown});
   final CanvasController controller;
+
+  /// レイヤー [index] を直下へ結合する(ui の DrawSurface が画素を合成する)。
+  final void Function(int index) onMergeDown;
 
   @override
   Widget build(BuildContext context) {
@@ -1389,6 +1400,11 @@ class _LayerSheet extends StatelessWidget {
                 isSelected: layer.clipToLower,
                 color: layer.clipToLower ? AtelierTokens.vermilion : null,
                 onPressed: () => controller.toggleLayerClip(i),
+              ),
+              IconButton(
+                icon: const Icon(Icons.merge_type),
+                tooltip: '下のレイヤーと結合',
+                onPressed: i > 0 ? () => onMergeDown(i) : null,
               ),
               IconButton(
                 icon: const Icon(Icons.delete_outline),

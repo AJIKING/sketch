@@ -28,6 +28,26 @@ class LayerMeta {
 
   /// 直下のレイヤーへのクリッピング(下の不透明部分にのみ表示)。
   bool clipToLower;
+
+  /// メタ情報の複製(undo スナップショットが後続の変更で書き換わらないよう独立化)。
+  LayerMeta copy() => LayerMeta(
+    id: id,
+    name: name,
+    visible: visible,
+    opacity: opacity,
+    blendMode: blendMode,
+    alphaLocked: alphaLocked,
+    clipToLower: clipToLower,
+  );
+}
+
+/// レイヤー構成の不変スナップショット(undo 用)。[layers] は複製済み。
+class LayerStackData {
+  LayerStackData(this.layers, this.activeIndex, this.counter);
+
+  final List<LayerMeta> layers;
+  final int activeIndex;
+  final int counter;
 }
 
 /// レイヤーの並びとアクティブ位置を管理する(pure Dart)。
@@ -132,5 +152,31 @@ class LayerStack {
 
   void toggleClip(int index) {
     _layers[index].clipToLower = !_layers[index].clipToLower;
+  }
+
+  /// [index] のレイヤーを直下([index]-1)へ結合する。構成上は [index] を取り除き
+  /// アクティブを直下へ移すだけ(画素合成は呼び出し側が事前に行う)。最下層や
+  /// 範囲外なら false。
+  bool mergeDown(int index) {
+    if (index <= 0 || index >= _layers.length) return false;
+    _layers.removeAt(index);
+    _activeIndex = index - 1;
+    return true;
+  }
+
+  /// 構成の完全スナップショットを取る(メタは複製)。
+  LayerStackData snapshot() => LayerStackData(
+    _layers.map((l) => l.copy()).toList(),
+    _activeIndex,
+    _counter,
+  );
+
+  /// スナップショットへ構成を戻す(メタは複製して取り込む)。
+  void restore(LayerStackData data) {
+    _layers
+      ..clear()
+      ..addAll(data.layers.map((l) => l.copy()));
+    _activeIndex = data.activeIndex;
+    _counter = data.counter;
   }
 }

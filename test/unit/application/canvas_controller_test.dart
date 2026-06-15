@@ -183,6 +183,37 @@ void main() {
       expect(surface.state[id], 'A');
     });
 
+    test('結合(構成変更)を undo/redo で構成ごと巻き戻す', () {
+      c.addLayer(); // 3 枚, active=2
+      final ids = c.layers.layers.map((l) => l.id).toList();
+      surface.draw(ids[1], 'below');
+      surface.draw(ids[2], 'above');
+
+      // ui 相当: 結合前スナップショット → 下を合成画素へ差し替え → 構成変更。
+      c.beginStructural();
+      surface.draw(ids[1], 'merged');
+      expect(c.mergeDown(2), isTrue);
+      expect(c.layers.length, 2);
+      expect(c.layers.activeIndex, 1);
+      expect(surface.state[ids[1]], 'merged');
+
+      // undo: 3 枚へ戻り、下の画素も結合前へ。
+      c.undo();
+      expect(c.layers.length, 3);
+      expect(c.layers.activeIndex, 2);
+      expect(surface.state[ids[1]], 'below');
+      expect(surface.state[ids[2]], 'above');
+
+      // redo: 再び結合状態へ。
+      c.redo();
+      expect(c.layers.length, 2);
+      expect(surface.state[ids[1]], 'merged');
+    });
+
+    test('最下層の結合は false(履歴を積まない前提)', () {
+      expect(c.mergeDown(0), isFalse);
+    });
+
     test('空のとき undo/redo は何もしない', () {
       c.undo();
       c.redo();

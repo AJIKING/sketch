@@ -126,6 +126,49 @@ void main() {
     expect(s.activeIndex, 2); // active(ids[0])は index2 へ追従
   });
 
+  group('mergeDown', () {
+    test('上を取り除きアクティブが直下へ移る', () {
+      final s = LayerStack.initial()..add(); // 3 枚, active=2
+      final ids = s.layers.map((l) => l.id).toList();
+      expect(s.mergeDown(2), isTrue);
+      expect(s.layers.map((l) => l.id), [ids[0], ids[1]]);
+      expect(s.activeIndex, 1); // 直下へ
+    });
+
+    test('最下層(index<=0)や範囲外は false', () {
+      final s = LayerStack.initial();
+      expect(s.mergeDown(0), isFalse);
+      expect(s.mergeDown(5), isFalse);
+      expect(s.length, 2);
+    });
+  });
+
+  group('snapshot / restore', () {
+    test('構成を丸ごと巻き戻せる(メタは独立な複製)', () {
+      final s = LayerStack.initial()..add(); // 3 枚
+      s.setBlendMode(0, LayerBlendMode.multiply);
+      s.setActive(1);
+      final snap = s.snapshot();
+
+      // 破壊的に変更。
+      s.mergeDown(2);
+      s.setBlendMode(0, LayerBlendMode.screen);
+      s.setActive(0);
+      expect(s.length, 2);
+
+      // 復元。
+      s.restore(snap);
+      expect(s.length, 3);
+      expect(s.activeIndex, 1);
+      expect(s.layers[0].blendMode, LayerBlendMode.multiply);
+
+      // スナップショットは独立(復元後の変更が漏れない)。
+      s.setBlendMode(0, LayerBlendMode.screen);
+      s.restore(snap);
+      expect(s.layers[0].blendMode, LayerBlendMode.multiply);
+    });
+  });
+
   test('HSL ブレンドを含む合成モードが揃っている', () {
     expect(LayerBlendMode.values, contains(LayerBlendMode.hue));
     expect(LayerBlendMode.values, contains(LayerBlendMode.luminosity));

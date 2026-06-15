@@ -14,6 +14,7 @@ import '../../domain/color/ink_color.dart';
 import '../../domain/timelapse/timelapse_frame.dart';
 import '../../domain/vector/vector_object.dart';
 import '../theme/atelier_theme.dart';
+import 'blend_mode_map.dart';
 import 'color_picker.dart';
 import 'painted_stroke.dart';
 import 'raster_layer_store.dart';
@@ -852,6 +853,53 @@ class DrawSurfaceState extends State<DrawSurface> {
     widget.surface.set(id, recorder.endRecording().toImageSync(w, h));
     widget.onCommitted?.call();
   }
+
+  /// アクティブレイヤーを直下のレイヤーへ結合する(undo 可能)。最下層なら false。
+  ///
+  /// 見た目を保つため、上レイヤーをそのブレンド+不透明度で下レイヤーへ焼き込んで
+  /// から上を取り除く。下レイヤー自身のブレンド/不透明度はそのまま残す。
+  bool mergeActiveDown() {
+    if (_docSize.isEmpty) return false;
+    final i = _c.layers.activeIndex;
+    if (i <= 0) return false; // 直下が無い(最下層)
+    final above = _c.layers.layers[i];
+    final below = _c.layers.layers[i - 1];
+    final w = _docSize.width.round().clamp(1, 4096);
+    final h = _docSize.height.round().clamp(1, 4096);
+    final rect = Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble());
+    final belowImg = widget.surface.imageOf(below.id);
+    final aboveImg = widget.surface.imageOf(above.id);
+
+    _c.beginStructural(); // 結合前の構成 + 全画素を履歴へ積む
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    if (belowImg != null) {
+      canvas.drawImageRect(belowImg, _imageRect(belowImg), rect, Paint());
+    }
+    if (aboveImg != null && above.visible) {
+      canvas.saveLayer(
+        rect,
+        Paint()
+          ..blendMode = toUiBlendMode(above.blendMode)
+          ..color = Color.fromARGB(
+            (above.opacity * 255).round(),
+            255,
+            255,
+            255,
+          ),
+      );
+      canvas.drawImageRect(aboveImg, _imageRect(aboveImg), rect, Paint());
+      canvas.restore();
+    }
+    widget.surface.set(below.id, recorder.endRecording().toImageSync(w, h));
+    _c.mergeDown(i); // 上レイヤーのメタを取り除き、アクティブを下へ
+    setState(() {});
+    return true;
+  }
+
+  Rect _imageRect(ui.Image img) =>
+      Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble());
 
   void clearInsideSelection() {
     final id = _c.layers.active.id;

@@ -485,6 +485,51 @@ void main() {
     expect(surface.imageOf(id), same(before));
   });
 
+  testWidgets('レイヤー結合: アクティブを直下へ結合し undo で戻る', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final key = GlobalKey<DrawSurfaceState>();
+    await _pumpKeyed(tester, key, controller, surface);
+
+    // 上(アクティブ)レイヤーに描く。
+    await tester.drag(find.byType(DrawSurface), const Offset(70, 50));
+    await tester.pump();
+    expect(controller.layers.length, 2);
+    final topId = controller.layers.layers[1].id;
+    final bottomId = controller.layers.layers[0].id;
+    expect(surface.imageOf(topId), isNotNull);
+    expect(surface.imageOf(bottomId), isNull);
+
+    // 結合 → 1 枚に、下レイヤーへ焼き込み、undo 可能。
+    expect(key.currentState!.mergeActiveDown(), isTrue);
+    expect(controller.layers.length, 1);
+    expect(controller.layers.activeIndex, 0);
+    expect(surface.imageOf(bottomId), isNotNull); // 合成結果が下へ
+    expect(controller.canUndo, isTrue);
+
+    // undo → 2 枚に戻り、上の画素も復元される。
+    controller.undo();
+    expect(controller.layers.length, 2);
+    expect(surface.imageOf(topId), isNotNull);
+    expect(surface.imageOf(bottomId), isNull);
+
+    // redo → 再び結合。
+    controller.redo();
+    expect(controller.layers.length, 1);
+    expect(surface.imageOf(bottomId), isNotNull);
+  });
+
+  testWidgets('レイヤー結合: 最下層は結合できず false', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final key = GlobalKey<DrawSurfaceState>();
+    await _pumpKeyed(tester, key, controller, surface);
+    controller.setActiveLayer(0); // 最下層
+    expect(key.currentState!.mergeActiveDown(), isFalse);
+    expect(controller.layers.length, 2);
+    expect(controller.canUndo, isFalse);
+  });
+
   testWidgets('2 本指ピンチでビューが拡大する(Phase3)', (tester) async {
     final surface = RasterLayerStore();
     final controller = CanvasController(surface: surface);
