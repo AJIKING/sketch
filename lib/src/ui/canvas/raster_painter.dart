@@ -140,6 +140,24 @@ class RasterPainter extends CustomPainter {
         ..strokeWidth = 1
         ..color = const Color(0xFFFFFFFF),
     );
+    // 四隅のハンドル(調整可能であることの目印)。
+    final corners = [
+      rect.topLeft,
+      rect.topRight,
+      rect.bottomLeft,
+      rect.bottomRight,
+    ];
+    for (final c in corners) {
+      canvas.drawCircle(c, 5, Paint()..color = const Color(0xFFFFFFFF));
+      canvas.drawCircle(
+        c,
+        5,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5
+          ..color = const Color(0xCC000000),
+      );
+    }
   }
 
   void _paintGroup(

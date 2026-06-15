@@ -105,6 +105,11 @@ class DrawSurfaceState extends State<DrawSurface> {
   bool _vecMoving = false; // 選択オブジェクトの移動中
   Offset? _vecLastPos; // 移動の前回位置
 
+  // 長押し起動のオブジェクト調整モード(1本指=移動 / 2本指=拡縮)。
+  Offset? _adjLastPos; // 1 本指移動の前回位置(canvas 空間)
+  double _adjPinchPrevDist = 0; // 直前の 2 指間距離(view 空間)
+  bool _adjMoved = false; // ドラッグ/ピンチで動いたか(タップ判定用)
+
   @override
   void initState() {
     super.initState();
@@ -265,17 +270,102 @@ class DrawSurfaceState extends State<DrawSurface> {
 
   void _fireLongPress() {
     _longPressTimer = null;
-    if (_longPressPos == null) return;
+    final pos = _longPressPos;
+    if (pos == null) return;
     _longPressFired = true;
-    // 進行中の描画/選択は破棄して、ツール UI の表示/非表示を切り替える。
     _cancelAllInProgress();
+    // オブジェクトの上で長押し → そのオブジェクトの調整(移動/拡縮)モードへ。
+    final vec = widget.vector;
+    if (vec != null) {
+      final c = _viewport.toCanvas(pos);
+      final hit = vec.layer.hitTest(VecPoint(c.dx, c.dy), tolerance: 10);
+      if (hit != null) {
+        vec.startAdjust(hit.id);
+        setState(() {});
+        return;
+      }
+    }
+    // 何も無い所での長押しはツール UI の表示/非表示を切り替える。
     widget.onToggleUi?.call();
     setState(() {});
+  }
+
+  bool get _adjusting => widget.vector?.adjusting ?? false;
+
+  // ---- object adjust mode (long-press 起動) ----
+  void _adjDown(PointerDownEvent e) {
+    final vec = widget.vector!;
+    if (_pointers.length >= 2) {
+      final ids = _pointers.keys.toList();
+      _adjPinchPrevDist = (_pointers[ids[0]]! - _pointers[ids[1]]!).distance;
+      _adjMoved = true; // ピンチはタップではない
+    } else {
+      _adjLastPos = _viewport.toCanvas(e.localPosition);
+      _adjMoved = false;
+    }
+    vec.beginEdit(); // 実際に動いた時だけ undo を積む
+  }
+
+  void _adjMove(PointerMoveEvent e) {
+    final vec = widget.vector!;
+    if (_pointers.length >= 2) {
+      final ids = _pointers.keys.toList();
+      final d = (_pointers[ids[0]]! - _pointers[ids[1]]!).distance;
+      final sel = vec.selected;
+      if (_adjPinchPrevDist > 0 && d > 0 && sel != null) {
+        final b = sel.bounds;
+        final anchor = VecPoint((b.left + b.right) / 2, (b.top + b.bottom) / 2);
+        vec.scaleSelectedBy(d / _adjPinchPrevDist, anchor);
+        _adjPinchPrevDist = d;
+      }
+      _adjMoved = true;
+      return;
+    }
+    final c = _viewport.toCanvas(e.localPosition);
+    final last = _adjLastPos;
+    if (last != null) {
+      final dx = c.dx - last.dx, dy = c.dy - last.dy;
+      if (dx != 0 || dy != 0) {
+        vec.moveSelectedBy(dx, dy);
+        _adjMoved = true;
+      }
+    }
+    _adjLastPos = c;
+  }
+
+  void _adjUp(PointerUpEvent e) {
+    final vec = widget.vector!;
+    final wasPinch = _pointers.length >= 2;
+    _pointers.remove(e.pointer);
+    if (_pointers.length >= 2) return; // まだピンチ中
+    if (wasPinch) {
+      // ピンチ終了。残り 1 本で移動へ戻れるよう基準をリセット。
+      _adjLastPos = null;
+      _adjPinchPrevDist = 0;
+      return;
+    }
+    if (!_adjMoved) {
+      // タップ: 別オブジェクトなら切替、空なら調整終了。
+      final c = _viewport.toCanvas(e.localPosition);
+      final hit = vec.layer.hitTest(VecPoint(c.dx, c.dy), tolerance: 10);
+      if (hit != null) {
+        vec.startAdjust(hit.id);
+      } else {
+        vec.endAdjust();
+      }
+    }
+    _adjLastPos = null;
+    _adjMoved = false;
   }
 
   // ---- pointers ----
   void _onDown(PointerDownEvent e) {
     _pointers[e.pointer] = e.localPosition;
+    if (_adjusting) {
+      _adjDown(e);
+      setState(() {});
+      return;
+    }
     if (_pointers.length >= 2) {
       _cancelLongPress();
       // 2 本指で変形を開始。既に変形中(3 本目以降)はアンカーを変えない。
@@ -359,6 +449,14 @@ class DrawSurfaceState extends State<DrawSurface> {
   }
 
   void _onMove(PointerMoveEvent e) {
+    if (_adjusting) {
+      if (_pointers.containsKey(e.pointer)) {
+        _pointers[e.pointer] = e.localPosition;
+      }
+      _adjMove(e);
+      setState(() {});
+      return;
+    }
     if (_pointers.containsKey(e.pointer)) {
       _pointers[e.pointer] = e.localPosition;
     }
@@ -418,6 +516,11 @@ class DrawSurfaceState extends State<DrawSurface> {
   }
 
   void _onUp(PointerUpEvent e) {
+    if (_adjusting && !_longPressFired) {
+      _adjUp(e);
+      setState(() {});
+      return;
+    }
     final id = e.pointer;
     final gesturing = _gestureStart != null;
     _pointers.remove(id);
@@ -492,6 +595,14 @@ class DrawSurfaceState extends State<DrawSurface> {
   }
 
   void _onCancel(PointerCancelEvent e) {
+    if (_adjusting) {
+      _pointers.remove(e.pointer);
+      _adjLastPos = null;
+      _adjPinchPrevDist = 0;
+      _adjMoved = false;
+      setState(() {});
+      return;
+    }
     final id = e.pointer;
     final gesturing = _gestureStart != null;
     _pointers.remove(id);

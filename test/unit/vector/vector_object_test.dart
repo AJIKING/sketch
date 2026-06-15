@@ -33,6 +33,12 @@ void main() {
       expect(stroke.hitTest(const VecPoint(5, 40)), isFalse);
     });
 
+    test('scaled は anchor 中心に点と線幅を比例拡縮', () {
+      final s = stroke.scaled(2, const VecPoint(0, 0));
+      expect(s.points.last, const VecPoint(20, 20)); // (10,10) → (20,20)
+      expect(s.width, 12); // 6 * 2
+    });
+
     test('単一点ストロークは半径内で当たる', () {
       final dot = VectorStroke(
         id: 'd',
@@ -127,6 +133,14 @@ void main() {
       expect(t.fontSize, 48);
       expect(t.boxWidth, 80); // 40 * 2
       expect(t.boxHeight, 60); // 30 * 2
+    });
+
+    test('scaled は位置・フォント・ボックスを anchor 中心に拡縮', () {
+      final t = make().scaled(2, const VecPoint(0, 0));
+      expect(t.position, const VecPoint(20, 40)); // (10,20) → (20,40)
+      expect(t.fontSize, 48);
+      expect(t.boxWidth, 80);
+      expect(t.boxHeight, 60);
     });
   });
 }

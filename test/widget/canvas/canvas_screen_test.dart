@@ -97,6 +97,26 @@ void main() {
     expect(find.byTooltip('ブラシ'), findsOneWidget);
   });
 
+  testWidgets('オブジェクト長押しで調整バーが出て、完了で抜ける', (tester) async {
+    await tester.pumpWidget(_app());
+    await tester.pump();
+
+    // ベクターでオブジェクトを 1 つ描く。
+    await tester.tap(find.byTooltip('ベクター: OFF'));
+    await tester.pump();
+    await tester.drag(find.byType(DrawSurface), const Offset(60, 20));
+    await tester.pump();
+
+    // そのオブジェクトの始点付近を長押し → 調整バー。
+    await tester.longPress(find.byType(DrawSurface));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('調整を完了'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('調整を完了'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('調整を完了'), findsNothing);
+  });
+
   testWidgets('ベクターをONにすると編集バーが出て、描画→取り消しできる', (tester) async {
     await tester.pumpWidget(_app());
     await tester.pump();

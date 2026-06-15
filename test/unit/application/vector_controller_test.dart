@@ -142,6 +142,60 @@ void main() {
     );
   });
 
+  group('調整モード', () {
+    test('startAdjust で選択して adjusting、endAdjust で抜ける', () {
+      c.addStroke(const [VecPoint(0, 0)], colorHex: '#000000', width: 10);
+      final id = c.selectedId!;
+      c.clearSelection();
+      c.startAdjust(id);
+      expect(c.adjusting, isTrue);
+      expect(c.selectedId, id);
+      c.endAdjust();
+      expect(c.adjusting, isFalse);
+      expect(c.hasSelection, isFalse);
+    });
+
+    test('scaleSelectedBy は anchor 中心に拡縮し 1 操作で undo できる', () {
+      c.addShape(
+        kind: ShapeKind.rectangle,
+        start: const VecPoint(0, 0),
+        end: const VecPoint(10, 10),
+        colorHex: '#000000',
+        width: 2,
+      );
+      final id = c.selectedId!;
+      c.beginEdit();
+      c.scaleSelectedBy(2, const VecPoint(0, 0));
+      c.scaleSelectedBy(1.5, const VecPoint(0, 0)); // 合計 3 倍
+      expect(
+        (c.layer.byId(id)! as VectorShapeObject).end,
+        const VecPoint(30, 30),
+      );
+      c.undo(); // ドラッグ全体が 1 回で戻る
+      expect(
+        (c.layer.byId(id)! as VectorShapeObject).end,
+        const VecPoint(10, 10),
+      );
+    });
+
+    test('縮みすぎる縮小は無視する', () {
+      c.addShape(
+        kind: ShapeKind.rectangle,
+        start: const VecPoint(0, 0),
+        end: const VecPoint(8, 8),
+        colorHex: '#000000',
+        width: 2,
+      );
+      final id = c.selectedId!;
+      c.beginEdit();
+      c.scaleSelectedBy(0.1, const VecPoint(0, 0)); // 8*0.1=0.8 < 6 → 無視
+      expect(
+        (c.layer.byId(id)! as VectorShapeObject).end,
+        const VecPoint(8, 8),
+      );
+    });
+  });
+
   test('selectAt は最前面を選び、外すと null', () {
     c.addStroke(const [VecPoint(0, 0)], colorHex: '#000000', width: 10);
     expect(c.selectAt(const VecPoint(0, 0)), isTrue);

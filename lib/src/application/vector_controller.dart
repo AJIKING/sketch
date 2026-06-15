@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 
 import '../domain/canvas/shape_kind.dart';
@@ -20,7 +22,8 @@ class VectorController extends ChangeNotifier {
 
   bool _enabled = false;
   String? _selectedId;
-  bool _moveArmed = false; // 移動ドラッグ開始済みだがまだスナップショット未取得
+  bool _editArmed = false; // 移動/拡縮の開始済みだがまだスナップショット未取得
+  bool _adjusting = false; // 長押し起動の「オブジェクト調整」モード
   int _seq = 0;
 
   VectorLayer get layer => _layer;
@@ -30,6 +33,9 @@ class VectorController extends ChangeNotifier {
   VectorObject? get selected =>
       _selectedId == null ? null : _layer.byId(_selectedId!);
   bool get hasSelection => selected != null;
+
+  /// 長押しで入る調整(移動/拡縮)モード中か。
+  bool get adjusting => _adjusting;
   bool get canUndo => _undoStack.isNotEmpty;
   bool get canRedo => _redoStack.isNotEmpty;
 
@@ -38,8 +44,27 @@ class VectorController extends ChangeNotifier {
     _enabled = value;
     if (!value) {
       _selectedId = null;
-      _moveArmed = false;
+      _editArmed = false;
+      _adjusting = false;
     }
+    notifyListeners();
+  }
+
+  /// [id] のオブジェクトを選択して調整モードへ入る(長押し起動)。
+  void startAdjust(String id) {
+    if (_layer.byId(id) == null) return;
+    _selectedId = id;
+    _adjusting = true;
+    _editArmed = false;
+    notifyListeners();
+  }
+
+  /// 調整モードを抜けて選択を解除する。
+  void endAdjust() {
+    if (!_adjusting && _selectedId == null) return;
+    _adjusting = false;
+    _selectedId = null;
+    _editArmed = false;
     notifyListeners();
   }
 
@@ -202,34 +227,56 @@ class VectorController extends ChangeNotifier {
   bool selectAt(VecPoint p, {double tolerance = 10}) {
     final hit = _layer.hitTest(p, tolerance: tolerance);
     _selectedId = hit?.id;
-    _moveArmed = false;
+    _editArmed = false;
     notifyListeners();
     return hit != null;
   }
 
   void clearSelection() {
-    _moveArmed = false;
+    _editArmed = false;
     if (_selectedId == null) return;
     _selectedId = null;
     notifyListeners();
   }
 
-  /// 移動ドラッグの開始を予約する。実際に動いた最初の [moveSelectedBy] で初めて
-  /// スナップショットを積むため、タップ選択(移動なし)では履歴を汚さない。
-  void beginMove() {
+  /// 移動/拡縮ドラッグの開始を予約する。実際に動いた最初の [moveSelectedBy] /
+  /// [scaleSelectedBy] で初めてスナップショットを積むため、タップ選択(無操作)
+  /// では履歴を汚さない。
+  void beginEdit() {
     if (_selectedId == null) return;
-    _moveArmed = true;
+    _editArmed = true;
   }
+
+  /// 後方互換の別名。
+  void beginMove() => beginEdit();
 
   void moveSelectedBy(double dx, double dy) {
     final id = _selectedId;
     if (id == null) return;
     if (dx == 0 && dy == 0) return; // 動きが無ければ何もしない
-    if (_moveArmed) {
-      _pushUndo(); // ドラッグ全体を 1 操作にする(最初の移動でだけ積む)
-      _moveArmed = false;
+    if (_editArmed) {
+      _pushUndo(); // ドラッグ全体を 1 操作にする(最初の編集でだけ積む)
+      _editArmed = false;
     }
     if (_layer.moveBy(id, dx, dy)) notifyListeners();
+  }
+
+  /// 選択オブジェクトを [anchor] を中心に [factor] 倍する(ピンチ拡縮)。
+  /// 縮みすぎ(外接矩形の短辺が ~6px 未満)になる縮小は無視する。
+  void scaleSelectedBy(double factor, VecPoint anchor) {
+    final id = _selectedId;
+    if (id == null || factor == 1.0) return;
+    final current = _layer.byId(id);
+    if (current == null) return;
+    final b = current.bounds;
+    final minSide = math.min(b.right - b.left, b.bottom - b.top);
+    if (factor < 1 && minSide * factor < 6) return;
+    if (_editArmed) {
+      _pushUndo();
+      _editArmed = false;
+    }
+    _layer.update(id, (o) => o.scaled(factor, anchor));
+    notifyListeners();
   }
 
   void deleteSelected() {
@@ -238,6 +285,7 @@ class VectorController extends ChangeNotifier {
     _pushUndo();
     _layer.removeById(id);
     _selectedId = null;
+    _adjusting = false;
     notifyListeners();
   }
 

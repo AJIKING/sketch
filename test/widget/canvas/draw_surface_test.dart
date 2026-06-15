@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sketch/src/application/canvas_controller.dart';
 import 'package:sketch/src/application/vector_controller.dart';
+import 'package:sketch/src/domain/canvas/shape_kind.dart';
 import 'package:sketch/src/domain/vector/vector_object.dart';
 import 'package:sketch/src/ui/canvas/draw_surface.dart';
 import 'package:sketch/src/ui/canvas/raster_layer_store.dart';
@@ -590,6 +591,73 @@ void main() {
       (vector.layer.byId(id)! as VectorStroke).points.first.x,
       closeTo(100, 1),
     );
+  });
+
+  testWidgets('長押しでオブジェクト調整: ドラッグで移動する', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final vector = VectorController()
+      ..addShape(
+        kind: ShapeKind.rectangle,
+        start: const VecPoint(80, 80),
+        end: const VecPoint(120, 120),
+        colorHex: '#000000',
+        width: 4,
+        filled: true,
+      );
+    await pumpVector(tester, controller, surface, vector);
+
+    // 中心(100,100)を長押し → そのオブジェクトの調整モードへ。
+    await tester.longPress(find.byType(DrawSurface));
+    await tester.pump();
+    expect(vector.adjusting, isTrue);
+    final id = vector.selectedId!;
+
+    // ドラッグで移動(+20, 0)。
+    await tester.drag(find.byType(DrawSurface), const Offset(20, 0));
+    await tester.pump();
+    final moved = vector.layer.byId(id)! as VectorShapeObject;
+    expect(moved.start.x, closeTo(100, 1)); // 80 → 100
+  });
+
+  testWidgets('長押しでオブジェクト調整: ピンチで拡大する', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final vector = VectorController()
+      ..addShape(
+        kind: ShapeKind.rectangle,
+        start: const VecPoint(80, 80),
+        end: const VecPoint(120, 120),
+        colorHex: '#000000',
+        width: 4,
+        filled: true,
+      );
+    await pumpVector(tester, controller, surface, vector);
+
+    await tester.longPress(find.byType(DrawSurface));
+    await tester.pump();
+    final id = vector.selectedId!;
+    final before = vector.layer.byId(id)! as VectorShapeObject;
+    final beforeW = before.end.x - before.start.x;
+
+    // 2 本指を広げてピンチ拡大。
+    final center = tester.getCenter(find.byType(DrawSurface));
+    final g1 = await tester.startGesture(
+      center + const Offset(-10, 0),
+      pointer: 1,
+    );
+    final g2 = await tester.startGesture(
+      center + const Offset(10, 0),
+      pointer: 2,
+    );
+    await g1.moveBy(const Offset(-30, 0));
+    await g2.moveBy(const Offset(30, 0));
+    await g1.up();
+    await g2.up();
+    await tester.pump();
+
+    final after = vector.layer.byId(id)! as VectorShapeObject;
+    expect(after.end.x - after.start.x, greaterThan(beforeW));
   });
 
   testWidgets('グラデブラシ: 2色目を持つストロークが焼き込まれる', (tester) async {

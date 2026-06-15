@@ -27,9 +27,18 @@ sealed class VectorObject {
   VectorObject withColor(String colorHex);
   VectorObject withWidth(double width);
 
+  /// [anchor] を中心に一様 [factor] 倍に拡縮する(線幅・フォントも比例)。
+  VectorObject scaled(double factor, VecPoint anchor);
+
   VecBounds get bounds;
   bool hitTest(VecPoint p, {double tolerance = 8});
 }
+
+/// [anchor] を基準に点 [p] を [factor] 倍した位置。
+VecPoint _scalePoint(VecPoint p, double factor, VecPoint anchor) => VecPoint(
+  anchor.x + (p.x - anchor.x) * factor,
+  anchor.y + (p.y - anchor.y) * factor,
+);
 
 /// 点列ストローク(線)。
 class VectorStroke extends VectorObject {
@@ -58,6 +67,14 @@ class VectorStroke extends VectorObject {
   @override
   VectorStroke withWidth(double width) =>
       VectorStroke(id: id, colorHex: colorHex, width: width, points: points);
+
+  @override
+  VectorStroke scaled(double factor, VecPoint anchor) => VectorStroke(
+    id: id,
+    colorHex: colorHex,
+    width: width * factor,
+    points: [for (final p in points) _scalePoint(p, factor, anchor)],
+  );
 
   @override
   VecBounds get bounds {
@@ -126,6 +143,13 @@ class VectorShapeObject extends VectorObject {
 
   @override
   VectorShapeObject withWidth(double width) => _copyWith(width: width);
+
+  @override
+  VectorShapeObject scaled(double factor, VecPoint anchor) => _copyWith(
+    width: width * factor,
+    start: _scalePoint(start, factor, anchor),
+    end: _scalePoint(end, factor, anchor),
+  );
 
   @override
   VecBounds get bounds => (
@@ -217,6 +241,14 @@ class VectorText extends VectorObject {
       boxHeight: boxHeight * factor,
     );
   }
+
+  @override
+  VectorText scaled(double factor, VecPoint anchor) => copyWith(
+    position: _scalePoint(position, factor, anchor),
+    fontSize: fontSize * factor,
+    boxWidth: boxWidth * factor,
+    boxHeight: boxHeight * factor,
+  );
 
   @override
   VecBounds get bounds => (

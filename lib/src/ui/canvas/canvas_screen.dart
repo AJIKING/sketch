@@ -441,7 +441,10 @@ class _CanvasScreenState extends State<CanvasScreen> {
                   ),
                 ),
                 _transformBar(),
-                if (_uiVisible && _vec.enabled) _vectorBar(),
+                if (_uiVisible && _vec.adjusting)
+                  _objectAdjustBar()
+                else if (_uiVisible && _vec.enabled)
+                  _vectorBar(),
               ],
             );
           },
@@ -521,6 +524,54 @@ class _CanvasScreenState extends State<CanvasScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // 長押し起動のオブジェクト調整バー(移動/拡縮中の操作)。
+  Widget _objectAdjustBar() {
+    return Positioned(
+      bottom: 78,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: AtelierTokens.surface3,
+            borderRadius: BorderRadius.circular(AtelierTokens.rLg),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6),
+                child: Text(
+                  '1本指=移動 2本指=拡縮',
+                  style: TextStyle(color: AtelierTokens.inkDim, fontSize: 12),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.palette_outlined),
+                tooltip: '選択を現在色にする',
+                onPressed: () => _vec.recolorSelected(_c.colorHex),
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.delete_outline,
+                  color: AtelierTokens.vermilion,
+                ),
+                tooltip: '削除',
+                onPressed: _vec.deleteSelected,
+              ),
+              IconButton(
+                icon: const Icon(Icons.check, color: AtelierTokens.vermilion),
+                tooltip: '調整を完了',
+                onPressed: _vec.endAdjust,
+              ),
+            ],
+          ),
         ),
       ),
     );
