@@ -1298,19 +1298,20 @@ class DrawSurfaceState extends State<DrawSurface> {
           } else if (view != _viewSize) {
             final old = _viewSize;
             _viewSize = view;
-            if (fixed != null) {
-              // 固定解像度: 表示域が変わるたび中央フィットし直す。
-              _viewport = ViewportTransform.fit(_docSize, view);
-            } else {
-              // 画面サイズ: 向きが変わったら新しい向きいっぱいに作り直す。
-              // 同じ向きの微小なインセット変化ではズーム/位置を保持する。
-              final orientationChanged =
-                  (old.width >= old.height) != (view.width >= view.height);
-              if (orientationChanged) {
+            // 再フィット/作り直しは「向きが変わった」ときだけ。同じ向きの微小な
+            // インセット変化(キーボード/システムバー等)ではズーム/位置を保つ。
+            final orientationChanged =
+                (old.width >= old.height) != (view.width >= view.height);
+            if (orientationChanged) {
+              if (fixed != null) {
+                // 固定解像度: 新しい向きへ中央フィットし直す。
+                _viewport = ViewportTransform.fit(_docSize, view);
+              } else {
+                // 画面サイズ: 新しい向きいっぱいに作り直す。
                 _docSize = view;
                 _viewport = const ViewportTransform();
-                _cancelAllInProgress();
               }
+              _cancelAllInProgress();
             }
           }
           return Listener(

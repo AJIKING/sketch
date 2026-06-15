@@ -547,6 +547,49 @@ void main() {
     expect(img.height, 200);
   });
 
+  testWidgets('固定解像度: 同じ向きのリサイズではズームを保持する(回帰)', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface);
+    final key = GlobalKey<DrawSurfaceState>();
+    Widget app(Size view) => MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: SizedBox(
+            width: view.width,
+            height: view.height,
+            child: DrawSurface(
+              key: key,
+              controller: controller,
+              surface: surface,
+              clock: FakeClock(),
+              transforming: ValueNotifier<bool>(false),
+              documentSize: const Size(100, 200),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(app(const Size(300, 400))); // 縦
+    await tester.pump();
+
+    final c = tester.getCenter(find.byType(DrawSurface));
+    final g1 = await tester.startGesture(c + const Offset(-20, 0), pointer: 1);
+    final g2 = await tester.startGesture(c + const Offset(20, 0), pointer: 2);
+    await g1.moveBy(const Offset(-40, 0));
+    await g2.moveBy(const Offset(40, 0));
+    await g1.up();
+    await g2.up();
+    await tester.pump();
+    final zoomed = key.currentState!.viewport.scale;
+    expect(zoomed, greaterThan(2.5)); // 初期フィット 2.0 から拡大
+
+    // 同じ縦向きのまま少しリサイズ → ズーム保持(再フィットしない)。
+    await tester.pumpWidget(app(const Size(290, 400)));
+    await tester.pump();
+    expect(key.currentState!.viewport.scale, closeTo(zoomed, 1e-9));
+  });
+
   testWidgets('同じ向きの微小リサイズではユーザーのズームを保持する(回帰)', (tester) async {
     final surface = RasterLayerStore();
     final controller = CanvasController(surface: surface);

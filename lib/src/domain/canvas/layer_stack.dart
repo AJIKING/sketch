@@ -98,7 +98,7 @@ class LayerStack {
   }
 
   /// [index] のレイヤーを [delta] だけ動かす(+1 で前面へ、-1 で背面へ)。
-  /// 範囲外なら false。アクティブは動かしたレイヤーに追従する。
+  /// 範囲外なら false。アクティブは動かしたレイヤーに追従する(任意 [delta] 可)。
   bool move(int index, int delta) {
     final to = index + delta;
     if (index < 0 ||
@@ -107,13 +107,10 @@ class LayerStack {
         to >= _layers.length) {
       return false;
     }
+    final active = _layers[_activeIndex];
     final layer = _layers.removeAt(index);
     _layers.insert(to, layer);
-    if (_activeIndex == index) {
-      _activeIndex = to;
-    } else if (_activeIndex == to) {
-      _activeIndex = index;
-    }
+    _activeIndex = _layers.indexOf(active); // 動いた後の位置へ追従
     return true;
   }
 

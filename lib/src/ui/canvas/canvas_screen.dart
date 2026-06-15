@@ -9,7 +9,6 @@ import '../../application/dependencies.dart';
 import '../../application/gallery_controller.dart';
 import '../../application/timelapse_recorder.dart';
 import '../../application/vector_controller.dart';
-import '../../data/gif_encoder.dart';
 import '../../domain/brush/brush_preset.dart';
 import '../../domain/canvas/filters.dart' as filters;
 import '../../domain/canvas/gradient_kind.dart';
@@ -63,7 +62,9 @@ class _CanvasScreenState extends State<CanvasScreen> {
   );
   final VectorController _vec = VectorController();
   late final TimelapseRecorder _timelapse = TimelapseRecorder(
-    encode: encodeGif,
+    encode:
+        widget.dependencies.gifEncoder ??
+        (frames, {frameMs = 80}) => null, // エンコーダ未注入なら書き出し不可
   );
   late final Listenable _repaint = Listenable.merge([_c, _vec, _timelapse]);
 
@@ -99,16 +100,24 @@ class _CanvasScreenState extends State<CanvasScreen> {
     super.dispose();
   }
 
-  /// 確定ごと(録画中)にタイムラプスのフレームを取り込む。
+  bool _capturingFrame = false; // タイムラプス取得の単一実行ガード
+
+  /// 確定ごと(録画中)にタイムラプスのフレームを取り込む。取得中はスキップして、
+  /// 同時多発の toImage によるメモリ急増とフレーム順の乱れを防ぐ(間引き)。
   void _onCommitted() {
-    if (!_timelapse.recording) return;
+    if (!_timelapse.recording || _capturingFrame) return;
     unawaited(_captureTimelapseFrame());
   }
 
   Future<void> _captureTimelapseFrame() async {
-    final frame = await _drawKey.currentState?.captureFrame(360);
-    if (!mounted || frame == null) return;
-    _timelapse.addFrame(frame);
+    _capturingFrame = true;
+    try {
+      final frame = await _drawKey.currentState?.captureFrame(360);
+      if (!mounted || frame == null) return;
+      _timelapse.addFrame(frame);
+    } finally {
+      _capturingFrame = false;
+    }
   }
 
   Future<void> _exportTimelapse() async {

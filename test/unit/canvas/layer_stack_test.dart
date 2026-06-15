@@ -115,6 +115,17 @@ void main() {
     expect(s.move(2, 1), isFalse);
   });
 
+  test('move は |delta|>1 でもアクティブが正しく追従する(回帰)', () {
+    final s = LayerStack.initial()
+      ..add()
+      ..add(); // 4 枚
+    final ids = s.layers.map((l) => l.id).toList();
+    s.setActive(0);
+    expect(s.move(0, 2), isTrue); // index0 を +2 → index2
+    expect(s.layers.map((l) => l.id), [ids[1], ids[2], ids[0], ids[3]]);
+    expect(s.activeIndex, 2); // active(ids[0])は index2 へ追従
+  });
+
   test('HSL ブレンドを含む合成モードが揃っている', () {
     expect(LayerBlendMode.values, contains(LayerBlendMode.hue));
     expect(LayerBlendMode.values, contains(LayerBlendMode.luminosity));
