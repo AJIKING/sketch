@@ -9,11 +9,13 @@ import '../../fixtures/fake_clock.dart';
 import '../../fixtures/in_memory_gallery_store.dart';
 import '../../fixtures/recording_image_exporter.dart';
 
-Widget _app() {
+Widget _app() => _appWith(RecordingImageExporter());
+
+Widget _appWith(RecordingImageExporter exporter) {
   final deps = Dependencies(
     clock: FakeClock(),
     galleryStore: InMemoryGalleryStore(),
-    imageExporter: RecordingImageExporter(),
+    imageExporter: exporter,
   );
   return MaterialApp(
     home: CanvasScreen(
@@ -192,8 +194,26 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('画像として保存'), findsOneWidget);
+    expect(find.text('共有(SNS など)'), findsOneWidget);
     expect(find.text('完了してギャラリーへ'), findsOneWidget);
     expect(find.text('このレイヤーを消去'), findsOneWidget);
+  });
+
+  testWidgets('共有メニューで既定キャプション付きのダイアログが出る', (tester) async {
+    await tester.pumpWidget(_app());
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('メニュー'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('共有(SNS など)'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.text('Hatch で描きました #Hatch'), findsOneWidget); // 既定
+
+    await tester.tap(find.text('キャンセル'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
   });
 
   testWidgets('カラーシートにパレットと HSV ピッカーが出る', (tester) async {

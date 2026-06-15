@@ -96,6 +96,33 @@ class _CanvasScreenState extends State<CanvasScreen> {
     }
   }
 
+  /// SNS 等への共有。キャプションを添えて OS の共有シートを開く。
+  Future<void> _shareSketch() async {
+    final caption = await _promptCaption();
+    if (!mounted || caption == null) return; // キャンセル
+    final messenger = ScaffoldMessenger.of(context);
+    final png = await _drawKey.currentState?.exportPng();
+    final ok =
+        png != null &&
+        await widget.dependencies.imageExporter.exportPng(
+          png,
+          text: caption.isEmpty ? null : caption,
+          suggestedName: 'hatch-share.png',
+        );
+    if (!mounted) return;
+    messenger.showSnackBar(
+      SnackBar(content: Text(ok ? '共有しました' : '共有をキャンセルしました')),
+    );
+  }
+
+  /// 共有キャプションの入力ダイアログ。共有で文字列、キャンセルで null。
+  Future<String?> _promptCaption() {
+    return showDialog<String>(
+      context: context,
+      builder: (_) => const _ShareCaptionDialog(),
+    );
+  }
+
   Future<void> _exit() async {
     await _saveToGallery();
     if (mounted) Navigator.of(context).pop();
@@ -219,6 +246,14 @@ class _CanvasScreenState extends State<CanvasScreen> {
               messenger.showSnackBar(
                 SnackBar(content: Text(ok ? '画像を書き出しました' : '書き出しをキャンセルしました')),
               );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.ios_share),
+            title: const Text('共有(SNS など)'),
+            onTap: () async {
+              Navigator.of(context).pop();
+              await _shareSketch();
             },
           ),
           ListTile(
@@ -1186,6 +1221,53 @@ class _LayerSheet extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// 共有キャプション入力ダイアログ(controller を State で確実に dispose する)。
+class _ShareCaptionDialog extends StatefulWidget {
+  const _ShareCaptionDialog();
+
+  @override
+  State<_ShareCaptionDialog> createState() => _ShareCaptionDialogState();
+}
+
+class _ShareCaptionDialogState extends State<_ShareCaptionDialog> {
+  // SNS 向けの既定キャプション(ユーザーは編集・削除できる)。
+  final TextEditingController _controller = TextEditingController(
+    text: 'Hatch で描きました #Hatch',
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('共有'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        maxLines: null,
+        decoration: const InputDecoration(
+          labelText: 'メッセージ(任意)',
+          hintText: 'SNS に添える文章',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('キャンセル'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text),
+          child: const Text('共有'),
+        ),
+      ],
     );
   }
 }

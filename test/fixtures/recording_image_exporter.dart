@@ -9,11 +9,15 @@ class RecordingImageExporter implements ImageExporter {
   /// exportPng が返す許可結果。拒否(false)も再現できる。
   bool granted;
 
-  final List<({Uint8List bytes, String? name})> calls = [];
+  final List<({Uint8List bytes, String? name, String? text})> calls = [];
 
   @override
-  Future<bool> exportPng(Uint8List bytes, {String? suggestedName}) async {
-    calls.add((bytes: bytes, name: suggestedName));
+  Future<bool> exportPng(
+    Uint8List bytes, {
+    String? suggestedName,
+    String? text,
+  }) async {
+    calls.add((bytes: bytes, name: suggestedName, text: text));
     return granted;
   }
 }

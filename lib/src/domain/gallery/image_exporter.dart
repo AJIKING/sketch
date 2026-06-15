@@ -7,5 +7,11 @@ import 'dart:typed_data';
 /// 実ファイル I/O や権限ダイアログに触れない。
 abstract interface class ImageExporter {
   /// PNG バイト列をエクスポートする。許可が得られたら true。
-  Future<bool> exportPng(Uint8List bytes, {String? suggestedName});
+  ///
+  /// [text] を渡すと共有メッセージ(キャプション)を添える(SNS 共有向け)。
+  Future<bool> exportPng(
+    Uint8List bytes, {
+    String? suggestedName,
+    String? text,
+  });
 }

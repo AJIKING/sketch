@@ -18,13 +18,20 @@ class ShareImageExporter implements ImageExporter {
   const ShareImageExporter();
 
   @override
-  Future<bool> exportPng(Uint8List bytes, {String? suggestedName}) async {
+  Future<bool> exportPng(
+    Uint8List bytes, {
+    String? suggestedName,
+    String? text,
+  }) async {
     try {
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/${suggestedName ?? 'hatch-sketch.png'}');
       await file.writeAsBytes(bytes);
       final result = await SharePlus.instance.share(
-        ShareParams(files: [XFile(file.path, mimeType: 'image/png')]),
+        ShareParams(
+          files: [XFile(file.path, mimeType: 'image/png')],
+          text: (text != null && text.isNotEmpty) ? text : null,
+        ),
       );
       return result.status != ShareResultStatus.dismissed;
     } catch (_) {
