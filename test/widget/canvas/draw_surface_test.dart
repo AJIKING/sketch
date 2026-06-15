@@ -232,6 +232,28 @@ void main() {
     expect((vector.layer.byId(id)! as VectorText).text, 'World');
   });
 
+  testWidgets('テキスト: 設定に触れると入力フォーカスが外れる(キーボード解除)', (tester) async {
+    _useTallSurface(tester);
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface)
+      ..selectTool(Tool.text);
+    final vector = VectorController();
+    await pumpVector(tester, controller, surface, vector);
+
+    await tester.tap(find.byType(DrawSurface));
+    await tester.pumpAndSettle();
+
+    // autofocus でテキスト欄にフォーカス(= キーボード表示)。
+    EditableText field() =>
+        tester.widget<EditableText>(find.byType(EditableText).first);
+    expect(field().focusNode.hasFocus, isTrue);
+
+    // 設定(サイズスライダー)に触れる → フォーカスが外れる。
+    await tester.tap(find.byType(Slider));
+    await tester.pumpAndSettle();
+    expect(field().focusNode.hasFocus, isFalse);
+  });
+
   testWidgets('テキスト: フォント選択がドロップダウンへ反映される', (tester) async {
     _useTallSurface(tester);
     final surface = RasterLayerStore();
