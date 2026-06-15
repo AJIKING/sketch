@@ -13,11 +13,13 @@ import '../../domain/canvas/selection_kind.dart';
 import '../../domain/color/ink_color.dart';
 import '../../domain/vector/vector_object.dart';
 import '../theme/atelier_theme.dart';
+import 'color_picker.dart';
 import 'painted_stroke.dart';
 import 'raster_layer_store.dart';
 import 'raster_painter.dart';
 import 'shape_render.dart';
 import 'stroke_stabilizer.dart';
+import 'vector_render.dart';
 import 'viewport_transform.dart';
 
 /// 塗りつぶしの許容値(0..255、各成分の差)。将来は設定 UI から変える。
@@ -299,6 +301,12 @@ class DrawSurfaceState extends State<DrawSurface> {
     }
     // 1 本指長押しでツール UI をトグル(全ツール/ベクター共通)。動いたら成立しない。
     _startLongPress(e.localPosition);
+    if (_c.tool == Tool.text) {
+      // テキストはタップ位置を記録し、離上で配置/編集(ベクター扱い)。
+      _startPos = e.localPosition;
+      setState(() {});
+      return;
+    }
     if (_vectorMode) {
       _vecDown(e.localPosition);
       setState(() {});
@@ -473,7 +481,7 @@ class DrawSurfaceState extends State<DrawSurface> {
       case Tool.gradient:
         _gradientFromTo(cs, cu);
       case Tool.text:
-        unawaited(_placeTextAt(cs));
+        unawaited(_handleTextTap(cs));
       case Tool.brush:
       case Tool.smudge:
       case Tool.erase:
@@ -696,46 +704,72 @@ class DrawSurfaceState extends State<DrawSurface> {
   }
 
   /// テキストツール: タップ位置に文字を配置する。入力ダイアログ→焼込(undo 可)。
-  Future<void> _placeTextAt(Offset canvasPos) async {
-    if (!_c.layers.active.visible) {
-      _warnHidden();
+  /// テキストツールのタップ。既存テキストに当たれば編集、無ければ新規作成。
+  /// 内容を空にして確定すると(編集時は)削除する。テキストは焼き込まず
+  /// ベクターオーバーレイの再編集可能オブジェクトとして保持する(ADR 0005)。
+  Future<void> _handleTextTap(Offset canvasPos) async {
+    final vec = widget.vector;
+    if (vec == null || _docSize.isEmpty) return;
+    final hit = vec.layer.hitTest(
+      VecPoint(canvasPos.dx, canvasPos.dy),
+      tolerance: 6,
+    );
+    final existing = hit is VectorText ? hit : null;
+    final result = await _promptText(existing);
+    if (!mounted || result == null) return;
+    final trimmed = result.text.trim();
+    if (trimmed.isEmpty) {
+      if (existing != null) vec.deleteById(existing.id);
       return;
     }
-    final result = await _promptText();
-    if (!mounted ||
-        result == null ||
-        result.text.trim().isEmpty ||
-        _docSize.isEmpty) {
-      return;
+    final painter = buildVectorTextPainter(
+      text: trimmed,
+      colorHex: result.colorHex,
+      fontSize: result.fontSize,
+      bold: result.bold,
+      underline: result.underline,
+      strikethrough: result.strikethrough,
+    );
+    if (existing != null) {
+      vec.updateText(
+        existing.id,
+        text: trimmed,
+        fontSize: result.fontSize,
+        colorHex: result.colorHex,
+        boxWidth: painter.width,
+        boxHeight: painter.height,
+        bold: result.bold,
+        underline: result.underline,
+        strikethrough: result.strikethrough,
+      );
+    } else {
+      vec.addText(
+        position: VecPoint(canvasPos.dx, canvasPos.dy),
+        text: trimmed,
+        fontSize: result.fontSize,
+        colorHex: result.colorHex,
+        boxWidth: painter.width,
+        boxHeight: painter.height,
+        bold: result.bold,
+        underline: result.underline,
+        strikethrough: result.strikethrough,
+      );
     }
-    final id = _c.layers.active.id;
-    final (r, g, b) = hexToRgb(result.colorHex);
-    final painter = TextPainter(
-      text: TextSpan(
-        text: result.text,
-        style: TextStyle(
-          color: Color.fromARGB(_alpha, r, g, b),
-          fontSize: result.fontSize,
-          fontWeight: result.bold ? FontWeight.w800 : FontWeight.w600,
-          height: 1.2,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: _docSize.width);
-    _bakeOnLayer(id, (canvas, w, h) => painter.paint(canvas, canvasPos));
     setState(() {});
   }
 
-  Future<({String text, double fontSize, bool bold, String colorHex})?>
-  _promptText() {
-    return showDialog<
-      ({String text, double fontSize, bool bold, String colorHex})
-    >(
+  Future<TextEditResult?> _promptText(VectorText? existing) {
+    return showDialog<TextEditResult>(
       context: context,
       builder: (_) => _TextInputDialog(
-        initialSize: (_c.size * 2.2).clamp(12.0, 240.0),
-        initialColorHex: _c.colorHex,
+        initialText: existing?.text ?? '',
+        initialSize: existing?.fontSize ?? (_c.size * 2.2).clamp(12.0, 240.0),
+        initialColorHex: existing?.colorHex ?? _c.colorHex,
+        initialBold: existing?.bold ?? false,
+        initialUnderline: existing?.underline ?? false,
+        initialStrikethrough: existing?.strikethrough ?? false,
         palette: _c.palette,
+        isEditing: existing != null,
       ),
     );
   }
@@ -1078,29 +1112,54 @@ class DrawSurfaceState extends State<DrawSurface> {
   }
 }
 
-/// テキスト入力ダイアログ(文字 + サイズ + 太字 + 色)。
+/// テキスト編集ダイアログの結果。
+typedef TextEditResult = ({
+  String text,
+  double fontSize,
+  bool bold,
+  bool underline,
+  bool strikethrough,
+  String colorHex,
+});
+
+/// テキスト編集ダイアログ(文字 + サイズ + 太字/下線/取消線 + 自由な色)。
 ///
-/// controller のライフサイクルを State で持ち、確実に dispose する。
+/// 既存テキストの再編集にも使う(各値をプリフィル)。色は HSV ピッカーで
+/// 通常オブジェクトと同様に自由に選べる。controller を State で dispose する。
 class _TextInputDialog extends StatefulWidget {
   const _TextInputDialog({
+    required this.initialText,
     required this.initialSize,
     required this.initialColorHex,
+    required this.initialBold,
+    required this.initialUnderline,
+    required this.initialStrikethrough,
     required this.palette,
+    required this.isEditing,
   });
 
+  final String initialText;
   final double initialSize;
   final String initialColorHex;
+  final bool initialBold;
+  final bool initialUnderline;
+  final bool initialStrikethrough;
   final List<String> palette;
+  final bool isEditing;
 
   @override
   State<_TextInputDialog> createState() => _TextInputDialogState();
 }
 
 class _TextInputDialogState extends State<_TextInputDialog> {
-  final TextEditingController _controller = TextEditingController();
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initialText,
+  );
   late double _fontSize = widget.initialSize;
-  late String _colorHex = widget.initialColorHex;
-  bool _bold = false;
+  late bool _bold = widget.initialBold;
+  late bool _underline = widget.initialUnderline;
+  late bool _strikethrough = widget.initialStrikethrough;
+  late Hsv _hsv = _toHsv(widget.initialColorHex);
 
   @override
   void dispose() {
@@ -1108,79 +1167,122 @@ class _TextInputDialogState extends State<_TextInputDialog> {
     super.dispose();
   }
 
-  Color _color(String hex) => Color.fromARGB(
-    255,
-    int.parse(hex.substring(1, 3), radix: 16),
-    int.parse(hex.substring(3, 5), radix: 16),
-    int.parse(hex.substring(5, 7), radix: 16),
-  );
+  Hsv _toHsv(String hex) {
+    final (r, g, b) = hexToRgb(hex);
+    return rgbToHsv(r, g, b);
+  }
+
+  String get _colorHex {
+    final (r, g, b) = hsvToRgb(_hsv.$1, _hsv.$2, _hsv.$3);
+    return rgbToHex(r, g, b);
+  }
+
+  Color _color(String hex) {
+    final (r, g, b) = hexToRgb(hex);
+    return Color.fromARGB(255, r, g, b);
+  }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('テキスト'),
+      title: Text(widget.isEditing ? 'テキストを編集' : 'テキスト'),
       content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _controller,
-              autofocus: true,
-              maxLines: null,
-              decoration: const InputDecoration(hintText: '文字を入力'),
-            ),
-            Row(
-              children: [
-                const Text('サイズ'),
-                Expanded(
-                  child: Slider(
-                    value: _fontSize,
-                    min: 12,
-                    max: 240,
-                    label: _fontSize.round().toString(),
-                    onChanged: (v) => setState(() => _fontSize = v),
-                  ),
-                ),
-              ],
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('太字'),
-              value: _bold,
-              onChanged: (v) => setState(() => _bold = v),
-            ),
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Padding(
-                padding: EdgeInsets.only(top: 8, bottom: 6),
-                child: Text('色'),
+        child: SizedBox(
+          width: 300,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: _controller,
+                autofocus: true,
+                maxLines: null,
+                decoration: const InputDecoration(hintText: '文字を入力'),
               ),
-            ),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final hex in {widget.initialColorHex, ...widget.palette})
-                  GestureDetector(
-                    onTap: () => setState(() => _colorHex = hex),
-                    child: Container(
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        color: _color(hex),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _colorHex == hex
-                              ? AtelierTokens.ink
-                              : AtelierTokens.hair,
-                          width: _colorHex == hex ? 3 : 1,
+              Row(
+                children: [
+                  const Text('サイズ'),
+                  Expanded(
+                    child: Slider(
+                      value: _fontSize,
+                      min: 12,
+                      max: 240,
+                      label: _fontSize.round().toString(),
+                      onChanged: (v) => setState(() => _fontSize = v),
+                    ),
+                  ),
+                ],
+              ),
+              Wrap(
+                spacing: 8,
+                children: [
+                  FilterChip(
+                    label: const Text('太字'),
+                    selected: _bold,
+                    onSelected: (v) => setState(() => _bold = v),
+                  ),
+                  FilterChip(
+                    label: const Text('下線'),
+                    selected: _underline,
+                    onSelected: (v) => setState(() => _underline = v),
+                  ),
+                  FilterChip(
+                    label: const Text('取り消し線'),
+                    selected: _strikethrough,
+                    onSelected: (v) => setState(() => _strikethrough = v),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Text('色'),
+                  const SizedBox(width: 8),
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: _color(_colorHex),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AtelierTokens.hair),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _colorHex,
+                    style: const TextStyle(color: AtelierTokens.inkDim),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              HsvField(
+                h: _hsv.$1,
+                s: _hsv.$2,
+                v: _hsv.$3,
+                onChanged: (h, s, v) => setState(() => _hsv = (h, s, v)),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final hex in widget.palette)
+                    GestureDetector(
+                      onTap: () => setState(() => _hsv = _toHsv(hex)),
+                      child: Container(
+                        width: 26,
+                        height: 26,
+                        decoration: BoxDecoration(
+                          color: _color(hex),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AtelierTokens.hair),
                         ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
       actions: [
@@ -1193,9 +1295,11 @@ class _TextInputDialogState extends State<_TextInputDialog> {
             text: _controller.text,
             fontSize: _fontSize,
             bold: _bold,
+            underline: _underline,
+            strikethrough: _strikethrough,
             colorHex: _colorHex,
           )),
-          child: const Text('追加'),
+          child: Text(widget.isEditing ? '更新' : '追加'),
         ),
       ],
     );

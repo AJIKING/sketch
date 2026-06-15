@@ -1,4 +1,4 @@
-import 'dart:ui';
+import 'package:flutter/painting.dart';
 
 import '../../domain/color/ink_color.dart';
 import '../../domain/vector/vector_layer.dart';
@@ -54,5 +54,47 @@ void renderVectorObject(Canvas canvas, VectorObject object) {
         opacity: 1,
         filled: shape.filled,
       );
+    case VectorText t:
+      buildVectorTextPainter(
+        text: t.text,
+        colorHex: t.colorHex,
+        fontSize: t.fontSize,
+        bold: t.bold,
+        underline: t.underline,
+        strikethrough: t.strikethrough,
+      ).paint(canvas, Offset(t.position.x, t.position.y));
   }
+}
+
+/// テキストの描画/測定に使う `TextPainter`(レイアウト済み)。下線・取消線対応。
+/// 描画(`vector_render`)と box 測定(`draw_surface`)で同じ体裁を使うため共有する。
+TextPainter buildVectorTextPainter({
+  required String text,
+  required String colorHex,
+  required double fontSize,
+  required bool bold,
+  required bool underline,
+  required bool strikethrough,
+}) {
+  final (r, g, b) = hexToRgb(colorHex);
+  final color = Color.fromARGB(255, r, g, b);
+  final decorations = <TextDecoration>[
+    if (underline) TextDecoration.underline,
+    if (strikethrough) TextDecoration.lineThrough,
+  ];
+  return TextPainter(
+    text: TextSpan(
+      text: text,
+      style: TextStyle(
+        color: color,
+        fontSize: fontSize,
+        fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+        decoration: TextDecoration.combine(decorations),
+        decorationColor: color,
+        decorationThickness: 2,
+        height: 1.2,
+      ),
+    ),
+    textDirection: TextDirection.ltr,
+  )..layout();
 }

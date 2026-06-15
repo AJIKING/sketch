@@ -149,6 +149,83 @@ class VectorShapeObject extends VectorObject {
   }
 }
 
+/// テキストオブジェクト(再編集可能)。
+///
+/// 描画ボックスのサイズ([boxWidth]/[boxHeight])は UI 層が `TextPainter` で測って
+/// 渡す(domain は `dart:ui` 非依存のため自前で測れない)。当たり判定/外接矩形は
+/// このボックスを使う。基底の [width] は [fontSize] と同義。
+class VectorText extends VectorObject {
+  const VectorText({
+    required super.id,
+    required super.colorHex,
+    required this.position,
+    required this.text,
+    required this.fontSize,
+    required this.boxWidth,
+    required this.boxHeight,
+    this.bold = false,
+    this.underline = false,
+    this.strikethrough = false,
+  }) : super(width: fontSize);
+
+  final VecPoint position; // 左上(canvas/doc 空間)
+  final String text;
+  final double fontSize;
+  final double boxWidth;
+  final double boxHeight;
+  final bool bold;
+  final bool underline;
+  final bool strikethrough;
+
+  VectorText copyWith({
+    String? colorHex,
+    VecPoint? position,
+    String? text,
+    double? fontSize,
+    double? boxWidth,
+    double? boxHeight,
+    bool? bold,
+    bool? underline,
+    bool? strikethrough,
+  }) => VectorText(
+    id: id,
+    colorHex: colorHex ?? this.colorHex,
+    position: position ?? this.position,
+    text: text ?? this.text,
+    fontSize: fontSize ?? this.fontSize,
+    boxWidth: boxWidth ?? this.boxWidth,
+    boxHeight: boxHeight ?? this.boxHeight,
+    bold: bold ?? this.bold,
+    underline: underline ?? this.underline,
+    strikethrough: strikethrough ?? this.strikethrough,
+  );
+
+  @override
+  VectorText translate(double dx, double dy) =>
+      copyWith(position: VecPoint(position.x + dx, position.y + dy));
+
+  @override
+  VectorText withColor(String colorHex) => copyWith(colorHex: colorHex);
+
+  @override
+  VectorText withWidth(double width) => copyWith(fontSize: width);
+
+  @override
+  VecBounds get bounds => (
+    left: position.x,
+    top: position.y,
+    right: position.x + boxWidth,
+    bottom: position.y + boxHeight,
+  );
+
+  @override
+  bool hitTest(VecPoint p, {double tolerance = 8}) =>
+      p.x >= position.x - tolerance &&
+      p.x <= position.x + boxWidth + tolerance &&
+      p.y >= position.y - tolerance &&
+      p.y <= position.y + boxHeight + tolerance;
+}
+
 /// 点 [p] と線分 [a]-[b] の最短距離。
 double _distToSegment(VecPoint p, VecPoint a, VecPoint b) {
   final dx = b.x - a.x, dy = b.y - a.y;

@@ -54,6 +54,58 @@ void main() {
     expect(c.selected, isA<VectorShapeObject>());
   });
 
+  test('addText/updateText/deleteById', () {
+    c.addText(
+      position: const VecPoint(0, 0),
+      text: 'A',
+      fontSize: 20,
+      colorHex: '#000000',
+      boxWidth: 10,
+      boxHeight: 12,
+    );
+    expect(c.selected, isA<VectorText>());
+    final id = c.selectedId!;
+
+    expect(
+      c.updateText(
+        id,
+        text: 'B',
+        fontSize: 24,
+        colorHex: '#FF0000',
+        boxWidth: 14,
+        boxHeight: 16,
+        bold: true,
+        underline: true,
+      ),
+      isTrue,
+    );
+    final t = c.layer.byId(id)! as VectorText;
+    expect(t.text, 'B');
+    expect(t.bold, isTrue);
+    expect(t.underline, isTrue);
+    expect(t.colorHex, '#FF0000');
+
+    expect(c.deleteById(id), isTrue);
+    expect(c.count, 0);
+    expect(c.canUndo, isTrue); // 一連の操作は undo 可能
+  });
+
+  test('updateText は非テキストには効かない', () {
+    c.addStroke(const [VecPoint(0, 0)], colorHex: '#000000', width: 10);
+    final id = c.selectedId!;
+    expect(
+      c.updateText(
+        id,
+        text: 'x',
+        fontSize: 20,
+        colorHex: '#000000',
+        boxWidth: 1,
+        boxHeight: 1,
+      ),
+      isFalse,
+    );
+  });
+
   test('selectAt は最前面を選び、外すと null', () {
     c.addStroke(const [VecPoint(0, 0)], colorHex: '#000000', width: 10);
     expect(c.selectAt(const VecPoint(0, 0)), isTrue);

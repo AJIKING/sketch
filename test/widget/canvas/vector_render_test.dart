@@ -72,4 +72,37 @@ void main() {
     expect(px.a, greaterThan(0));
     expect(px.g, greaterThan(200));
   });
+
+  testWidgets('テキストを描くと文字ボックス内に着色画素が出る', (tester) async {
+    const w = 120, h = 48;
+    final layer = VectorLayer()
+      ..add(
+        const VectorText(
+          id: 't',
+          colorHex: '#FF0000',
+          position: VecPoint(4, 4),
+          text: 'AB',
+          fontSize: 28,
+          boxWidth: 60,
+          boxHeight: 34,
+        ),
+      );
+
+    var found = false;
+    await tester.runAsync(() async {
+      final image = await _render(layer, w, h);
+      final data = await image.toByteData();
+      for (var y = 4; y < 40 && !found; y++) {
+        for (var x = 4; x < 100; x++) {
+          final i = (y * w + x) * 4;
+          if (data!.getUint8(i + 3) > 0 && data.getUint8(i) > 150) {
+            found = true;
+            break;
+          }
+        }
+      }
+    });
+
+    expect(found, isTrue, reason: '赤い文字の画素が描かれる');
+  });
 }

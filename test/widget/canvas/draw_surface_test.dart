@@ -62,6 +62,33 @@ Future<void> _pump(
   );
 }
 
+Future<void> pumpVector(
+  WidgetTester tester,
+  CanvasController c,
+  RasterLayerStore s,
+  VectorController v,
+) {
+  return tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: SizedBox(
+            width: 200,
+            height: 200,
+            child: DrawSurface(
+              controller: c,
+              surface: s,
+              clock: FakeClock(),
+              transforming: ValueNotifier<bool>(false),
+              vector: v,
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 void main() {
   testWidgets('描く→レイヤー画像へ焼き込み、undo/redo で戻る(ADR 0004)', (tester) async {
     final surface = RasterLayerStore();
@@ -137,12 +164,12 @@ void main() {
     expect(surface.imageOf(activeId), isNull, reason: '不透明部分が無いので塗れない');
   });
 
-  testWidgets('テキストツール: タップ→入力→焼込、undo で戻る', (tester) async {
+  testWidgets('テキストツール: タップ→入力で再編集可能なテキストを作る', (tester) async {
     final surface = RasterLayerStore();
     final controller = CanvasController(surface: surface)
       ..selectTool(Tool.text);
-    await _pump(tester, controller, surface);
-    final id = controller.layers.active.id;
+    final vector = VectorController();
+    await pumpVector(tester, controller, surface, vector);
 
     await tester.tap(find.byType(DrawSurface));
     await tester.pumpAndSettle();
@@ -152,11 +179,61 @@ void main() {
     await tester.tap(find.text('追加'));
     await tester.pumpAndSettle();
 
-    expect(surface.imageOf(id), isNotNull);
-    expect(controller.canUndo, isTrue);
+    expect(vector.count, 1);
+    expect(vector.selected, isA<VectorText>());
+    expect((vector.selected! as VectorText).text, 'ABC');
+    // 焼き込まれず再編集できる(ラスターは空)。
+    expect(surface.imageOf(controller.layers.active.id), isNull);
+  });
 
-    controller.undo();
-    expect(surface.imageOf(id), isNull);
+  testWidgets('テキストツール: 既存テキストをタップすると編集できる', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface)
+      ..selectTool(Tool.text);
+    final vector = VectorController();
+    await pumpVector(tester, controller, surface, vector);
+
+    await tester.tap(find.byType(DrawSurface));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Hello');
+    await tester.tap(find.text('追加'));
+    await tester.pumpAndSettle();
+    final id = vector.selectedId!;
+
+    // 同じ位置を再タップ → 既存テキストの編集(プリフィル)。
+    await tester.tap(find.byType(DrawSurface));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(AlertDialog, 'テキストを編集'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'World');
+    await tester.tap(find.text('更新'));
+    await tester.pumpAndSettle();
+
+    expect(vector.count, 1); // 増えない(更新)
+    expect((vector.layer.byId(id)! as VectorText).text, 'World');
+  });
+
+  testWidgets('テキストツール: 内容を空にして更新すると削除される', (tester) async {
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface)
+      ..selectTool(Tool.text);
+    final vector = VectorController();
+    await pumpVector(tester, controller, surface, vector);
+
+    await tester.tap(find.byType(DrawSurface));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Hello');
+    await tester.tap(find.text('追加'));
+    await tester.pumpAndSettle();
+    expect(vector.count, 1);
+
+    await tester.tap(find.byType(DrawSurface));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '');
+    await tester.tap(find.text('更新'));
+    await tester.pumpAndSettle();
+
+    expect(vector.count, 0); // 空で削除
   });
 
   Future<void> pumpToggle(
@@ -353,33 +430,6 @@ void main() {
     expect(before, isNotNull);
     expect(after, equals(before)); // ズームしても出力は同一
   });
-
-  Future<void> pumpVector(
-    WidgetTester tester,
-    CanvasController c,
-    RasterLayerStore s,
-    VectorController v,
-  ) {
-    return tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: SizedBox(
-              width: 200,
-              height: 200,
-              child: DrawSurface(
-                controller: c,
-                surface: s,
-                clock: FakeClock(),
-                transforming: ValueNotifier<bool>(false),
-                vector: v,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   testWidgets('回転すると新しい向きいっぱいに表示し直す(等倍・全面)', (tester) async {
     final surface = RasterLayerStore();

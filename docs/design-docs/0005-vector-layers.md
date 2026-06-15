@@ -35,6 +35,7 @@
 
 - **Phase 1(本 ADR で実装)**: `domain/vector/`(`VectorObject` = ストローク/図形、`VectorLayer` = 集合と編集操作)+ `ui/canvas/vector_render`(Canvas 描画)。すべて unit / widget テスト付き。まだ描画画面へは接続しない。
 - **Phase 2(実装済み)**: ラスター層の上に重なる単一のベクターオーバーレイ(`VectorController`)を導入。`draw_surface` のポインタ処理を接続し、ベクターモードで brush→ストローク / shape→図形 / select→選択・移動を積む。編集バーで削除・色変更・独立 undo/redo。合成・エクスポートはラスタライズ(`RasterPainter` がラスター層の上に描画)。
+  - テキストもベクターオブジェクト(`VectorText`)として保持し、ラスター焼き込みをやめた。テキストツールのタップで新規作成/既存テキストの再編集(内容・サイズ・太字・下線・取消線・自由な色)ができる。描画ボックスのサイズは UI 層が `TextPainter` で測って domain へ渡す(domain は `dart:ui` 非依存を維持)。
   - 次の発展: ベクターを per-layer のレイヤー種別へ昇格(レイヤーパネル統合)、ノード(頂点)編集。
 - **Phase 3**: ベクターの JSON 永続化(`GalleryStore` 拡張 or 併存ファイル)、ノード(頂点)編集、ベクター/ラスターの相互変換。
 - 当面、エクスポート PNG はラスタライズ結果(ピクセル)。SVG 等のベクター書き出しは別途検討する。

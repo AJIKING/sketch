@@ -14,6 +14,39 @@ class ColorPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (h, s, v) = controller.hsv;
+    return HsvField(
+      h: h,
+      s: s,
+      v: v,
+      onChanged: controller.setHsv,
+      onEnd: controller.addRecent,
+    );
+  }
+}
+
+/// コントローラに依存しない HSV ピッカー(SV 矩形 + Hue 帯)。
+///
+/// 現在色 [h]/[s]/[v] を表示し、ドラッグで [onChanged] を呼ぶ。確定時に [onEnd]。
+/// `ColorPicker`(キャンバスの現在色)とテキスト色の自由選択で共有する。
+class HsvField extends StatelessWidget {
+  const HsvField({
+    super.key,
+    required this.h,
+    required this.s,
+    required this.v,
+    required this.onChanged,
+    this.onEnd,
+  });
+
+  final double h;
+  final double s;
+  final double v;
+  final void Function(double h, double s, double v) onChanged;
+  final VoidCallback? onEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final end = onEnd ?? () {};
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -21,15 +54,11 @@ class ColorPicker extends StatelessWidget {
           hue: h,
           saturation: s,
           value: v,
-          onChange: (ns, nv) => controller.setHsv(h, ns, nv),
-          onEnd: controller.addRecent,
+          onChange: (ns, nv) => onChanged(h, ns, nv),
+          onEnd: end,
         ),
         const SizedBox(height: 12),
-        _HueBar(
-          hue: h,
-          onChange: (nh) => controller.setHsv(nh, s, v),
-          onEnd: controller.addRecent,
-        ),
+        _HueBar(hue: h, onChange: (nh) => onChanged(nh, s, v), onEnd: end),
       ],
     );
   }

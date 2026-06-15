@@ -118,6 +118,78 @@ class VectorController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// テキストを追加して選択状態にする(undo 可能)。box は UI が測って渡す。
+  void addText({
+    required VecPoint position,
+    required String text,
+    required double fontSize,
+    required String colorHex,
+    required double boxWidth,
+    required double boxHeight,
+    bool bold = false,
+    bool underline = false,
+    bool strikethrough = false,
+  }) {
+    _pushUndo();
+    final object = VectorText(
+      id: _nextId(),
+      colorHex: colorHex,
+      position: position,
+      text: text,
+      fontSize: fontSize,
+      boxWidth: boxWidth,
+      boxHeight: boxHeight,
+      bold: bold,
+      underline: underline,
+      strikethrough: strikethrough,
+    );
+    _layer.add(object);
+    _selectedId = object.id;
+    notifyListeners();
+  }
+
+  /// 既存テキストの内容/装飾/色を更新する(位置は据え置き)。対象が
+  /// テキストでなければ false。
+  bool updateText(
+    String id, {
+    required String text,
+    required double fontSize,
+    required String colorHex,
+    required double boxWidth,
+    required double boxHeight,
+    bool bold = false,
+    bool underline = false,
+    bool strikethrough = false,
+  }) {
+    if (_layer.byId(id) is! VectorText) return false;
+    _pushUndo();
+    _layer.update(
+      id,
+      (o) => (o as VectorText).copyWith(
+        text: text,
+        fontSize: fontSize,
+        colorHex: colorHex,
+        boxWidth: boxWidth,
+        boxHeight: boxHeight,
+        bold: bold,
+        underline: underline,
+        strikethrough: strikethrough,
+      ),
+    );
+    notifyListeners();
+    return true;
+  }
+
+  /// id を指定して削除する(undo 可能)。
+  bool deleteById(String id) {
+    if (_layer.byId(id) == null) return false;
+    _pushUndo();
+    _layer.removeById(id);
+    if (_selectedId == id) _selectedId = null;
+    notifyListeners();
+    return true;
+  }
+
   /// [p] にある最前面のオブジェクトを選択する。当たれば true。
   bool selectAt(VecPoint p, {double tolerance = 10}) {
     final hit = _layer.hitTest(p, tolerance: tolerance);

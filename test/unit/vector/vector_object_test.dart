@@ -87,4 +87,39 @@ void main() {
       expect(tri.bounds, (left: 10.0, top: 10.0, right: 30.0, bottom: 30.0));
     });
   });
+
+  group('VectorText', () {
+    VectorText make() => const VectorText(
+      id: 't',
+      colorHex: '#112233',
+      position: VecPoint(10, 20),
+      text: 'Hi',
+      fontSize: 24,
+      boxWidth: 40,
+      boxHeight: 30,
+      underline: true,
+    );
+
+    test('bounds は 位置 + ボックスサイズ', () {
+      expect(make().bounds, (left: 10.0, top: 20.0, right: 50.0, bottom: 50.0));
+    });
+
+    test('hitTest はボックス内で true', () {
+      final t = make();
+      expect(t.hitTest(const VecPoint(30, 35)), isTrue);
+      expect(t.hitTest(const VecPoint(200, 200)), isFalse);
+    });
+
+    test('translate は位置を動かし装飾を保つ', () {
+      final t = make().translate(5, 5);
+      expect(t.position, const VecPoint(15, 25));
+      expect(t.underline, isTrue);
+    });
+
+    test('withColor / copyWith / 基底 width は fontSize', () {
+      expect(make().withColor('#FFFFFF').colorHex, '#FFFFFF');
+      expect(make().copyWith(strikethrough: true).strikethrough, isTrue);
+      expect(make().width, 24);
+    });
+  });
 }
