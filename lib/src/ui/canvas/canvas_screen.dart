@@ -748,6 +748,11 @@ class _ColorSheet extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         ColorPicker(controller: controller),
+        const SizedBox(height: 8),
+        HexColorField(
+          hex: controller.colorHex,
+          onSubmitted: controller.selectColor,
+        ),
         const SizedBox(height: 12),
         const Text(
           'Studio Palette',

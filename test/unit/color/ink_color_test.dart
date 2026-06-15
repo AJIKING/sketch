@@ -23,6 +23,26 @@ void main() {
     });
   });
 
+  group('normalizeHex', () {
+    test('6 桁を大文字 #RRGGBB へ(# 有無・空白・小文字を許容)', () {
+      expect(normalizeHex('cf4a2c'), '#CF4A2C');
+      expect(normalizeHex('#EFE7D6'), '#EFE7D6');
+      expect(normalizeHex('  #abcdef '), '#ABCDEF');
+    });
+
+    test('3 桁短縮を展開する', () {
+      expect(normalizeHex('#abc'), '#AABBCC');
+      expect(normalizeHex('f00'), '#FF0000');
+    });
+
+    test('不正な入力は null', () {
+      expect(normalizeHex(''), isNull);
+      expect(normalizeHex('12345'), isNull); // 桁数違い
+      expect(normalizeHex('#GG0011'), isNull); // 16進でない
+      expect(normalizeHex('zzzzzz'), isNull);
+    });
+  });
+
   group('rgb <-> hsv 往復', () {
     test('Studio Palette 全色で RGB が保存される', () {
       for (final hex in studioPalette) {

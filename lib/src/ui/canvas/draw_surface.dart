@@ -1262,6 +1262,11 @@ class _TextInputDialogState extends State<_TextInputDialog> {
                 onChanged: (h, s, v) => setState(() => _hsv = (h, s, v)),
               ),
               const SizedBox(height: 8),
+              HexColorField(
+                hex: _colorHex,
+                onSubmitted: (hex) => setState(() => _hsv = _toHsv(hex)),
+              ),
+              const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,

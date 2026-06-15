@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../application/canvas_controller.dart';
+import '../../domain/color/ink_color.dart';
 import '../theme/atelier_theme.dart';
 
 /// SV(彩度×明度)矩形 + Hue 帯の HSV ピッカー(プロトタイプ準拠)。
@@ -20,6 +21,89 @@ class ColorPicker extends StatelessWidget {
       v: v,
       onChanged: controller.setHsv,
       onEnd: controller.addRecent,
+    );
+  }
+}
+
+/// カラーコード(`#RRGGBB`)入力欄。確定で正規化して [onSubmitted] を呼ぶ。
+///
+/// 外部([hex])で色が変わると(ピッカー操作など)、編集中でなければ表示を同期する。
+/// 不正な入力はエラー表示し、コールバックは呼ばない。
+class HexColorField extends StatefulWidget {
+  const HexColorField({
+    super.key,
+    required this.hex,
+    required this.onSubmitted,
+  });
+
+  final String hex;
+  final ValueChanged<String> onSubmitted;
+
+  @override
+  State<HexColorField> createState() => _HexColorFieldState();
+}
+
+class _HexColorFieldState extends State<HexColorField> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.hex,
+  );
+  final FocusNode _focus = FocusNode();
+  String? _error;
+
+  @override
+  void didUpdateWidget(HexColorField old) {
+    super.didUpdateWidget(old);
+    // ピッカー等で外部の色が変わったら、入力中でなければ表示を合わせる。
+    if (widget.hex != old.hex && !_focus.hasFocus) {
+      _controller.text = widget.hex;
+      _error = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final normalized = normalizeHex(_controller.text);
+    if (normalized == null) {
+      setState(() => _error = '#RRGGBB の形式で入力してください');
+      return;
+    }
+    setState(() => _error = null);
+    _controller.text = normalized;
+    widget.onSubmitted(normalized);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _controller,
+            focusNode: _focus,
+            textInputAction: TextInputAction.done,
+            autocorrect: false,
+            decoration: InputDecoration(
+              isDense: true,
+              labelText: 'カラーコード',
+              hintText: '#RRGGBB',
+              errorText: _error,
+            ),
+            onSubmitted: (_) => _submit(),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: TextButton(onPressed: _submit, child: const Text('適用')),
+        ),
+      ],
     );
   }
 }

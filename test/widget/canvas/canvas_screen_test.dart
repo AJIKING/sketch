@@ -203,6 +203,30 @@ void main() {
     expect(find.textContaining('自分の色を貯められます'), findsNothing);
   });
 
+  testWidgets('カラーシートでカラーコードを入力して色を設定できる', (tester) async {
+    // 背の高い色シートが収まるよう縦長画面にする。
+    tester.view.physicalSize = const Size(1000, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(_app());
+    await tester.pump();
+
+    await tester.tap(find.bySemanticsLabel('カラーを選択'));
+    await tester.pumpAndSettle();
+    expect(find.text('カラー  #CF4A2C'), findsOneWidget); // 既定は朱
+
+    // カラーシートの唯一の TextField がカラーコード欄。
+    await tester.enterText(find.byType(TextField), '00FF00');
+    await tester.tap(find.text('適用'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('カラー  #00FF00'), findsOneWidget);
+  });
+
   testWidgets('Hue バーを操作すると現在色が変わる', (tester) async {
     await tester.pumpWidget(_app());
     await tester.pump();

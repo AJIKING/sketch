@@ -100,3 +100,22 @@ Rgb hexToRgb(String hex) {
     int.parse(h.substring(4, 6), radix: 16),
   );
 }
+
+/// 入力文字列を `#RRGGBB`(大文字)へ正規化する。
+///
+/// 先頭 `#` の有無・前後空白・3 桁短縮(`#abc` → `#AABBCC`)を許容する。
+/// 16 進として不正、または桁数が違うときは null を返す(UI のバリデーション用)。
+String? normalizeHex(String input) {
+  var s = input.trim().toUpperCase();
+  if (s.startsWith('#')) s = s.substring(1);
+  if (s.length == 3) {
+    s = '${s[0]}${s[0]}${s[1]}${s[1]}${s[2]}${s[2]}';
+  }
+  if (s.length != 6) return null;
+  for (final cu in s.codeUnits) {
+    final isDigit = cu >= 0x30 && cu <= 0x39; // 0-9
+    final isHexAlpha = cu >= 0x41 && cu <= 0x46; // A-F
+    if (!isDigit && !isHexAlpha) return null;
+  }
+  return '#$s';
+}

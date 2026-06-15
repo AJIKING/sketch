@@ -62,6 +62,17 @@ Future<void> _pump(
   );
 }
 
+/// 背の高いテキスト編集ダイアログ(HSV ピッカー等)が収まるよう、テスト画面を
+/// 縦長にする。DrawSurface は固定 200x200 なので影響しない。
+void _useTallSurface(WidgetTester tester) {
+  tester.view.physicalSize = const Size(1000, 2400);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(() {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  });
+}
+
 Future<void> pumpVector(
   WidgetTester tester,
   CanvasController c,
@@ -165,6 +176,7 @@ void main() {
   });
 
   testWidgets('テキストツール: タップ→入力で再編集可能なテキストを作る', (tester) async {
+    _useTallSurface(tester);
     final surface = RasterLayerStore();
     final controller = CanvasController(surface: surface)
       ..selectTool(Tool.text);
@@ -175,7 +187,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.widgetWithText(AlertDialog, 'テキスト'), findsOneWidget);
 
-    await tester.enterText(find.byType(TextField), 'ABC');
+    await tester.enterText(find.byType(TextField).first, 'ABC');
     await tester.tap(find.text('追加'));
     await tester.pumpAndSettle();
 
@@ -187,6 +199,7 @@ void main() {
   });
 
   testWidgets('テキストツール: 既存テキストをタップすると編集できる', (tester) async {
+    _useTallSurface(tester);
     final surface = RasterLayerStore();
     final controller = CanvasController(surface: surface)
       ..selectTool(Tool.text);
@@ -195,7 +208,7 @@ void main() {
 
     await tester.tap(find.byType(DrawSurface));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), 'Hello');
+    await tester.enterText(find.byType(TextField).first, 'Hello');
     await tester.tap(find.text('追加'));
     await tester.pumpAndSettle();
     final id = vector.selectedId!;
@@ -205,7 +218,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.widgetWithText(AlertDialog, 'テキストを編集'), findsOneWidget);
 
-    await tester.enterText(find.byType(TextField), 'World');
+    await tester.enterText(find.byType(TextField).first, 'World');
     await tester.tap(find.text('更新'));
     await tester.pumpAndSettle();
 
@@ -213,7 +226,8 @@ void main() {
     expect((vector.layer.byId(id)! as VectorText).text, 'World');
   });
 
-  testWidgets('テキストツール: 内容を空にして更新すると削除される', (tester) async {
+  testWidgets('テキスト: カラーコード入力で色を設定できる', (tester) async {
+    _useTallSurface(tester);
     final surface = RasterLayerStore();
     final controller = CanvasController(surface: surface)
       ..selectTool(Tool.text);
@@ -222,14 +236,35 @@ void main() {
 
     await tester.tap(find.byType(DrawSurface));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), 'Hello');
+
+    await tester.enterText(find.byType(TextField).first, 'X'); // 文字入力
+    await tester.enterText(find.byType(TextField).last, '00FF00'); // カラーコード
+    await tester.tap(find.text('適用'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('追加'));
+    await tester.pumpAndSettle();
+
+    expect((vector.selected! as VectorText).colorHex, '#00FF00');
+  });
+
+  testWidgets('テキストツール: 内容を空にして更新すると削除される', (tester) async {
+    _useTallSurface(tester);
+    final surface = RasterLayerStore();
+    final controller = CanvasController(surface: surface)
+      ..selectTool(Tool.text);
+    final vector = VectorController();
+    await pumpVector(tester, controller, surface, vector);
+
+    await tester.tap(find.byType(DrawSurface));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'Hello');
     await tester.tap(find.text('追加'));
     await tester.pumpAndSettle();
     expect(vector.count, 1);
 
     await tester.tap(find.byType(DrawSurface));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), '');
+    await tester.enterText(find.byType(TextField).first, '');
     await tester.tap(find.text('更新'));
     await tester.pumpAndSettle();
 
