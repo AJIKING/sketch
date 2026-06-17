@@ -81,7 +81,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get languageTitle => '语言';
 
   @override
-  String get languageSystem => '跟随系统';
+  String get languageSystem => '系统默认';
 
   @override
   String get canvasSizeTitle => '画布尺寸';

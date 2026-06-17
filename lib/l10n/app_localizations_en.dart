@@ -83,7 +83,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get languageTitle => 'Language';
 
   @override
-  String get languageSystem => 'Follow system';
+  String get languageSystem => 'System default';
 
   @override
   String get canvasSizeTitle => 'Canvas size';
