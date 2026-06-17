@@ -3,16 +3,13 @@
 /// 線形は [unitAxis] が返す 0..1 の相対座標(対象の矩形に対する始点・終点)で
 /// 表す。ui 層が矩形へスケールして `ui.Gradient.linear` のアンカーにする。
 /// [radial] は中心から外側への円形(`ui.Gradient.radial`)。
+/// 表示名は UI 層([AppLocalizations] 経由・`ui/canvas/l10n_labels.dart`)で解決する。
 enum GradientDirection {
-  horizontal('横'),
-  vertical('縦'),
-  diagonalDown('斜め ↘'),
-  diagonalUp('斜め ↗'),
-  radial('放射');
-
-  const GradientDirection(this.label);
-
-  final String label;
+  horizontal,
+  vertical,
+  diagonalDown,
+  diagonalUp,
+  radial;
 
   bool get isRadial => this == GradientDirection.radial;
 

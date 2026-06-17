@@ -13,7 +13,7 @@ String maskLayerId(String layerId) => '$layerId#mask';
 class LayerMeta {
   LayerMeta({
     required this.id,
-    required this.name,
+    required this.number,
     this.visible = true,
     this.opacity = 1,
     this.blendMode = LayerBlendMode.normal,
@@ -23,7 +23,10 @@ class LayerMeta {
   });
 
   final String id;
-  String name;
+
+  /// 作成順の通し番号(1 始まり)。表示名「レイヤー N / Layer N / 图层 N」は UI 層が
+  /// [AppLocalizations] でこの番号から組み立てる(`docs/architecture.md`「UI が表示を所有」)。
+  final int number;
   bool visible;
   double opacity;
 
@@ -42,7 +45,7 @@ class LayerMeta {
   /// メタ情報の複製(undo スナップショットが後続の変更で書き換わらないよう独立化)。
   LayerMeta copy() => LayerMeta(
     id: id,
-    name: name,
+    number: number,
     visible: visible,
     opacity: opacity,
     blendMode: blendMode,
@@ -96,10 +99,7 @@ class LayerStack {
 
   LayerMeta _append() {
     _counter++;
-    final layer = LayerMeta(
-      id: 'layer-$_counter',
-      name: 'レイヤー ${_layers.length + 1}',
-    );
+    final layer = LayerMeta(id: 'layer-$_counter', number: _layers.length + 1);
     _layers.add(layer);
     return layer;
   }

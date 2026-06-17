@@ -59,7 +59,8 @@ void main() {
 
   test('複製は画像をコピーし、新 id・コピー名で増える', () async {
     await c.save(id: 'a', png: _png(7), title: '朝の習作');
-    final copy = await c.duplicate('a');
+    // コピー名は UI 層がロケールに応じて渡す(ここでは日本語の文言を検証)。
+    final copy = await c.duplicate('a', copyName: '朝の習作 のコピー');
 
     expect(copy, isNotNull);
     expect(copy!.id, isNot('a'));
@@ -71,7 +72,7 @@ void main() {
   });
 
   test('存在しない id の複製は null', () async {
-    expect(await c.duplicate('missing'), isNull);
+    expect(await c.duplicate('missing', copyName: 'コピー'), isNull);
     expect(c.count, 0);
   });
 
@@ -98,8 +99,8 @@ void main() {
 
   test('同一時刻で連続複製しても id が衝突しない(回帰)', () async {
     await c.save(id: 'a', png: _png(1));
-    final c1 = await c.duplicate('a'); // clock は進めない
-    final c2 = await c.duplicate('a');
+    final c1 = await c.duplicate('a', copyName: 'コピー'); // clock は進めない
+    final c2 = await c.duplicate('a', copyName: 'コピー');
     expect(c1, isNotNull);
     expect(c2, isNotNull);
     expect(c1!.id, isNot(c2!.id)); // 衝突しない

@@ -11,6 +11,7 @@ import 'package:sketch/src/domain/canvas/selection_kind.dart';
 import 'package:sketch/src/domain/canvas/shape_kind.dart';
 import 'package:sketch/src/domain/timelapse/timelapse_frame.dart';
 import 'package:sketch/src/domain/vector/vector_object.dart';
+import 'package:sketch/l10n/app_localizations.dart';
 import 'package:sketch/src/ui/canvas/draw_surface.dart';
 import 'package:sketch/src/ui/canvas/raster_layer_store.dart';
 
@@ -24,6 +25,9 @@ Future<void> _pumpKeyed(
 ) {
   return tester.pumpWidget(
     MaterialApp(
+      locale: const Locale('ja'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(
         body: Center(
           child: SizedBox(
@@ -50,6 +54,9 @@ Future<void> _pump(
 ) {
   return tester.pumpWidget(
     MaterialApp(
+      locale: const Locale('ja'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(
         body: Center(
           child: SizedBox(
@@ -87,6 +94,9 @@ Future<void> pumpVector(
 ) {
   return tester.pumpWidget(
     MaterialApp(
+      locale: const Locale('ja'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(
         body: Center(
           child: SizedBox(
@@ -367,6 +377,9 @@ void main() {
   ) {
     return tester.pumpWidget(
       MaterialApp(
+        locale: const Locale('ja'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: Center(
             child: SizedBox(
@@ -860,6 +873,9 @@ void main() {
     final key = GlobalKey<DrawSurfaceState>();
 
     Widget app(Size size) => MaterialApp(
+      locale: const Locale('ja'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(
         body: Center(
           child: SizedBox(
@@ -897,6 +913,9 @@ void main() {
     final key = GlobalKey<DrawSurfaceState>();
     await tester.pumpWidget(
       MaterialApp(
+        locale: const Locale('ja'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: Center(
             child: SizedBox(
@@ -948,6 +967,9 @@ void main() {
     final controller = CanvasController(surface: surface);
     final key = GlobalKey<DrawSurfaceState>();
     Widget app(Size view) => MaterialApp(
+      locale: const Locale('ja'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(
         body: Center(
           child: SizedBox(
@@ -992,6 +1014,9 @@ void main() {
     final key = GlobalKey<DrawSurfaceState>();
 
     Widget app(Size size) => MaterialApp(
+      locale: const Locale('ja'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(
         body: Center(
           child: SizedBox(
@@ -1261,6 +1286,9 @@ void main() {
     final transforming = ValueNotifier<bool>(false);
     await tester.pumpWidget(
       MaterialApp(
+        locale: const Locale('ja'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: Center(
             child: SizedBox(

@@ -4,18 +4,21 @@ import 'package:sketch/src/application/dependencies.dart';
 
 import '../fixtures/fake_clock.dart';
 import '../fixtures/in_memory_gallery_store.dart';
+import '../fixtures/in_memory_settings_store.dart';
 import '../fixtures/recording_image_exporter.dart';
 
+// 言語を日本語に固定して起動する(テスト環境の既定ロケールに依存しないため)。
 Dependencies _testDeps() => Dependencies(
   clock: FakeClock(),
   galleryStore: InMemoryGalleryStore(),
   imageExporter: RecordingImageExporter(),
+  settingsStore: InMemorySettingsStore('ja'),
 );
 
 void main() {
   testWidgets('起動するとギャラリーのブランドと新規ボタンが出る', (tester) async {
     await tester.pumpWidget(RakugaApp(dependencies: _testDeps()));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(find.text('Rakuga'), findsOneWidget);
     expect(find.text('描くを、もっと気軽に。'), findsOneWidget);

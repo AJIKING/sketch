@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../application/gallery_controller.dart';
+import '../../application/locale_controller.dart';
 import '../../domain/gallery/sketch.dart';
+import '../../../l10n/app_localizations.dart';
 import '../theme/atelier_theme.dart';
 import 'piece_card.dart';
 
@@ -15,14 +17,19 @@ class GalleryScreen extends StatelessWidget {
     required this.controller,
     required this.onNewCanvas,
     required this.onOpenSketch,
+    this.localeController,
   });
 
   final GalleryController controller;
   final VoidCallback onNewCanvas;
   final void Function(Sketch sketch) onOpenSketch;
 
+  /// 表示言語の切替(任意。null なら言語ボタンを出さない)。
+  final LocaleController? localeController;
+
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
       body: SafeArea(
         child: ListenableBuilder(
@@ -37,10 +44,10 @@ class GalleryScreen extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      const Column(
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          const Text(
                             'Rakuga',
                             style: TextStyle(
                               fontSize: 38,
@@ -49,14 +56,21 @@ class GalleryScreen extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            '描くを、もっと気軽に。',
-                            style: TextStyle(color: AtelierTokens.inkDim),
+                            l.appTagline,
+                            style: const TextStyle(color: AtelierTokens.inkDim),
                           ),
                         ],
                       ),
                       const Spacer(),
+                      if (localeController != null)
+                        IconButton(
+                          icon: const Icon(Icons.language),
+                          tooltip: l.languageTitle,
+                          color: AtelierTokens.inkDim,
+                          onPressed: () => _showLanguageSheet(context),
+                        ),
                       Text(
-                        '${controller.count}点の\nスケッチ',
+                        l.gallerySketchCount(controller.count),
                         textAlign: TextAlign.right,
                         style: const TextStyle(color: AtelierTokens.inkDim),
                       ),
@@ -92,6 +106,7 @@ class GalleryScreen extends StatelessWidget {
 
   /// 長押しメニュー(名前変更・複製・削除)。
   void _showActions(BuildContext context, Sketch sketch) {
+    final l = AppLocalizations.of(context);
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: AtelierTokens.surface,
@@ -102,9 +117,9 @@ class GalleryScreen extends StatelessWidget {
           children: [
             ListTile(
               leading: const Icon(Icons.drive_file_rename_outline),
-              title: const Text(
-                '名前を変更',
-                style: TextStyle(color: AtelierTokens.ink),
+              title: Text(
+                l.actionRename,
+                style: const TextStyle(color: AtelierTokens.ink),
               ),
               onTap: () async {
                 Navigator.of(sheetContext).pop();
@@ -112,24 +127,27 @@ class GalleryScreen extends StatelessWidget {
                 final name = await _promptName(context, sketch.title);
                 if (name == null) return; // キャンセル
                 await controller.rename(sketch.id, name);
-                messenger.showSnackBar(
-                  const SnackBar(content: Text('名前を変更しました')),
-                );
+                messenger.showSnackBar(SnackBar(content: Text(l.renamed)));
               },
             ),
             ListTile(
               leading: const Icon(Icons.copy_all_outlined),
-              title: const Text(
-                '複製',
-                style: TextStyle(color: AtelierTokens.ink),
+              title: Text(
+                l.actionDuplicate,
+                style: const TextStyle(color: AtelierTokens.ink),
               ),
               onTap: () async {
                 Navigator.of(sheetContext).pop();
                 final messenger = ScaffoldMessenger.of(context);
-                final copy = await controller.duplicate(sketch.id);
+                final copy = await controller.duplicate(
+                  sketch.id,
+                  copyName: l.copyOf(sketch.title ?? l.untitledSketch),
+                );
                 messenger.showSnackBar(
                   SnackBar(
-                    content: Text(copy != null ? '複製しました' : '複製できませんでした'),
+                    content: Text(
+                      copy != null ? l.duplicated : l.duplicateFailed,
+                    ),
                   ),
                 );
               },
@@ -139,9 +157,9 @@ class GalleryScreen extends StatelessWidget {
                 Icons.delete_outline,
                 color: AtelierTokens.vermilion,
               ),
-              title: const Text(
-                '削除',
-                style: TextStyle(color: AtelierTokens.vermilion),
+              title: Text(
+                l.commonDelete,
+                style: const TextStyle(color: AtelierTokens.vermilion),
               ),
               onTap: () async {
                 Navigator.of(sheetContext).pop();
@@ -156,27 +174,71 @@ class GalleryScreen extends StatelessWidget {
   }
 
   Future<bool> _confirmDelete(BuildContext context) async {
+    final l = AppLocalizations.of(context);
     final result = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('スケッチを削除しますか?'),
-        content: const Text('この操作は取り消せません。'),
+        title: Text(l.deleteSketchTitle),
+        content: Text(l.deleteSketchBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('キャンセル'),
+            child: Text(l.commonCancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text(
-              '削除',
-              style: TextStyle(color: AtelierTokens.vermilion),
+            child: Text(
+              l.commonDelete,
+              style: const TextStyle(color: AtelierTokens.vermilion),
             ),
           ),
         ],
       ),
     );
     return result ?? false;
+  }
+
+  /// 言語切替シート(システムに従う / 日本語 / English / 简体中文)。
+  void _showLanguageSheet(BuildContext context) {
+    final controller = localeController;
+    if (controller == null) return;
+    final l = AppLocalizations.of(context);
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AtelierTokens.surface,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        Widget option(String label, Locale? locale) {
+          final selected =
+              controller.locale?.languageCode == locale?.languageCode;
+          return ListTile(
+            title: Text(
+              label,
+              style: const TextStyle(color: AtelierTokens.ink),
+            ),
+            trailing: selected
+                ? const Icon(Icons.check, color: AtelierTokens.vermilion)
+                : null,
+            onTap: () {
+              controller.setLocale(locale);
+              Navigator.of(sheetContext).pop();
+            },
+          );
+        }
+
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              option(l.languageSystem, null),
+              option('日本語', const Locale('ja')),
+              option('English', const Locale('en')),
+              option('简体中文', const Locale('zh')),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   /// 名前入力ダイアログ。確定で入力文字列、キャンセルで null を返す。
@@ -212,20 +274,21 @@ class _RenameDialogState extends State<_RenameDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return AlertDialog(
-      title: const Text('名前を変更'),
+      title: Text(l.actionRename),
       content: TextField(
         controller: _controller,
         autofocus: true,
-        decoration: const InputDecoration(hintText: 'スケッチの名前'),
+        decoration: InputDecoration(hintText: l.renameHint),
         onSubmitted: (_) => _submit(),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('キャンセル'),
+          child: Text(l.commonCancel),
         ),
-        TextButton(onPressed: _submit, child: const Text('変更')),
+        TextButton(onPressed: _submit, child: Text(l.commonChange)),
       ],
     );
   }
@@ -237,9 +300,10 @@ class _NewCanvasCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Semantics(
       button: true,
-      label: '新しいスケッチを始める',
+      label: l.galleryNewSketchSemantic,
       child: GestureDetector(
         onTap: onTap,
         child: DecoratedBox(
@@ -247,12 +311,15 @@ class _NewCanvasCard extends StatelessWidget {
             border: Border.all(color: AtelierTokens.hairStrong),
             borderRadius: BorderRadius.circular(AtelierTokens.rMd),
           ),
-          child: const Column(
+          child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.add, color: AtelierTokens.ink, size: 28),
-              SizedBox(height: 8),
-              Text('新規キャンバス', style: TextStyle(color: AtelierTokens.ink)),
+              const Icon(Icons.add, color: AtelierTokens.ink, size: 28),
+              const SizedBox(height: 8),
+              Text(
+                l.galleryNewCanvas,
+                style: const TextStyle(color: AtelierTokens.ink),
+              ),
             ],
           ),
         ),

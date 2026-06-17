@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../domain/canvas/gradient_direction.dart';
 import '../theme/atelier_theme.dart';
 import 'color_picker.dart';
+import 'l10n_labels.dart';
 
 /// グラデーション設定の共通 UI(グラデツール・ブラシ・テキストで統一)。
 ///
@@ -47,6 +49,7 @@ class GradientSettings extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -55,9 +58,9 @@ class GradientSettings extends StatelessWidget {
           SwitchListTile(
             key: const Key('gradient-enable-switch'),
             contentPadding: EdgeInsets.zero,
-            title: const Text(
-              '2色グラデーション',
-              style: TextStyle(color: AtelierTokens.ink),
+            title: Text(
+              l.gradientTwoColor,
+              style: const TextStyle(color: AtelierTokens.ink),
             ),
             value: enabled!,
             onChanged: onEnabledChanged,
@@ -66,9 +69,9 @@ class GradientSettings extends StatelessWidget {
           if (transparent != null)
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text(
-                '終点を透明にする',
-                style: TextStyle(color: AtelierTokens.ink),
+              title: Text(
+                l.gradientTransparentEnd,
+                style: const TextStyle(color: AtelierTokens.ink),
               ),
               value: transparent!,
               onChanged: onTransparentChanged,
@@ -86,7 +89,7 @@ class GradientSettings extends StatelessWidget {
                 _dot(secondColorHex, true),
                 const SizedBox(width: 8),
                 Text(
-                  '2色目 $secondColorHex',
+                  l.gradientSecondColor(secondColorHex),
                   style: const TextStyle(
                     color: AtelierTokens.inkDim,
                     fontSize: 13,
@@ -107,7 +110,7 @@ class GradientSettings extends StatelessWidget {
                       onTap: () => onSecondColorHex(hex),
                       child: Semantics(
                         button: true,
-                        label: '2色目 $hex',
+                        label: l.gradientSecondColor(hex),
                         child: _dot(hex, hex == secondColorHex),
                       ),
                     ),
@@ -117,9 +120,9 @@ class GradientSettings extends StatelessWidget {
           ],
           if (direction != null) ...[
             const SizedBox(height: 12),
-            const Text(
-              '方向',
-              style: TextStyle(color: AtelierTokens.inkDim, fontSize: 13),
+            Text(
+              l.gradientDirectionLabel,
+              style: const TextStyle(color: AtelierTokens.inkDim, fontSize: 13),
             ),
             const SizedBox(height: 4),
             Wrap(
@@ -127,7 +130,7 @@ class GradientSettings extends StatelessWidget {
               children: [
                 for (final d in GradientDirection.values)
                   ChoiceChip(
-                    label: Text(d.label),
+                    label: Text(d.label(l)),
                     selected: direction == d,
                     onSelected: (_) => onDirectionChanged?.call(d),
                   ),

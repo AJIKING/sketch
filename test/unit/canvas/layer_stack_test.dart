@@ -7,7 +7,8 @@ void main() {
     final s = LayerStack.initial();
     expect(s.length, 2);
     expect(s.activeIndex, 1);
-    expect(s.layers.map((l) => l.name), ['レイヤー 1', 'レイヤー 2']);
+    // 表示名(レイヤー N)は UI 層で番号から組み立てる。domain は番号のみ持つ。
+    expect(s.layers.map((l) => l.number), [1, 2]);
     expect(s.layers.every((l) => l.visible && l.opacity == 1), isTrue);
   });
 
