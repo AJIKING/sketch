@@ -41,18 +41,25 @@ class GalleryScreen extends StatelessWidget {
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(22, 24, 22, 12),
+                  // 左右をそれぞれ 2 行に揃える:
+                  //   Rakuga       … 言語アイコン
+                  //   タグライン   … N 点のスケッチ
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text(
-                            'Rakuga',
-                            style: TextStyle(
-                              fontSize: 38,
-                              fontWeight: FontWeight.w900,
-                              color: AtelierTokens.ink,
+                          const SizedBox(
+                            height: 46,
+                            child: Text(
+                              'Rakuga',
+                              style: TextStyle(
+                                fontSize: 38,
+                                fontWeight: FontWeight.w900,
+                                color: AtelierTokens.ink,
+                              ),
                             ),
                           ),
                           Text(
@@ -62,17 +69,30 @@ class GalleryScreen extends StatelessWidget {
                         ],
                       ),
                       const Spacer(),
-                      if (localeController != null)
-                        IconButton(
-                          icon: const Icon(Icons.language),
-                          tooltip: l.languageTitle,
-                          color: AtelierTokens.inkDim,
-                          onPressed: () => _showLanguageSheet(context),
-                        ),
-                      Text(
-                        l.gallerySketchCount(controller.count),
-                        textAlign: TextAlign.right,
-                        style: const TextStyle(color: AtelierTokens.inkDim),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            height: 46,
+                            child: localeController != null
+                                ? IconButton(
+                                    icon: const Icon(Icons.language),
+                                    tooltip: l.languageTitle,
+                                    color: AtelierTokens.inkDim,
+                                    padding: EdgeInsets.zero,
+                                    visualDensity: VisualDensity.compact,
+                                    onPressed: () =>
+                                        _showLanguageSheet(context),
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
+                          Text(
+                            l.gallerySketchCount(controller.count),
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(color: AtelierTokens.inkDim),
+                          ),
+                        ],
                       ),
                     ],
                   ),
