@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import '../core/clock.dart';
 import '../data/file_gallery_store.dart';
 import '../data/file_palette_store.dart';
+import '../data/file_settings_store.dart';
 import '../data/gif_encoder.dart';
 import '../data/picker_photo_source.dart';
 import '../data/share_image_exporter.dart';
@@ -14,6 +15,7 @@ import '../domain/gallery/gallery_store.dart';
 import '../domain/gallery/image_exporter.dart';
 import '../domain/gallery/photo_source.dart';
 import '../domain/palette/palette_store.dart';
+import '../domain/settings/settings_store.dart';
 import '../domain/timelapse/timelapse_frame.dart';
 
 /// タイムラプスのフレーム列 → GIF バイト列。data の `encodeGif` を注入する型。
@@ -30,6 +32,7 @@ class Dependencies {
     required this.galleryStore,
     required this.imageExporter,
     this.paletteStore,
+    this.settingsStore,
     this.photoSource,
     this.gifEncoder,
   });
@@ -40,6 +43,9 @@ class Dependencies {
 
   /// ユーザー定義カラーパレットの保存先(任意。null なら非永続)。
   final PaletteStore? paletteStore;
+
+  /// アプリ設定(表示言語など)の保存先(任意。null なら非永続)。
+  final SettingsStore? settingsStore;
 
   /// 写真の読み込み元(任意。null なら「写真を読み込む」を出さない)。
   final PhotoSource? photoSource;
@@ -59,6 +65,12 @@ class Dependencies {
     ),
     imageExporter: const ShareImageExporter(),
     paletteStore: FilePaletteStore(
+      resolveDir: () async {
+        final docs = await getApplicationDocumentsDirectory();
+        return Directory('${docs.path}/hatch_sketches');
+      },
+    ),
+    settingsStore: FileSettingsStore(
       resolveDir: () async {
         final docs = await getApplicationDocumentsDirectory();
         return Directory('${docs.path}/hatch_sketches');

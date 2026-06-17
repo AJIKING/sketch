@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../../application/canvas_controller.dart';
 import '../../application/vector_controller.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../core/clock.dart';
 import '../../domain/canvas/gradient_direction.dart';
 import '../../domain/canvas/layer_stack.dart';
@@ -280,9 +281,9 @@ class DrawSurfaceState extends State<DrawSurface> {
     setState(() {});
   }
 
-  void _warnHidden() => ScaffoldMessenger.maybeOf(
-    context,
-  )?.showSnackBar(const SnackBar(content: Text('非表示のレイヤーには描けません')));
+  void _warnHidden() => ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+    SnackBar(content: Text(AppLocalizations.of(context).hiddenLayerWarning)),
+  );
 
   // ---- long-press: ツール UI の表示/非表示トグル ----
   void _startLongPress(Offset viewPos) {
@@ -1725,6 +1726,7 @@ class _TextSheetState extends State<_TextSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
         20,
@@ -1737,7 +1739,7 @@ class _TextSheetState extends State<_TextSheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            widget.isEditing ? 'テキストを編集' : 'テキスト',
+            widget.isEditing ? l.textEdit : l.toolText,
             style: const TextStyle(color: AtelierTokens.ink, fontSize: 18),
           ),
           // autofocus しない: 開いた直後はキーボードを出さず設定を見渡せるように
@@ -1745,7 +1747,7 @@ class _TextSheetState extends State<_TextSheet> {
           TextField(
             controller: _controller,
             maxLines: null,
-            decoration: const InputDecoration(hintText: '文字を入力(タップで開始)'),
+            decoration: InputDecoration(hintText: l.textInputHint),
           ),
           // テキスト欄以外に触れたらキーボード(フォーカス)を解除する。Listener は
           // ジェスチャを奪わない受動監視なので、各設定の操作はそのまま効く。
@@ -1758,7 +1760,7 @@ class _TextSheetState extends State<_TextSheet> {
               children: [
                 Row(
                   children: [
-                    const Text('サイズ'),
+                    Text(l.textSize),
                     Expanded(
                       child: Slider(
                         value: _fontSize,
@@ -1774,17 +1776,17 @@ class _TextSheetState extends State<_TextSheet> {
                   spacing: 8,
                   children: [
                     FilterChip(
-                      label: const Text('太字'),
+                      label: Text(l.textBold),
                       selected: _bold,
                       onSelected: (v) => setState(() => _bold = v),
                     ),
                     FilterChip(
-                      label: const Text('下線'),
+                      label: Text(l.textUnderline),
                       selected: _underline,
                       onSelected: (v) => setState(() => _underline = v),
                     ),
                     FilterChip(
-                      label: const Text('取り消し線'),
+                      label: Text(l.textStrikethrough),
                       selected: _strikethrough,
                       onSelected: (v) => setState(() => _strikethrough = v),
                     ),
@@ -1793,7 +1795,7 @@ class _TextSheetState extends State<_TextSheet> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    const Text('フォント'),
+                    Text(l.textFont),
                     const SizedBox(width: 8),
                     Expanded(
                       child: DropdownButton<String>(
@@ -1804,7 +1806,7 @@ class _TextSheetState extends State<_TextSheet> {
                           for (final f in textFonts)
                             DropdownMenuItem(
                               value: f.family,
-                              child: Text(f.label),
+                              child: Text(fontLabel(l, f.labelKey)),
                             ),
                         ],
                         onChanged: (v) => setState(() => _fontFamily = v ?? ''),
@@ -1827,7 +1829,7 @@ class _TextSheetState extends State<_TextSheet> {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    const Text('色'),
+                    Text(l.textColor),
                     const SizedBox(width: 8),
                     Container(
                       width: 24,
@@ -1883,12 +1885,14 @@ class _TextSheetState extends State<_TextSheet> {
                   children: [
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('キャンセル'),
+                      child: Text(l.commonCancel),
                     ),
                     const SizedBox(width: 8),
                     FilledButton(
                       onPressed: _submit,
-                      child: Text(widget.isEditing ? '更新' : '追加'),
+                      child: Text(
+                        widget.isEditing ? l.textUpdate : l.commonAdd,
+                      ),
                     ),
                   ],
                 ),

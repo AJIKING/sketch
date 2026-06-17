@@ -16,11 +16,13 @@ import '../../domain/canvas/selection_kind.dart';
 import '../../domain/canvas/shape_kind.dart';
 import '../../domain/canvas/symmetry_mode.dart';
 import '../../domain/gallery/sketch.dart';
+import '../../../l10n/app_localizations.dart';
 import '../theme/atelier_theme.dart';
 import '../widgets/brush_preview.dart';
 import 'color_picker.dart';
 import 'draw_surface.dart';
 import 'gradient_settings.dart';
+import 'l10n_labels.dart';
 import 'raster_layer_store.dart';
 import 'v_slider.dart';
 
@@ -150,18 +152,21 @@ class _CanvasScreenState extends State<CanvasScreen> {
       );
       _snack(okMessage);
     } catch (e) {
-      _snack('書き出しエラー: $e');
+      if (mounted) _snack(AppLocalizations.of(context).exportError('$e'));
     }
   }
 
-  Future<void> _exportTimelapse() => _export(
-    _timelapse.exportGif(),
-    okMessage: 'タイムラプスを保存しました',
-    emptyMessage: 'タイムラプスの記録がありません',
-    suggestedName: 'rakuga-timelapse.gif',
-    mimeType: 'image/gif',
-    text: 'Rakuga でタイムラプス #Rakuga',
-  );
+  Future<void> _exportTimelapse() {
+    final l = AppLocalizations.of(context);
+    return _export(
+      _timelapse.exportGif(),
+      okMessage: l.timelapseSaved,
+      emptyMessage: l.timelapseEmpty,
+      suggestedName: 'rakuga-timelapse.gif',
+      mimeType: 'image/gif',
+      text: l.timelapseDefaultCaption,
+    );
+  }
 
   Color get _currentColor => hexColor(_c.colorHex);
 
@@ -177,21 +182,23 @@ class _CanvasScreenState extends State<CanvasScreen> {
     final source = widget.dependencies.photoSource;
     if (source == null) return;
     final messenger = ScaffoldMessenger.of(context);
+    final l = AppLocalizations.of(context);
     final bytes = await source.pickImage();
     if (!mounted || bytes == null) return;
     await _drawKey.currentState?.importImage(bytes);
     if (!mounted) return;
-    messenger.showSnackBar(const SnackBar(content: Text('写真をレイヤーとして読み込みました')));
+    messenger.showSnackBar(SnackBar(content: Text(l.photoImported)));
   }
 
   /// 画像として保存(OS の共有/保存シート経由)。
   Future<void> _exportImage() async {
     final png = await _drawKey.currentState?.exportPng();
     if (!mounted) return;
+    final l = AppLocalizations.of(context);
     await _export(
       png,
-      okMessage: '画像を保存しました',
-      emptyMessage: '画像を生成できませんでした',
+      okMessage: l.imageSaved,
+      emptyMessage: l.imageGenerateFailed,
       suggestedName: 'rakuga-sketch.png',
     );
   }
@@ -202,10 +209,11 @@ class _CanvasScreenState extends State<CanvasScreen> {
     if (!mounted || caption == null) return; // キャンセル
     final png = await _drawKey.currentState?.exportPng();
     if (!mounted) return;
+    final l = AppLocalizations.of(context);
     await _export(
       png,
-      okMessage: '共有しました',
-      emptyMessage: '画像を生成できませんでした',
+      okMessage: l.shared,
+      emptyMessage: l.imageGenerateFailed,
       suggestedName: 'rakuga-share.png',
       text: caption.isEmpty ? null : caption,
     );
@@ -276,55 +284,56 @@ class _CanvasScreenState extends State<CanvasScreen> {
   );
 
   void _openFilterSheet() {
-    _openSheet(
-      (context) => Column(
+    _openSheet((context) {
+      final l = AppLocalizations.of(context);
+      return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           _filterTile(
             context,
-            '反転',
+            l.filterInvert,
             Icons.invert_colors,
             (b, w, h) => filters.invert(b),
           ),
           _filterTile(
             context,
-            'グレースケール',
+            l.filterGrayscale,
             Icons.tonality,
             (b, w, h) => filters.grayscale(b),
           ),
           _filterTile(
             context,
-            'ぼかし',
+            l.filterBlur,
             Icons.blur_on,
             (b, w, h) => filters.boxBlur(b, w, h, 6),
           ),
           _filterTile(
             context,
-            'モザイク',
+            l.filterMosaic,
             Icons.grid_on,
             (b, w, h) => filters.mosaic(b, w, h, 12),
           ),
           _filterTile(
             context,
-            '明るく',
+            l.filterBrighten,
             Icons.light_mode,
             (b, w, h) => filters.adjustBrightnessContrast(b, brightness: 0.12),
           ),
           _filterTile(
             context,
-            '暗く',
+            l.filterDarken,
             Icons.dark_mode,
             (b, w, h) => filters.adjustBrightnessContrast(b, brightness: -0.12),
           ),
           _filterTile(
             context,
-            'コントラスト+',
+            l.filterContrast,
             Icons.contrast,
             (b, w, h) => filters.adjustBrightnessContrast(b, contrast: 0.3),
           ),
         ],
-      ),
-    );
+      );
+    });
   }
 
   ListTile _filterTile(
@@ -344,13 +353,14 @@ class _CanvasScreenState extends State<CanvasScreen> {
   }
 
   void _openMenuSheet() {
-    _openSheet(
-      (context) => Column(
+    _openSheet((context) {
+      final l = AppLocalizations.of(context);
+      return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
             leading: const Icon(Icons.download_outlined),
-            title: const Text('画像として保存'),
+            title: Text(l.menuExport),
             onTap: () async {
               Navigator.of(context).pop();
               await _exportImage();
@@ -359,7 +369,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
           if (widget.dependencies.photoSource != null)
             ListTile(
               leading: const Icon(Icons.add_photo_alternate_outlined),
-              title: const Text('写真を読み込む'),
+              title: Text(l.menuImportPhoto),
               onTap: () async {
                 Navigator.of(context).pop();
                 await _importPhoto();
@@ -367,7 +377,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
             ),
           ListTile(
             leading: const Icon(Icons.ios_share),
-            title: const Text('共有(SNS など)'),
+            title: Text(l.menuShare),
             onTap: () async {
               Navigator.of(context).pop();
               await _shareSketch();
@@ -375,11 +385,11 @@ class _CanvasScreenState extends State<CanvasScreen> {
           ),
           SwitchListTile(
             secondary: const Icon(Icons.timelapse),
-            title: const Text('タイムラプス記録'),
+            title: Text(l.menuTimelapse),
             subtitle: Text(
               _timelapse.recording
-                  ? '記録中(${_timelapse.frameCount}コマ)'
-                  : 'ONで描画過程を記録',
+                  ? l.timelapseRecording(_timelapse.frameCount)
+                  : l.timelapseOnHint,
             ),
             value: _timelapse.recording,
             onChanged: _timelapse.setRecording,
@@ -387,7 +397,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
           if (_timelapse.hasFrames)
             ListTile(
               leading: const Icon(Icons.gif_box_outlined),
-              title: const Text('タイムラプスを書き出す(GIF)'),
+              title: Text(l.menuExportTimelapse),
               onTap: () async {
                 Navigator.of(context).pop();
                 await _exportTimelapse();
@@ -395,7 +405,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
             ),
           ListTile(
             leading: const Icon(Icons.auto_awesome),
-            title: const Text('フィルタ'),
+            title: Text(l.menuFilter),
             onTap: () {
               Navigator.of(context).pop();
               _openFilterSheet();
@@ -403,7 +413,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.check),
-            title: const Text('完了してギャラリーへ'),
+            title: Text(l.menuFinish),
             onTap: () {
               Navigator.of(context).pop();
               _exit();
@@ -414,9 +424,9 @@ class _CanvasScreenState extends State<CanvasScreen> {
               Icons.delete_outline,
               color: AtelierTokens.vermilion,
             ),
-            title: const Text(
-              'このレイヤーを消去',
-              style: TextStyle(color: AtelierTokens.vermilion),
+            title: Text(
+              l.menuClearLayer,
+              style: const TextStyle(color: AtelierTokens.vermilion),
             ),
             onTap: () {
               Navigator.of(context).pop();
@@ -424,8 +434,8 @@ class _CanvasScreenState extends State<CanvasScreen> {
             },
           ),
         ],
-      ),
-    );
+      );
+    });
   }
 
   void _onToolTap(Tool tool) {
@@ -449,8 +459,9 @@ class _CanvasScreenState extends State<CanvasScreen> {
   }
 
   void _openSelectionSheet() {
-    _openSheet(
-      (context) => Column(
+    _openSheet((context) {
+      final l = AppLocalizations.of(context);
+      return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           for (final kind in SelectionKind.values)
@@ -461,7 +472,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
                 SelectionKind.rectangle => Icons.crop_din,
               }),
               title: Text(
-                kind.label,
+                kind.label(l),
                 style: const TextStyle(color: AtelierTokens.ink),
               ),
               trailing: _c.selectionKind == kind
@@ -472,9 +483,9 @@ class _CanvasScreenState extends State<CanvasScreen> {
           const Divider(),
           ListTile(
             leading: const Icon(Icons.select_all),
-            title: const Text(
-              '全選択',
-              style: TextStyle(color: AtelierTokens.ink),
+            title: Text(
+              l.selectAll,
+              style: const TextStyle(color: AtelierTokens.ink),
             ),
             onTap: () {
               Navigator.of(context).pop();
@@ -483,9 +494,9 @@ class _CanvasScreenState extends State<CanvasScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.flip),
-            title: const Text(
-              '選択を反転',
-              style: TextStyle(color: AtelierTokens.ink),
+            title: Text(
+              l.selectInvert,
+              style: const TextStyle(color: AtelierTokens.ink),
             ),
             onTap: () {
               Navigator.of(context).pop();
@@ -494,9 +505,9 @@ class _CanvasScreenState extends State<CanvasScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.format_color_fill),
-            title: const Text(
-              '選択内を塗る',
-              style: TextStyle(color: AtelierTokens.ink),
+            title: Text(
+              l.selectFill,
+              style: const TextStyle(color: AtelierTokens.ink),
             ),
             onTap: () {
               Navigator.of(context).pop();
@@ -505,9 +516,9 @@ class _CanvasScreenState extends State<CanvasScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.cleaning_services_outlined),
-            title: const Text(
-              '選択範囲を消去',
-              style: TextStyle(color: AtelierTokens.ink),
+            title: Text(
+              l.selectClear,
+              style: const TextStyle(color: AtelierTokens.ink),
             ),
             onTap: () {
               Navigator.of(context).pop();
@@ -516,9 +527,9 @@ class _CanvasScreenState extends State<CanvasScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.deselect),
-            title: const Text(
-              '選択を解除',
-              style: TextStyle(color: AtelierTokens.ink),
+            title: Text(
+              l.selectDeselect,
+              style: const TextStyle(color: AtelierTokens.ink),
             ),
             onTap: () {
               Navigator.of(context).pop();
@@ -526,13 +537,14 @@ class _CanvasScreenState extends State<CanvasScreen> {
             },
           ),
         ],
-      ),
-    );
+      );
+    });
   }
 
   void _openShapeSheet() {
-    _openSheet(
-      (context) => Column(
+    _openSheet((context) {
+      final l = AppLocalizations.of(context);
+      return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           for (final kind in ShapeKind.values)
@@ -544,7 +556,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
                 ShapeKind.ellipse => Icons.circle_outlined,
               }),
               title: Text(
-                kind.label,
+                kind.label(l),
                 style: const TextStyle(color: AtelierTokens.ink),
               ),
               trailing: _c.shapeKind == kind
@@ -553,24 +565,24 @@ class _CanvasScreenState extends State<CanvasScreen> {
               onTap: () => _c.setShapeKind(kind),
             ),
           SwitchListTile(
-            title: const Text(
-              '塗りつぶし(枠線 ↔ 塗り)',
-              style: TextStyle(color: AtelierTokens.ink),
+            title: Text(
+              l.shapeFillToggle,
+              style: const TextStyle(color: AtelierTokens.ink),
             ),
             value: _c.shapeFilled,
             onChanged: _c.setShapeFilled,
           ),
           SwitchListTile(
-            title: const Text(
-              'スナップ(直線45° / 正方形・正円)',
-              style: TextStyle(color: AtelierTokens.ink),
+            title: Text(
+              l.shapeSnapToggle,
+              style: const TextStyle(color: AtelierTokens.ink),
             ),
             value: _c.shapeSnap,
             onChanged: _c.setShapeSnap,
           ),
         ],
-      ),
-    );
+      );
+    });
   }
 
   void _openGradientSheet() {
@@ -580,11 +592,11 @@ class _CanvasScreenState extends State<CanvasScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 始点=現在色(色シートで設定)、終点=2 色目。どちらもカラーコード可。
-          const Padding(
-            padding: EdgeInsets.only(bottom: 6),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
             child: Text(
-              '始点の色(カラーコード)',
-              style: TextStyle(color: AtelierTokens.inkDim, fontSize: 13),
+              AppLocalizations.of(context).gradientStartColor,
+              style: const TextStyle(color: AtelierTokens.inkDim, fontSize: 13),
             ),
           ),
           HexColorField(hex: _c.colorHex, onSubmitted: _c.selectColor),
@@ -675,6 +687,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
   }
 
   Widget _topBar() {
+    final l = AppLocalizations.of(context);
     return Positioned(
       top: 8,
       left: 8,
@@ -683,28 +696,28 @@ class _CanvasScreenState extends State<CanvasScreen> {
         children: [
           IconButton(
             icon: const Icon(Icons.arrow_back),
-            tooltip: 'ギャラリーへ戻る',
+            tooltip: l.tooltipBackToGallery,
             onPressed: _exit,
           ),
           const Spacer(),
           IconButton(
             icon: const Icon(Icons.undo),
-            tooltip: '取り消す',
+            tooltip: l.tooltipUndo,
             onPressed: _c.canUndo ? _c.undo : null,
           ),
           IconButton(
             icon: const Icon(Icons.redo),
-            tooltip: 'やり直す',
+            tooltip: l.tooltipRedo,
             onPressed: _c.canRedo ? _c.redo : null,
           ),
           IconButton(
             icon: const Icon(Icons.center_focus_strong),
-            tooltip: '表示をリセット',
+            tooltip: l.tooltipResetView,
             onPressed: () => _drawKey.currentState?.resetView(),
           ),
           IconButton(
             icon: const Icon(Icons.more_vert),
-            tooltip: 'メニュー',
+            tooltip: l.tooltipMenu,
             onPressed: _openMenuSheet,
           ),
         ],
@@ -713,6 +726,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
   }
 
   Widget _leftRail() {
+    final l = AppLocalizations.of(context);
     // 上端(トップバー下)〜下端(ドック上)に収め、横画面でも溢れないよう
     // 2 本のスライダで高さを分け合う(各 VSlider は Expanded で伸縮)。
     return Positioned(
@@ -725,7 +739,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
           children: [
             Expanded(
               child: VSlider(
-                label: 'SIZE',
+                label: l.sliderSize,
                 value: _c.size,
                 min: 1,
                 max: 80,
@@ -736,7 +750,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
             const SizedBox(height: 8),
             Expanded(
               child: VSlider(
-                label: 'OPAC',
+                label: l.sliderOpac,
                 value: _c.opacity * 100,
                 min: 0,
                 max: 100,
@@ -752,6 +766,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
 
   // 長押し起動のオブジェクト調整バー(移動/拡縮中の操作)。
   Widget _objectAdjustBar() {
+    final l = AppLocalizations.of(context);
     return Positioned(
       bottom: 78,
       left: 0,
@@ -766,16 +781,19 @@ class _CanvasScreenState extends State<CanvasScreen> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
                 child: Text(
-                  '1本指=移動 2本指=拡縮',
-                  style: TextStyle(color: AtelierTokens.inkDim, fontSize: 12),
+                  l.adjustHint,
+                  style: const TextStyle(
+                    color: AtelierTokens.inkDim,
+                    fontSize: 12,
+                  ),
                 ),
               ),
               IconButton(
                 icon: const Icon(Icons.palette_outlined),
-                tooltip: '選択を現在色にする',
+                tooltip: l.recolorSelection,
                 onPressed: () => _vec.recolorSelected(_c.colorHex),
               ),
               IconButton(
@@ -783,12 +801,12 @@ class _CanvasScreenState extends State<CanvasScreen> {
                   Icons.delete_outline,
                   color: AtelierTokens.vermilion,
                 ),
-                tooltip: '削除',
+                tooltip: l.commonDelete,
                 onPressed: _vec.deleteSelected,
               ),
               IconButton(
                 icon: const Icon(Icons.check, color: AtelierTokens.vermilion),
-                tooltip: '調整を完了',
+                tooltip: l.finishAdjust,
                 onPressed: _vec.endAdjust,
               ),
             ],
@@ -800,6 +818,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
 
   // ベクターモードの編集バー(ドック上・選択オブジェクトの操作と undo/redo)。
   Widget _vectorBar() {
+    final l = AppLocalizations.of(context);
     final hasSel = _vec.hasSelection;
     return Positioned(
       bottom: 78,
@@ -817,12 +836,12 @@ class _CanvasScreenState extends State<CanvasScreen> {
             children: [
               IconButton(
                 icon: const Icon(Icons.undo),
-                tooltip: 'ベクターを取り消す',
+                tooltip: l.vectorUndo,
                 onPressed: _vec.canUndo ? _vec.undo : null,
               ),
               IconButton(
                 icon: const Icon(Icons.redo),
-                tooltip: 'ベクターをやり直す',
+                tooltip: l.vectorRedo,
                 onPressed: _vec.canRedo ? _vec.redo : null,
               ),
               const SizedBox(
@@ -832,7 +851,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
               ),
               IconButton(
                 icon: const Icon(Icons.palette_outlined),
-                tooltip: '選択を現在色にする',
+                tooltip: l.recolorSelection,
                 onPressed: hasSel
                     ? () => _vec.recolorSelected(_c.colorHex)
                     : null,
@@ -842,7 +861,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
                   Icons.delete_outline,
                   color: AtelierTokens.vermilion,
                 ),
-                tooltip: '選択を削除',
+                tooltip: l.deleteSelection,
                 onPressed: hasSel ? _vec.deleteSelected : null,
               ),
             ],
@@ -855,6 +874,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
   // 変形モード中の確定/取消バー(画面上部中央)。
   /// マスク編集中であることを示すバナー(描画はマスクへ向く)。
   Widget _maskEditingBanner() {
+    final l = AppLocalizations.of(context);
     return Positioned(
       top: 56,
       left: 0,
@@ -868,14 +888,14 @@ class _CanvasScreenState extends State<CanvasScreen> {
               color: AtelierTokens.vermilion,
               borderRadius: BorderRadius.circular(AtelierTokens.rLg),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.masks, size: 16, color: Colors.white),
-                SizedBox(width: 6),
+                const Icon(Icons.masks, size: 16, color: Colors.white),
+                const SizedBox(width: 6),
                 Text(
-                  'マスク編集中(タップで終了)',
-                  style: TextStyle(color: Colors.white, fontSize: 13),
+                  l.maskEditingBanner,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
                 ),
               ],
             ),
@@ -886,6 +906,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
   }
 
   Widget _transformBar() {
+    final l = AppLocalizations.of(context);
     return Positioned(
       top: 56,
       left: 0,
@@ -906,19 +927,22 @@ class _CanvasScreenState extends State<CanvasScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.close),
-                    tooltip: '変形を取消',
+                    tooltip: l.transformCancel,
                     onPressed: () => _drawKey.currentState?.cancelTransform(),
                   ),
-                  const Text(
-                    '変形(1本指=移動 / 2本指=拡縮・回転)',
-                    style: TextStyle(color: AtelierTokens.ink, fontSize: 12),
+                  Text(
+                    l.transformHint,
+                    style: const TextStyle(
+                      color: AtelierTokens.ink,
+                      fontSize: 12,
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(
                       Icons.check,
                       color: AtelierTokens.vermilion,
                     ),
-                    tooltip: '変形を確定',
+                    tooltip: l.transformConfirm,
                     onPressed: () => _drawKey.currentState?.confirmTransform(),
                   ),
                 ],
@@ -931,6 +955,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
   }
 
   Widget _dock() {
+    final l = AppLocalizations.of(context);
     return Positioned(
       bottom: 12,
       left: 12,
@@ -948,23 +973,35 @@ class _CanvasScreenState extends State<CanvasScreen> {
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    _toolButton(Tool.brush, Icons.brush, 'ブラシ'),
-                    _toolButton(Tool.smudge, Icons.water_drop_outlined, 'スマッジ'),
-                    _toolButton(Tool.erase, Icons.auto_fix_normal, '消しゴム'),
-                    _toolButton(Tool.fill, Icons.format_color_fill, '塗りつぶし'),
-                    _toolButton(Tool.gradient, Icons.gradient, 'グラデーション'),
-                    _toolButton(Tool.shape, Icons.category_outlined, '図形'),
-                    _toolButton(Tool.text, Icons.text_fields, 'テキスト'),
-                    _toolButton(Tool.select, Icons.highlight_alt, '選択'),
-                    _toolButton(Tool.eyedropper, Icons.colorize, 'スポイト'),
+                    _toolButton(Tool.brush, Icons.brush, l.toolBrush),
+                    _toolButton(
+                      Tool.smudge,
+                      Icons.water_drop_outlined,
+                      l.toolSmudge,
+                    ),
+                    _toolButton(Tool.erase, Icons.auto_fix_normal, l.toolErase),
+                    _toolButton(Tool.fill, Icons.format_color_fill, l.toolFill),
+                    _toolButton(Tool.gradient, Icons.gradient, l.toolGradient),
+                    _toolButton(
+                      Tool.shape,
+                      Icons.category_outlined,
+                      l.toolShape,
+                    ),
+                    _toolButton(Tool.text, Icons.text_fields, l.toolText),
+                    _toolButton(Tool.select, Icons.highlight_alt, l.toolSelect),
+                    _toolButton(
+                      Tool.eyedropper,
+                      Icons.colorize,
+                      l.toolEyedropper,
+                    ),
                     IconButton(
                       icon: const Icon(Icons.transform),
-                      tooltip: '変形',
+                      tooltip: l.toolTransform,
                       onPressed: () => _drawKey.currentState?.enterTransform(),
                     ),
                     IconButton(
                       icon: const Icon(Icons.timeline),
-                      tooltip: _vec.enabled ? 'ベクター: ON' : 'ベクター: OFF',
+                      tooltip: _vec.enabled ? l.vectorOn : l.vectorOff,
                       isSelected: _vec.enabled,
                       style: IconButton.styleFrom(
                         backgroundColor: _vec.enabled
@@ -990,7 +1027,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
                 label: Text('${_c.layers.length}'),
                 child: const Icon(Icons.layers_outlined),
               ),
-              tooltip: 'レイヤー',
+              tooltip: l.layers,
               onPressed: _openLayerSheet,
             ),
             const SizedBox(width: 4),
@@ -998,7 +1035,7 @@ class _CanvasScreenState extends State<CanvasScreen> {
               onTap: _openColorSheet,
               child: Semantics(
                 button: true,
-                label: 'カラーを選択',
+                label: l.pickColor,
                 child: Container(
                   width: 34,
                   height: 34,
@@ -1042,12 +1079,13 @@ class _ColorSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'カラー  ${controller.colorHex}',
+          l.colorTitle(controller.colorHex),
           style: const TextStyle(color: AtelierTokens.ink, fontSize: 18),
         ),
         const SizedBox(height: 12),
@@ -1058,40 +1096,46 @@ class _ColorSheet extends StatelessWidget {
           onSubmitted: controller.selectColor,
         ),
         const SizedBox(height: 12),
-        const Text(
-          'Studio Palette',
-          style: TextStyle(color: AtelierTokens.inkDim),
+        Text(
+          l.studioPalette,
+          style: const TextStyle(color: AtelierTokens.inkDim),
         ),
         _swatches(controller.palette, controller.selectColor),
         const SizedBox(height: 8),
-        const Text('Recent', style: TextStyle(color: AtelierTokens.inkDim)),
+        Text(
+          l.recentColors,
+          style: const TextStyle(color: AtelierTokens.inkDim),
+        ),
         controller.recent.isEmpty
-            ? const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
+            ? Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
-                  'まだありません',
-                  style: TextStyle(color: AtelierTokens.inkFaint),
+                  l.noRecentColors,
+                  style: const TextStyle(color: AtelierTokens.inkFaint),
                 ),
               )
             : _swatches(controller.recent, controller.selectColor),
         const SizedBox(height: 8),
         Row(
           children: [
-            const Text('マイパレット', style: TextStyle(color: AtelierTokens.inkDim)),
+            Text(
+              l.myPalette,
+              style: const TextStyle(color: AtelierTokens.inkDim),
+            ),
             const Spacer(),
             TextButton.icon(
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('現在色を保存'),
+              label: Text(l.saveCurrentColor),
               onPressed: () => controller.addCustomColor(),
             ),
           ],
         ),
         controller.customPalette.isEmpty
-            ? const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
+            ? Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
-                  '「現在色を保存」で自分の色を貯められます(長押しで削除)',
-                  style: TextStyle(color: AtelierTokens.inkFaint),
+                  l.myPaletteHint,
+                  style: const TextStyle(color: AtelierTokens.inkFaint),
                 ),
               )
             : _swatches(
@@ -1141,15 +1185,16 @@ class _BrushSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.only(bottom: 6),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
           child: Text(
-            '対称(シンメトリー)',
-            style: TextStyle(color: AtelierTokens.inkDim, fontSize: 13),
+            l.symmetryLabel,
+            style: const TextStyle(color: AtelierTokens.inkDim, fontSize: 13),
           ),
         ),
         Wrap(
@@ -1157,7 +1202,7 @@ class _BrushSheet extends StatelessWidget {
           children: [
             for (final mode in SymmetryMode.values)
               ChoiceChip(
-                label: Text(mode.label),
+                label: Text(mode.label(l)),
                 selected: controller.symmetry == mode,
                 onSelected: (_) => controller.setSymmetry(mode),
               ),
@@ -1166,11 +1211,14 @@ class _BrushSheet extends StatelessWidget {
         const SizedBox(height: 8),
         Row(
           children: [
-            const SizedBox(
+            SizedBox(
               width: 96,
               child: Text(
-                '手ブレ補正',
-                style: TextStyle(color: AtelierTokens.inkDim, fontSize: 13),
+                l.stabilization,
+                style: const TextStyle(
+                  color: AtelierTokens.inkDim,
+                  fontSize: 13,
+                ),
               ),
             ),
             Expanded(
@@ -1197,21 +1245,21 @@ class _BrushSheet extends StatelessWidget {
           }.toList(),
         ),
         _brushParam(
-          '濃さ',
+          l.brushFlow,
           controller.brush.flow,
           0.02,
           1,
           controller.setBrushFlow,
         ),
         _brushParam(
-          '散り',
+          l.brushScatter,
           controller.brush.scatter,
           0,
           2,
           controller.setBrushScatter,
         ),
         _brushParam(
-          '間隔',
+          l.brushSpacing,
           controller.brush.spacing,
           0.05,
           2,
@@ -1230,11 +1278,11 @@ class _BrushSheet extends StatelessWidget {
               ),
             ),
             title: Text(
-              brush.name,
+              brushName(l, brush.key),
               style: const TextStyle(color: AtelierTokens.ink),
             ),
             subtitle: Text(
-              brush.description,
+              brushDescription(l, brush.key),
               style: const TextStyle(color: AtelierTokens.inkDim),
             ),
             trailing: controller.brush.key == brush.key
@@ -1298,20 +1346,21 @@ class _LayerSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final layers = controller.layers;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Row(
           children: [
-            const Text(
-              'レイヤー',
-              style: TextStyle(color: AtelierTokens.ink, fontSize: 18),
+            Text(
+              l.layers,
+              style: const TextStyle(color: AtelierTokens.ink, fontSize: 18),
             ),
             const Spacer(),
             TextButton.icon(
               icon: const Icon(Icons.add),
-              label: const Text('追加'),
+              label: Text(l.commonAdd),
               onPressed: controller.addLayer,
             ),
           ],
@@ -1323,6 +1372,7 @@ class _LayerSheet extends StatelessWidget {
   }
 
   Widget _layerRow(BuildContext context, int i) {
+    final l = AppLocalizations.of(context);
     final layer = controller.layers.layers[i];
     final active = i == controller.layers.activeIndex;
     return Container(
@@ -1343,28 +1393,28 @@ class _LayerSheet extends StatelessWidget {
                 icon: Icon(
                   layer.visible ? Icons.visibility : Icons.visibility_off,
                 ),
-                tooltip: '表示切替',
+                tooltip: l.layerToggleVisible,
                 onPressed: () => controller.toggleLayerVisible(i),
               ),
               Expanded(
                 child: GestureDetector(
                   onTap: () => controller.setActiveLayer(i),
                   child: Text(
-                    layer.name,
+                    l.layerName(layer.number),
                     style: const TextStyle(color: AtelierTokens.ink),
                   ),
                 ),
               ),
               IconButton(
                 icon: const Icon(Icons.lock_outline),
-                tooltip: 'アルファロック',
+                tooltip: l.layerAlphaLock,
                 isSelected: layer.alphaLocked,
                 color: layer.alphaLocked ? AtelierTokens.vermilion : null,
                 onPressed: () => controller.toggleLayerAlphaLock(i),
               ),
               IconButton(
                 icon: const Icon(Icons.south_east),
-                tooltip: '下のレイヤーでクリッピング',
+                tooltip: l.layerClip,
                 isSelected: layer.clipToLower,
                 color: layer.clipToLower ? AtelierTokens.vermilion : null,
                 onPressed: () => controller.toggleLayerClip(i),
@@ -1372,12 +1422,12 @@ class _LayerSheet extends StatelessWidget {
               if (!layer.hasMask)
                 IconButton(
                   icon: const Icon(Icons.masks_outlined),
-                  tooltip: 'マスクを追加',
+                  tooltip: l.layerAddMask,
                   onPressed: () => onAddMask(i),
                 )
               else
                 PopupMenuButton<String>(
-                  tooltip: 'マスク',
+                  tooltip: l.layerMask,
                   icon: Icon(
                     Icons.masks,
                     color:
@@ -1400,25 +1450,28 @@ class _LayerSheet extends StatelessWidget {
                       child: Text(
                         (controller.maskEditing &&
                                 i == controller.layers.activeIndex)
-                            ? 'マスク編集を終了'
-                            : 'マスクを編集',
+                            ? l.layerMaskEditEnd
+                            : l.layerMaskEdit,
                       ),
                     ),
-                    const PopupMenuItem(value: 'remove', child: Text('マスクを解除')),
+                    PopupMenuItem(
+                      value: 'remove',
+                      child: Text(l.layerMaskRemove),
+                    ),
                   ],
                 ),
               IconButton(
                 icon: const Icon(Icons.merge_type),
-                tooltip: '下のレイヤーと結合',
+                tooltip: l.layerMergeDown,
                 onPressed: i > 0 ? () => onMergeDown(i) : null,
               ),
               IconButton(
                 icon: const Icon(Icons.delete_outline),
-                tooltip: '削除',
+                tooltip: l.commonDelete,
                 onPressed: () {
                   if (!controller.removeLayer(i)) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('最後のレイヤーは消せません')),
+                      SnackBar(content: Text(l.lastLayerCannotDelete)),
                     );
                   }
                 },
@@ -1435,7 +1488,7 @@ class _LayerSheet extends StatelessWidget {
                 style: const TextStyle(color: AtelierTokens.ink, fontSize: 13),
                 items: [
                   for (final mode in LayerBlendMode.values)
-                    DropdownMenuItem(value: mode, child: Text(mode.label)),
+                    DropdownMenuItem(value: mode, child: Text(mode.label(l))),
                 ],
                 onChanged: (mode) {
                   if (mode != null) controller.setLayerBlendMode(i, mode);
@@ -1452,7 +1505,7 @@ class _LayerSheet extends StatelessWidget {
                 icon: const Icon(Icons.keyboard_arrow_up),
                 iconSize: 20,
                 visualDensity: VisualDensity.compact,
-                tooltip: '前面へ',
+                tooltip: l.layerMoveForward,
                 onPressed: i < controller.layers.length - 1
                     ? () => controller.moveLayer(i, 1)
                     : null,
@@ -1461,7 +1514,7 @@ class _LayerSheet extends StatelessWidget {
                 icon: const Icon(Icons.keyboard_arrow_down),
                 iconSize: 20,
                 visualDensity: VisualDensity.compact,
-                tooltip: '背面へ',
+                tooltip: l.layerMoveBackward,
                 onPressed: i > 0 ? () => controller.moveLayer(i, -1) : null,
               ),
             ],
@@ -1481,10 +1534,19 @@ class _ShareCaptionDialog extends StatefulWidget {
 }
 
 class _ShareCaptionDialogState extends State<_ShareCaptionDialog> {
-  // SNS 向けの既定キャプション(ユーザーは編集・削除できる)。
-  final TextEditingController _controller = TextEditingController(
-    text: 'Rakuga で描きました #Rakuga',
-  );
+  // SNS 向けの既定キャプション(ユーザーは編集・削除できる)。表示言語に応じた
+  // 既定文を初回の didChangeDependencies で一度だけ流し込む。
+  final TextEditingController _controller = TextEditingController();
+  bool _seeded = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_seeded) {
+      _controller.text = AppLocalizations.of(context).shareDefaultCaption;
+      _seeded = true;
+    }
+  }
 
   @override
   void dispose() {
@@ -1494,25 +1556,26 @@ class _ShareCaptionDialogState extends State<_ShareCaptionDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return AlertDialog(
-      title: const Text('共有'),
+      title: Text(l.commonShare),
       content: TextField(
         controller: _controller,
         autofocus: true,
         maxLines: null,
-        decoration: const InputDecoration(
-          labelText: 'メッセージ(任意)',
-          hintText: 'SNS に添える文章',
+        decoration: InputDecoration(
+          labelText: l.shareMessageLabel,
+          hintText: l.shareMessageHint,
         ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('キャンセル'),
+          child: Text(l.commonCancel),
         ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(_controller.text),
-          child: const Text('共有'),
+          child: Text(l.commonShare),
         ),
       ],
     );

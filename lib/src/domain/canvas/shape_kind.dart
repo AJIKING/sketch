@@ -1,11 +1,5 @@
-/// 図形ツールの種類(pure Dart)。[label] は UI 表示名。
-enum ShapeKind {
-  line('直線'),
-  rectangle('四角'),
-  triangle('三角'),
-  ellipse('楕円');
-
-  const ShapeKind(this.label);
-
-  final String label;
-}
+/// 図形ツールの種類(pure Dart)。
+///
+/// 表示名は UI 層([AppLocalizations] 経由・`ui/canvas/l10n_labels.dart`)で解決する。
+/// 識別子は enum 名(`line` / `rectangle` / `triangle` / `ellipse`)。
+enum ShapeKind { line, rectangle, triangle, ellipse }

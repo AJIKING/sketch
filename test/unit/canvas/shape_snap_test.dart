@@ -60,6 +60,7 @@ void main() {
 
   test('ShapeKind に三角が含まれる', () {
     expect(ShapeKind.values, contains(ShapeKind.triangle));
-    expect(ShapeKind.triangle.label, '三角');
+    // 表示名は UI 層(AppLocalizations)で解決する。domain は識別子のみ持つ。
+    expect(ShapeKind.triangle.name, 'triangle');
   });
 }

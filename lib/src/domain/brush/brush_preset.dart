@@ -12,8 +12,6 @@
 class BrushPreset {
   const BrushPreset({
     required this.key,
-    required this.name,
-    required this.description,
     required this.flow,
     required this.soft,
     required this.scatter,
@@ -23,9 +21,9 @@ class BrushPreset {
     this.flat = false,
   });
 
+  /// プリセットの識別子(`ink` / `pencil` …)。表示名・説明は UI 層
+  /// ([AppLocalizations] 経由・`ui/canvas/l10n_labels.dart`)で [key] から解決する。
   final String key;
-  final String name;
-  final String description;
   final double flow;
   final double soft;
   final double scatter;
@@ -43,8 +41,6 @@ class BrushPreset {
     double? spacing,
   }) => BrushPreset(
     key: key,
-    name: name,
-    description: description,
     flow: flow ?? this.flow,
     soft: soft ?? this.soft,
     scatter: scatter ?? this.scatter,
@@ -57,8 +53,6 @@ class BrushPreset {
 
 const BrushPreset inkBrush = BrushPreset(
   key: 'ink',
-  name: 'インク',
-  description: 'なめらかで均一。速度で太さが変化',
   flow: 1,
   soft: 0,
   scatter: 0,
@@ -69,8 +63,6 @@ const BrushPreset inkBrush = BrushPreset(
 
 const BrushPreset pencilBrush = BrushPreset(
   key: 'pencil',
-  name: 'ペンシル',
-  description: 'ざらりとした鉛筆。重ねるほど濃く',
   flow: 0.5,
   soft: 0,
   scatter: 0.9,
@@ -79,8 +71,6 @@ const BrushPreset pencilBrush = BrushPreset(
 
 const BrushPreset markerBrush = BrushPreset(
   key: 'marker',
-  name: 'マーカー',
-  description: '平らで半透明。重なりが色を作る',
   flow: 0.55,
   soft: 0.1,
   scatter: 0,
@@ -91,8 +81,6 @@ const BrushPreset markerBrush = BrushPreset(
 
 const BrushPreset airBrush = BrushPreset(
   key: 'air',
-  name: 'エアブラシ',
-  description: 'やわらかく霧状に積もる',
   flow: 0.18,
   soft: 1,
   scatter: 0.2,
@@ -101,8 +89,6 @@ const BrushPreset airBrush = BrushPreset(
 
 const BrushPreset fudeBrush = BrushPreset(
   key: 'fude',
-  name: '筆',
-  description: '入り抜きのある線。速度で強弱がつく',
   flow: 1,
   soft: 0,
   scatter: 0,
@@ -113,8 +99,6 @@ const BrushPreset fudeBrush = BrushPreset(
 
 const BrushPreset crayonBrush = BrushPreset(
   key: 'crayon',
-  name: 'クレヨン',
-  description: '粗い粒で塗り込む。ざらついた質感',
   flow: 0.65,
   soft: 0,
   scatter: 0.55,
@@ -123,8 +107,6 @@ const BrushPreset crayonBrush = BrushPreset(
 
 const BrushPreset chalkBrush = BrushPreset(
   key: 'chalk',
-  name: 'チョーク',
-  description: 'やわらかく粉っぽい。淡く重なる',
   flow: 0.45,
   soft: 0.3,
   scatter: 0.7,
@@ -133,8 +115,6 @@ const BrushPreset chalkBrush = BrushPreset(
 
 const BrushPreset stippleBrush = BrushPreset(
   key: 'stipple',
-  name: '点描',
-  description: 'まばらな点を打つ。点描・テクスチャ向き',
   flow: 0.9,
   soft: 0,
   scatter: 0.25,
@@ -143,8 +123,6 @@ const BrushPreset stippleBrush = BrushPreset(
 
 const BrushPreset softPenBrush = BrushPreset(
   key: 'softpen',
-  name: 'ソフトペン',
-  description: 'やわらかい縁。さらりと均一に乗る',
   flow: 0.6,
   soft: 0.6,
   scatter: 0.05,
@@ -153,8 +131,6 @@ const BrushPreset softPenBrush = BrushPreset(
 
 const BrushPreset glowBrush = BrushPreset(
   key: 'glow',
-  name: 'グロー',
-  description: 'ふんわり淡く積もる光。重ねて明るく',
   flow: 0.12,
   soft: 1,
   scatter: 0,
@@ -163,8 +139,6 @@ const BrushPreset glowBrush = BrushPreset(
 
 const BrushPreset spongeBrush = BrushPreset(
   key: 'sponge',
-  name: 'スポンジ',
-  description: '大きく散る粒。ざらついた塗り',
   flow: 0.4,
   soft: 0,
   scatter: 1,
@@ -173,8 +147,6 @@ const BrushPreset spongeBrush = BrushPreset(
 
 const BrushPreset dryBrush = BrushPreset(
   key: 'dry',
-  name: 'ドライ',
-  description: 'かすれた擦れ。粗い質感の線',
   flow: 0.7,
   soft: 0,
   scatter: 0.4,
@@ -183,8 +155,6 @@ const BrushPreset dryBrush = BrushPreset(
 
 const BrushPreset maruPenBrush = BrushPreset(
   key: 'maru',
-  name: '丸ペン',
-  description: '細く均一なペン先。線幅が変わらず安定',
   flow: 1,
   soft: 0,
   scatter: 0,
@@ -194,8 +164,6 @@ const BrushPreset maruPenBrush = BrushPreset(
 
 const BrushPreset ballPenBrush = BrushPreset(
   key: 'ballpen',
-  name: 'ボールペン',
-  description: 'わずかに掠れる均一な線。筆記向き',
   flow: 0.9,
   soft: 0,
   scatter: 0.08,
@@ -205,8 +173,6 @@ const BrushPreset ballPenBrush = BrushPreset(
 
 const BrushPreset gPenBrush = BrushPreset(
   key: 'gpen',
-  name: 'Gペン',
-  description: '入り抜きの効いた漫画ペン。速度で鋭く強弱',
   flow: 1,
   soft: 0,
   scatter: 0,
@@ -217,8 +183,6 @@ const BrushPreset gPenBrush = BrushPreset(
 
 const BrushPreset watercolorBrush = BrushPreset(
   key: 'watercolor',
-  name: '水彩',
-  description: 'にじむ淡い塗り。重ねるほど深く沈む',
   flow: 0.2,
   soft: 0.55,
   scatter: 0.5,
@@ -227,8 +191,6 @@ const BrushPreset watercolorBrush = BrushPreset(
 
 const BrushPreset oilBrush = BrushPreset(
   key: 'oil',
-  name: '油彩',
-  description: '厚く平らに置く絵具。重なりが質感を作る',
   flow: 0.85,
   soft: 0,
   scatter: 0.35,
@@ -239,8 +201,6 @@ const BrushPreset oilBrush = BrushPreset(
 
 const BrushPreset bristleBrush = BrushPreset(
   key: 'bristle',
-  name: 'ブリストル',
-  description: '剛毛が割れる筆。筋の残る塗り',
   flow: 0.6,
   soft: 0,
   scatter: 0.7,

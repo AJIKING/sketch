@@ -15,6 +15,12 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # 多言語対応(日本語 / 簡体字 / 英語)。Flutter 標準の gen-l10n を使う。
+  flutter_localizations:
+    sdk: flutter
+  # ARB の ICU メッセージ(複数形・プレースホルダ)を解決する first-party パッケージ。
+  intl: any
+
   # iOS 風アイコンを使う場合に備える Flutter 標準同梱パッケージ。
   cupertino_icons: ^1.0.8
 
@@ -64,6 +70,9 @@ flutter_launcher_icons:
 flutter:
   # Material Icons フォントを同梱する。
   uses-material-design: true
+
+  # gen-l10n による多言語コード生成を有効化(lib/l10n/*.arb → AppLocalizations)。
+  generate: true
 
   # カスタムフォント(docs/prototype/hatch-sketch-app.html 準拠: Fraunces /
   # Space Grotesk / Zen Kaku Gothic New)。フォントファイルを assets/fonts/ に

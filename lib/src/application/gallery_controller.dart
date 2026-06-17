@@ -54,15 +54,16 @@ class GalleryController extends ChangeNotifier {
   }
 
   /// スケッチを複製する。画像をそのままコピーし、新しい id・日時で保存する。
-  /// 元が存在しない / 画像が無ければ null。タイトルは「… のコピー」。
-  Future<Sketch?> duplicate(String id) async {
+  /// 元が存在しない / 画像が無ければ null。複製後のタイトルは [copyName]
+  /// (UI 層がロケールに応じて「… のコピー」相当を渡す)。
+  Future<Sketch?> duplicate(String id, {required String copyName}) async {
     final source = _byId(id);
     final png = await store.loadImage(id);
     if (source == null || png == null) return null;
     final now = clock.now();
     final copy = Sketch(
       id: _uniqueId(now),
-      title: '${source.title ?? 'あなたのスケッチ'} のコピー',
+      title: copyName,
       createdAt: now,
       updatedAt: now,
     );

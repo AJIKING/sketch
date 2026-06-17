@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../application/canvas_controller.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../domain/color/ink_color.dart';
 import '../theme/atelier_theme.dart';
 
@@ -70,7 +71,7 @@ class _HexColorFieldState extends State<HexColorField> {
   void _submit() {
     final normalized = normalizeHex(_controller.text);
     if (normalized == null) {
-      setState(() => _error = '#RRGGBB の形式で入力してください');
+      setState(() => _error = AppLocalizations.of(context).hexFormatError);
       return;
     }
     setState(() => _error = null);
@@ -80,6 +81,7 @@ class _HexColorFieldState extends State<HexColorField> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -91,7 +93,7 @@ class _HexColorFieldState extends State<HexColorField> {
             autocorrect: false,
             decoration: InputDecoration(
               isDense: true,
-              labelText: 'カラーコード',
+              labelText: l.colorCode,
               hintText: '#RRGGBB',
               errorText: _error,
             ),
@@ -101,7 +103,7 @@ class _HexColorFieldState extends State<HexColorField> {
         const SizedBox(width: 8),
         Padding(
           padding: const EdgeInsets.only(top: 4),
-          child: TextButton(onPressed: _submit, child: const Text('適用')),
+          child: TextButton(onPressed: _submit, child: Text(l.commonApply)),
         ),
       ],
     );
@@ -180,7 +182,7 @@ class _SvSquare extends StatelessWidget {
           onPanUpdate: (d) => handle(d.localPosition),
           onPanEnd: (_) => onEnd(),
           child: Semantics(
-            label: '彩度と明度',
+            label: AppLocalizations.of(context).saturationValue,
             child: SizedBox(
               width: width,
               height: height,
@@ -281,7 +283,7 @@ class _HueBar extends StatelessWidget {
           onPanUpdate: (d) => handle(d.localPosition),
           onPanEnd: (_) => onEnd(),
           child: Semantics(
-            label: '色相',
+            label: AppLocalizations.of(context).hue,
             child: SizedBox(
               width: width,
               height: 24,

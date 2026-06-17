@@ -10,6 +10,7 @@ import 'package:sketch/src/ui/canvas/draw_surface.dart';
 import '../../fixtures/fake_clock.dart';
 import '../../fixtures/fake_photo_source.dart';
 import '../../fixtures/in_memory_gallery_store.dart';
+import '../../fixtures/l10n_app.dart';
 import '../../fixtures/recording_image_exporter.dart';
 
 Widget _app() => _appWith(RecordingImageExporter());
@@ -24,8 +25,8 @@ Widget _appWith(
     imageExporter: exporter,
     photoSource: photoSource,
   );
-  return MaterialApp(
-    home: CanvasScreen(
+  return localizedApp(
+    CanvasScreen(
       dependencies: deps,
       gallery: GalleryController(store: deps.galleryStore, clock: deps.clock),
     ),
@@ -272,8 +273,8 @@ void main() {
       photoSource: fake,
     );
     await tester.pumpWidget(
-      MaterialApp(
-        home: CanvasScreen(
+      localizedApp(
+        CanvasScreen(
           dependencies: deps,
           gallery: GalleryController(
             store: deps.galleryStore,

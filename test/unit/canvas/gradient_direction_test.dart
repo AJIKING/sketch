@@ -14,10 +14,15 @@ void main() {
     expect(GradientDirection.diagonalUp.unitAxis, ((0, 1), (1, 0)));
   });
 
-  test('全方向にラベルがある(UI 表示用)', () {
-    for (final d in GradientDirection.values) {
-      expect(d.label, isNotEmpty);
-    }
-    expect(GradientDirection.values.length, 5); // 横/縦/斜め2/放射
+  test('方向は 5 種(横/縦/斜め2/放射)。表示名は UI 層で解決する', () {
+    // ラベルは AppLocalizations へ移行(test/widget/localization_test.dart で検証)。
+    expect(GradientDirection.values.length, 5);
+    expect(GradientDirection.values.map((d) => d.name), [
+      'horizontal',
+      'vertical',
+      'diagonalDown',
+      'diagonalUp',
+      'radial',
+    ]);
   });
 }

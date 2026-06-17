@@ -8,6 +8,7 @@ import 'package:sketch/src/ui/gallery/gallery_screen.dart';
 
 import '../../fixtures/fake_clock.dart';
 import '../../fixtures/in_memory_gallery_store.dart';
+import '../../fixtures/l10n_app.dart';
 
 // 1x1 透明 PNG(Image.memory のデコードが成功するように本物を使う)。
 final _png = base64Decode(
@@ -27,8 +28,8 @@ void main() {
     Sketch? opened;
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: GalleryScreen(
+      localizedApp(
+        GalleryScreen(
           controller: controller,
           onNewCanvas: () => newTapped = true,
           onOpenSketch: (s) => opened = s,
@@ -57,8 +58,8 @@ void main() {
     await controller.load();
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: GalleryScreen(
+      localizedApp(
+        GalleryScreen(
           controller: controller,
           onNewCanvas: () {},
           onOpenSketch: (_) {},
@@ -90,8 +91,8 @@ void main() {
     await controller.load();
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: GalleryScreen(
+      localizedApp(
+        GalleryScreen(
           controller: controller,
           onNewCanvas: () {},
           onOpenSketch: (_) {},
@@ -122,8 +123,8 @@ void main() {
     await controller.load();
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: GalleryScreen(
+      localizedApp(
+        GalleryScreen(
           controller: controller,
           onNewCanvas: () {},
           onOpenSketch: (_) {},

@@ -5,19 +5,31 @@ import 'package:flutter/material.dart';
 
 import 'application/dependencies.dart';
 import 'application/gallery_controller.dart';
+import 'application/locale_controller.dart';
 import 'domain/gallery/sketch.dart';
+import '../l10n/app_localizations.dart';
 import 'ui/canvas/canvas_screen.dart';
 import 'ui/gallery/gallery_screen.dart';
 import 'ui/theme/atelier_theme.dart';
 
 /// 新規キャンバスのサイズプリセット(ADR 0006)。null は画面サイズ追従。
-const List<(String, Size?)> _sizePresets = [
-  ('画面サイズ', null),
-  ('正方形 1080×1080', Size(1080, 1080)),
-  ('正方形 2048×2048', Size(2048, 2048)),
-  ('縦 1080×1920', Size(1080, 1920)),
-  ('横 1920×1080', Size(1920, 1080)),
+/// 表示名は [AppLocalizations] から解決するため、ここでは寸法のみ保持する。
+const List<Size?> _sizePresets = [
+  null,
+  Size(1080, 1080),
+  Size(2048, 2048),
+  Size(1080, 1920),
+  Size(1920, 1080),
 ];
+
+/// プリセット寸法の表示名(`null` は画面サイズ追従)。
+String _sizeLabel(AppLocalizations l, Size? size) {
+  if (size == null) return l.sizeScreen;
+  if (size == const Size(1080, 1080)) return l.sizeSquare1080;
+  if (size == const Size(2048, 2048)) return l.sizeSquare2048;
+  if (size == const Size(1080, 1920)) return l.sizePortrait;
+  return l.sizeLandscape;
+}
 
 /// アプリのルート。差し替え境界([Dependencies])を受け取り、ギャラリーを起点に
 /// キャンバスへ遷移する。テストでは fake を束ねた [Dependencies] を渡す。
@@ -43,10 +55,14 @@ class _RakugaAppState extends State<RakugaApp> {
     store: _deps.galleryStore,
     clock: _deps.clock,
   )..load();
+  late final LocaleController _locale = LocaleController(
+    store: _deps.settingsStore,
+  )..load();
 
   @override
   void dispose() {
     _gallery.dispose();
+    _locale.dispose();
     super.dispose();
   }
 
@@ -87,16 +103,19 @@ class _RakugaAppState extends State<RakugaApp> {
     if (ctx == null) return Future<({Size? size})?>.value(null);
     return showDialog<({Size? size})>(
       context: ctx,
-      builder: (dialogCtx) => SimpleDialog(
-        title: const Text('キャンバスサイズ'),
-        children: [
-          for (final preset in _sizePresets)
-            SimpleDialogOption(
-              onPressed: () => Navigator.of(dialogCtx).pop((size: preset.$2)),
-              child: Text(preset.$1),
-            ),
-        ],
-      ),
+      builder: (dialogCtx) {
+        final l = AppLocalizations.of(dialogCtx);
+        return SimpleDialog(
+          title: Text(l.canvasSizeTitle),
+          children: [
+            for (final size in _sizePresets)
+              SimpleDialogOption(
+                onPressed: () => Navigator.of(dialogCtx).pop((size: size)),
+                child: Text(_sizeLabel(l, size)),
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -113,15 +132,29 @@ class _RakugaAppState extends State<RakugaApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Rakuga',
-      navigatorKey: _navigatorKey,
-      debugShowCheckedModeBanner: false,
-      theme: atelierTheme(),
-      home: GalleryScreen(
-        controller: _gallery,
-        onNewCanvas: _openCanvas,
-        onOpenSketch: (sketch) => _openCanvas(existing: sketch),
+    return ListenableBuilder(
+      listenable: _locale,
+      builder: (context, _) => MaterialApp(
+        title: 'Rakuga',
+        navigatorKey: _navigatorKey,
+        debugShowCheckedModeBanner: false,
+        theme: atelierTheme(),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        // null は端末設定に追従。未対応ロケールは英語へフォールバックする。
+        locale: _locale.locale,
+        localeResolutionCallback: (deviceLocale, supported) {
+          for (final s in supported) {
+            if (s.languageCode == deviceLocale?.languageCode) return s;
+          }
+          return const Locale('en');
+        },
+        home: GalleryScreen(
+          controller: _gallery,
+          localeController: _locale,
+          onNewCanvas: _openCanvas,
+          onOpenSketch: (sketch) => _openCanvas(existing: sketch),
+        ),
       ),
     );
   }

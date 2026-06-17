@@ -1,0 +1,8 @@
+# gen-l10n の設定(多言語対応)。
+# lib/l10n/app_*.arb から AppLocalizations を生成する。テンプレート(キーの正典)は
+# 英語 = フォールバック言語(docs/product-spec 準拠の言語方針)。
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+nullable-getter: false

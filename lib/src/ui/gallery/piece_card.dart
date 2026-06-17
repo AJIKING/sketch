@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../domain/gallery/sketch.dart';
 import '../theme/atelier_theme.dart';
 
@@ -53,7 +54,7 @@ class PieceCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            sketch.title ?? 'あなたのスケッチ',
+            sketch.title ?? AppLocalizations.of(context).untitledSketch,
             style: const TextStyle(color: AtelierTokens.inkDim, fontSize: 12),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
