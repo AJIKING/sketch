@@ -229,7 +229,7 @@ abstract class AppLocalizations {
   /// No description provided for @languageSystem.
   ///
   /// In en, this message translates to:
-  /// **'Follow system'**
+  /// **'System default'**
   String get languageSystem;
 
   /// No description provided for @canvasSizeTitle.

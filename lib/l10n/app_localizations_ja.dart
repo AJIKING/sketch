@@ -81,7 +81,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get languageTitle => '言語';
 
   @override
-  String get languageSystem => 'システムに従う';
+  String get languageSystem => 'システム既定';
 
   @override
   String get canvasSizeTitle => 'キャンバスサイズ';

@@ -25,7 +25,7 @@
   "renameHint": "スケッチの名前",
 
   "languageTitle": "言語",
-  "languageSystem": "システムに従う",
+  "languageSystem": "システム既定",
 
   "canvasSizeTitle": "キャンバスサイズ",
   "sizeScreen": "画面サイズ",

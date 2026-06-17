@@ -31,7 +31,7 @@
   "renameHint": "Sketch name",
 
   "languageTitle": "Language",
-  "languageSystem": "Follow system",
+  "languageSystem": "System default",
 
   "canvasSizeTitle": "Canvas size",
   "sizeScreen": "Screen size",

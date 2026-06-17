@@ -25,7 +25,7 @@
   "renameHint": "画作名称",
 
   "languageTitle": "语言",
-  "languageSystem": "跟随系统",
+  "languageSystem": "系统默认",
 
   "canvasSizeTitle": "画布尺寸",
   "sizeScreen": "屏幕尺寸",
