@@ -47,3 +47,11 @@ app.*.map.json
 
 # Claude Code: personal overrides stay local, shared config is committed
 .claude/settings.local.json
+
+# ローカル iOS 署名用(秘密鍵・APIキーを含む。コミット厳禁)
+temp/
+.codesign-venv/
+*.p8
+*.p12
+*.mobileprovision
+codemagic_certificate_private_key.pem
